@@ -2413,6 +2413,7 @@
     "lib": {
       "agent": {
         "catalog": {
+          "bobot_label": "BoBot",
           "5dff448636": "OpenClaw",
           "8a9ba743cc": "Hermes",
           "4e63c7b956": "Rovo Dev",
@@ -24992,6 +24993,42 @@
       "scannerBusy": "Too many session scans in flight. Wait a moment, then refresh.",
       "scannerMissing": "The session scanner is missing from this Orca install. Reinstalling Orca restores it.",
       "scannerStopped": "The session scanner stopped unexpectedly. Refresh to try again."
+    }
+  },
+  "cnb": {
+    "integration": {
+      "cancel": "Cancel",
+      "connect": "Connect",
+      "connectError": "Could not connect to CNB.",
+      "connected": "Connected",
+      "description": "Pull requests and build status for CNB repositories.",
+      "disconnect": "Disconnect",
+      "disconnectError": "Could not disconnect CNB.",
+      "edit": "Edit token",
+      "environment": "Configured through ORCA_CNB_TOKEN or CNB_TOKEN.",
+      "invalidToken": "Enter a valid CNB access token.",
+      "notConnected": "Not connected",
+      "rejected": "CNB rejected the token. Check its account read permission.",
+      "scopes": "Grant read access to account-profile, repo-pr, and repo-notes.",
+      "searchTitle": "CNB integration",
+      "keyword": "CNB",
+      "hostname": "cnb.cool",
+      "statusError": "Could not read the saved CNB connection.",
+      "storageUnavailable": "Secure storage is unavailable. Use ORCA_CNB_TOKEN or enable the system keyring.",
+      "token": "CNB access token",
+      "unreachable": "Could not reach CNB to verify the token."
+    },
+    "review": {
+      "checks": "{{passed}} passed · {{failed}} failed · {{pending}} pending",
+      "description": "Description",
+      "discussion": "Discussion",
+      "files": "Changed files",
+      "loadError": "Could not load CNB review details. Check Settings > Integrations, then refresh.",
+      "loading": "Loading review details…",
+      "moreFiles": "Open on CNB to see all changed files.",
+      "noComments": "No comments.",
+      "noFiles": "No changed files.",
+      "noPatch": "Open this pull request on CNB to view the full diff."
     }
   },
   "common": {

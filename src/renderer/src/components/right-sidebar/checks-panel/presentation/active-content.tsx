@@ -24,6 +24,7 @@ import { openAnnotationLocation } from '@/components/editor/check-details/action
 import { useTranslate } from '@/i18n/use-translate'
 import type { ChecksPanelActiveContentModel } from './active-content-props'
 import { ChecksPanelReviewHeader } from './review-header'
+import { CnbReviewDetailsContent } from './cnb-review-details'
 
 export function ChecksPanelActiveContent({
   model,
@@ -120,6 +121,44 @@ export function ChecksPanelActiveContent({
     settings,
     Boolean(activeWorktreeId)
   )
+  const header = (
+    <ChecksPanelReviewHeader
+      review={activeReview}
+      isRefreshing={isRefreshing}
+      canUnlinkReview={activeReview.provider === 'github' ? true : linkedGitLabMR !== null}
+      modifierHintDestination={hostedReviewModifierHintDestination}
+      onRefresh={() => void handleRefresh()}
+      onOpenReview={handleOpenPR}
+      onUnlinkReview={handleUnlinkReview}
+      onLinkAnotherReview={handleLinkAnotherReview}
+    />
+  )
+  if (activeReview.provider === 'cnb') {
+    return (
+      <div ref={setChecksPanelContentRef} className="flex-1 overflow-auto scrollbar-sleek">
+        {refreshError && (
+          <p role="alert" className="px-3 py-2 text-xs text-destructive">
+            {refreshError}
+          </p>
+        )}
+        <div className="space-y-2 border-b border-border px-3 py-3">
+          {header}
+          <p className="text-xs text-foreground">{activeReview.title}</p>
+          {activeReview.updatedAt && (
+            <ChecksPanelUpdatedAtMetadata
+              reviewShortLabel="PR"
+              updatedAt={activeReview.updatedAt}
+            />
+          )}
+        </div>
+        <CnbReviewDetailsContent
+          key={activeReview.url}
+          review={activeReview}
+          refreshing={isRefreshing}
+        />
+      </div>
+    )
+  }
   return (
     <div ref={setChecksPanelContentRef} className="flex-1 overflow-auto scrollbar-sleek">
       {refreshError ? (
@@ -131,16 +170,7 @@ export function ChecksPanelActiveContent({
         </div>
       ) : null}
       <div className="px-3 py-3 border-b border-border space-y-2.5">
-        <ChecksPanelReviewHeader
-          review={activeReview}
-          isRefreshing={isRefreshing}
-          canUnlinkReview={activeReview.provider === 'github' ? true : linkedGitLabMR !== null}
-          modifierHintDestination={hostedReviewModifierHintDestination}
-          onRefresh={() => void handleRefresh()}
-          onOpenReview={handleOpenPR}
-          onUnlinkReview={handleUnlinkReview}
-          onLinkAnotherReview={handleLinkAnotherReview}
-        />
+        {header}
 
         {detachedHeadDisplay && <DetachedHeadBadge display={detachedHeadDisplay} side="bottom" />}
 

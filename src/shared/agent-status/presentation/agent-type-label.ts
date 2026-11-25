@@ -3,6 +3,7 @@ import type { AgentType } from '../contracts/agent-status-types'
 // Share agent names across desktop and mobile.
 const WELL_KNOWN_LABELS: Record<string, string> = {
   claude: 'Claude',
+  bobot: 'BoBot',
   codebuddy: 'CodeBuddy',
   openclaude: 'OpenClaude',
   codex: 'Codex',

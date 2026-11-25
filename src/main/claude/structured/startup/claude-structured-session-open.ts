@@ -60,6 +60,7 @@ async function openStartingClaudeSession(
         providerSessionId: session.providerSessionId,
         resumesTranscript,
         account,
+        useClaudeAuthCheck: deps.definition === undefined,
         requestTimeoutMs: deps.requestTimeoutMs,
         emit: (event) => emit(session, event)
       }),

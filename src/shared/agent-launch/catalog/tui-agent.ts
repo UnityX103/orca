@@ -1,5 +1,6 @@
 export type TuiAgent =
   | 'claude'
+  | 'bobot'
   | 'claude-agent-teams' // Claude Code Agent Teams via Orca native panes
   | 'codebuddy'
   | 'openclaude'

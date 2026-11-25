@@ -33,6 +33,7 @@ const EDIT_ACCEPTING_CHAT_PERMISSION_MODES: AgentChatPermissionModeSupport = {
 /** Every agent that has a native chat. */
 export const NATIVE_CHAT_AGENTS = [
   'claude',
+  'bobot',
   'codex',
   'grok',
   'opencode',
@@ -64,6 +65,7 @@ const AGENT_CHAT_PERMISSION_MODES_BY_AGENT: Record<
   AgentChatPermissionModeSupport | null
 > = {
   claude: CLAUDE_CHAT_PERMISSION_MODES,
+  bobot: EDIT_ACCEPTING_CHAT_PERMISSION_MODES,
   codex: CODEX_CHAT_PERMISSION_MODES,
   grok: ACP_CHAT_PERMISSION_MODES,
   opencode: ACP_CHAT_PERMISSION_MODES,

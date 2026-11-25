@@ -1,3 +1,7 @@
+import {
+  BOBOT_STRUCTURED_AGENT,
+  bobotStructuredLaunchPart
+} from '../../../bobot/bobot-structured-runtime'
 import { AcpAtRestCommandCatalog } from '../../../acp/discovery/acp-at-rest-commands'
 import { resolveNativeChatVisualsSkillLocation } from '../../../native-chat/conversation-files/native-chat-visuals-skill-location'
 import { withSupportedCodexCli } from '../../../codex/structured/launch/codex-cli-installation-error'
@@ -162,6 +166,29 @@ function createClaudeAdapter(
   })
 }
 
+function createBoBotAdapter(context: StructuredAgentAdapterContext): StructuredAgentRuntimeAdapter {
+  const { deps, store, followUps, host } = context
+  return createStructuredClaudeRuntimeAdapter({
+    store,
+    definition: BOBOT_STRUCTURED_AGENT,
+    resolveWorkspacePath: deps.resolveWorkspacePath,
+    resolveLaunch: composeStructuredLaunch(
+      BOBOT_STRUCTURED_AGENT,
+      structuredAgentLaunchSources(context),
+      bobotStructuredLaunchPart({
+        resolveLaunchArgs: () => deps.resolveLaunchArgs('bobot'),
+        attachmentDirectory: agentSessionAttachmentStoreRoot(deps.stateDirectory)
+      })
+    ),
+    onLifecycleEvent: context.deliverLifecycle,
+    onChildWorkEvidence: (sessionId, evidence, producer) =>
+      host()?.publishChildWorkEvidence(sessionId, evidence, producer),
+    onDispatchSettledLate: followUps.onDispatchSettledLate,
+    logger: deps.logger,
+    ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {})
+  })
+}
+
 function createAcpAdapter(
   spec: AcpLaunchSpec
 ): StructuredAgentRuntimeRegistration['createAdapter'] {
@@ -235,6 +262,8 @@ function registrationWithAdapter(
       return Object.assign(entry.metadata, { createAdapter: createCodexAdapter })
     case 'claude':
       return Object.assign(entry.metadata, { createAdapter: createClaudeAdapter })
+    case 'bobot':
+      return Object.assign(entry.metadata, { createAdapter: createBoBotAdapter })
     case 'acp':
       return Object.assign(entry.metadata, { createAdapter: createAcpAdapter(entry.spec) })
   }

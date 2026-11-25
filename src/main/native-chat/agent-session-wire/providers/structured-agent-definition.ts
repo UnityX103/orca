@@ -12,6 +12,8 @@ export type StructuredAgentListedSelection = (
 
 export type StructuredAgentDefinition = AgentSessionStoredAgent & {
   capabilities: AgentSessionCapabilities
+  /** Its stream can only classify early frames with a snapshot of the saved journal. */
+  needsJournalBeforeAcquisition?: boolean
   /** Absent means Orca never supplies this agent’s managed runtime. */
   managedRuntime?: () => boolean
   /** Whether a chat pinned to `home` runs a program the host has rather than the managed runtime. */

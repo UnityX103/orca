@@ -17,6 +17,7 @@ import {
   getBitbucketRepoSlug
 } from '../bitbucket/client'
 import { createBitbucketPullRequest } from '../bitbucket/pull-request-creation'
+import { cnbForgeProvider } from '../cnb/forge-provider'
 import {
   getGiteaPullRequest,
   getGiteaPullRequestForBranchOrThrow,
@@ -306,6 +307,7 @@ export const FORGE_PROVIDERS = [
   gitHubForgeProvider,
   bitbucketForgeProvider,
   azureDevOpsForgeProvider,
+  cnbForgeProvider,
   giteaForgeProvider
 ] as const satisfies readonly ForgeProvider[]
 

@@ -13,11 +13,24 @@ export const INTEGRATION_SETTING_TARGET_IDS = {
   bitbucket: 'integrations-bitbucket',
   azuredevops: 'integrations-azure-devops',
   gitea: 'integrations-gitea',
+  cnb: 'integrations-cnb',
   jira: JIRA_INTEGRATION_SECTION_ID,
   linear: LINEAR_INTEGRATION_SECTION_ID
 } as const
 
 export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
+  {
+    targetSectionId: INTEGRATION_SETTING_TARGET_IDS.cnb,
+    title: translate('cnb.integration.searchTitle', 'CNB integration'),
+    description: translate(
+      'cnb.integration.description',
+      'Pull requests and build status for CNB repositories.'
+    ),
+    keywords: [
+      ...translateSearchKeyword('cnb.integration.keyword', 'CNB'),
+      ...translateSearchKeyword('cnb.integration.hostname', 'cnb.cool')
+    ]
+  },
   {
     targetSectionId: INTEGRATION_SETTING_TARGET_IDS.github,
     title: translate(

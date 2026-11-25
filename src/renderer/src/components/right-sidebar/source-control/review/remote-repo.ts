@@ -58,6 +58,9 @@ function providerForHost(host: string): ManualReviewProvider | null {
   if (host === 'bitbucket.org') {
     return 'bitbucket'
   }
+  if (host === 'cnb.cool') {
+    return 'cnb'
+  }
   if (
     host === 'dev.azure.com' ||
     host === 'ssh.dev.azure.com' ||

@@ -89,7 +89,10 @@ export async function resolveClaudeAcquisitionLaunch(args: {
           ...input.identity,
           providerHandle: claudeProviderHandle(
             resumeSession.providerSessionId,
-            resumeSession.turnEndLeafUuid
+            resumeSession.turnEndLeafUuid,
+            deps.definition
+              ? { agent: deps.definition.agent, transport: deps.definition.handleTransport }
+              : undefined
           )
         }
       : input.identity

@@ -3,6 +3,7 @@ import {
   GiteaIntegrationCard
 } from '../../integrations/source-control/token-source-control-integration-cards'
 import { BitbucketIntegrationCard } from '../../integrations/source-control/bitbucket-integration-card'
+import { CnbIntegrationCard } from '../../integrations/source-control/cnb-integration-card'
 import {
   GitHubIntegrationCard,
   GitLabIntegrationCard
@@ -60,6 +61,11 @@ export function IntegrationsPane(): React.JSX.Element {
           <ProviderRow id={INTEGRATION_SETTING_TARGET_IDS.gitea}>
             <GiteaIntegrationCard />
           </ProviderRow>
+          {window.api.cnb && (
+            <ProviderRow id={INTEGRATION_SETTING_TARGET_IDS.cnb}>
+              <CnbIntegrationCard />
+            </ProviderRow>
+          )}
         </SettingsGroup>
 
         <SettingsGroup

@@ -1,12 +1,11 @@
+import { withoutRejectedClaudeApiKey } from './configuration/claude-rejected-api-key'
 import { withOrcaClaudeChatEntrypoint } from '../../shared/agent-launch/startup/claude-chat-entrypoint'
 import { claudeStartupAnswerObservation } from './child-process/claude-startup-answer-observation'
 import type { ProviderProcessSpawner } from '../provider-process/provider-process-spawn'
 import type * as ClaudeAgentSdk from '@anthropic-ai/claude-agent-sdk'
 import type { CanUseTool, OnUserDialog, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import { spawnProcess } from '@orca/process-host'
-import { buildClaudeChildProcessEnv } from './child-process/claude-child-process-environment'
-import { withoutInheritedClaudeConfigDir } from './structured/launch/claude-config-dir-pin'
-import { withoutRejectedClaudeApiKey } from './configuration/claude-rejected-api-key'
+import { buildClaudeStreamJsonEnvironment } from './child-process/claude-child-process-environment'
 import {
   createClaudeControlSurface,
   type ClaudeControlSurface
@@ -47,6 +46,7 @@ export type ClaudeStreamJsonLaunch = {
   /** Orca's resolved user CLI; the SDK falls back to a bundled binary that is not installed. */
   pathToClaudeCodeExecutable: string
   prefixArgs?: readonly string[]
+  agent?: string
   options: ClaudeStructuredSdkOptions
   cwd: string
   env?: Record<string, string>
@@ -102,20 +102,17 @@ export async function openClaudeStreamJsonConnection(
   const { query } = await loadClaudeAgentSdk()
   const startup = claudeStartupAnswerObservation(handlers.onStdout)
   const spawner = createClaudeCodeProcessSpawn(spawnImpl, process.platform, launch, startup.feed)
-  // Always supply scrubbed env to prevent ambient auth leaks; only launch.env may pin CLAUDE_CONFIG_DIR.
-  const env = await withoutRejectedClaudeApiKey(
-    buildClaudeChildProcessEnv(launch.env, {
-      inheritedEnv: withoutInheritedClaudeConfigDir(process.env),
-      envToDelete: launch.envToDelete
-    })
-  )
+  const env = buildClaudeStreamJsonEnvironment(launch)
   const inbox = createClaudeUserMessageQueue()
   const session = (queryImpl ?? query)({
     prompt: inbox.messages,
     options: {
       ...launch.options,
       cwd: launch.cwd,
-      env: withOrcaClaudeChatEntrypoint(env, process.platform),
+      env: withOrcaClaudeChatEntrypoint(
+        launch.agent ? env : await withoutRejectedClaudeApiKey(env),
+        process.platform
+      ),
       pathToClaudeCodeExecutable: launch.pathToClaudeCodeExecutable,
       spawnClaudeCodeProcess: spawner.spawn,
       ...(handlers.canUseTool ? { canUseTool: handlers.canUseTool } : {}),

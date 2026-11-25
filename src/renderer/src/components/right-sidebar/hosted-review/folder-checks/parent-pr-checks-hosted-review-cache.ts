@@ -63,6 +63,7 @@ function getLinkedReviewNumberForProvider(
       return worktree.linkedAzureDevOpsPR ?? null
     case 'gitea':
       return worktree.linkedGiteaPR ?? null
+    case 'cnb':
     case 'unsupported':
       return null
   }

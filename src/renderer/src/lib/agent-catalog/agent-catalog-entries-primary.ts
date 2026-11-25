@@ -23,6 +23,12 @@ export function primaryAgentCatalogEntries(): AgentCatalogEntry[] {
       homepageUrl: 'https://code.claude.com/docs/en/agent-teams'
     },
     {
+      id: 'bobot',
+      label: translate('auto.lib.agent.catalog.bobot_label', 'BoBot'),
+      cmd: 'bobot',
+      homepageUrl: 'https://bocloud.com/bobot'
+    },
+    {
       id: 'openclaude',
       label: translate('auto.lib.agent.catalog.a5fc0cb622', 'OpenClaude'),
       cmd: 'openclaude',

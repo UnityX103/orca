@@ -3,6 +3,7 @@ import type { TuiAgent } from './tui-agent'
 /** English names for shared/nonlocalized keybinding surfaces; keep aligned with renderer agent-catalog.tsx labels. */
 export const TUI_AGENT_DISPLAY_NAMES: Record<TuiAgent, string> = {
   claude: 'Claude',
+  bobot: 'BoBot',
   'claude-agent-teams': 'Claude Agent Teams',
   codebuddy: 'CodeBuddy',
   openclaude: 'OpenClaude',

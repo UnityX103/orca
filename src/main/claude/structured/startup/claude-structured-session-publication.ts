@@ -103,7 +103,9 @@ export function createClaudeSessionPublication(input: {
 }): { acquisition: AgentSessionAcquisition; session: ClaudeSession } {
   const acquisitionGeneration = mintClaudeAcquisitionGeneration(input.deps)
   const linkId = input.deps.mintLinkId?.()
+  const definition = input.deps.definition ?? CLAUDE_STRUCTURED_AGENT
   const link = claudeProviderHandleLink({
+    namespace: { agent: definition.agent, transport: definition.handleTransport },
     sessionId: input.launch.providerSessionId,
     leafUuid: input.leafUuid,
     resumed: input.launch.continuesChain,
@@ -117,7 +119,7 @@ export function createClaudeSessionPublication(input: {
       process: input.process,
       acquisitionGeneration,
       ...(input.launch.accountRecipe ? { accountRecipe: input.launch.accountRecipe } : {}),
-      accountHome: agentSessionAccountHome(CLAUDE_STRUCTURED_AGENT, input.launch.claudeConfigDir)
+      accountHome: agentSessionAccountHome(definition, input.launch.claudeConfigDir)
     },
     session: {
       connection: input.connection,

@@ -72,11 +72,16 @@ export async function readClaudeStartupFacts(input: {
   providerSessionId: string
   resumesTranscript: boolean
   account?: AgentSessionAccountKind
+  useClaudeAuthCheck?: boolean
   requestTimeoutMs: number | undefined
   emit: (event: ClaudeStructuredSessionEvent) => void
 }): Promise<ClaudeInitializeFacts> {
   const control = input.connection.initializationResult().then((result) => {
-    const authError = claudeInitializationAuthError(result, input.account)
+    // Compatible CLIs can sign in through providers Claude's tokenSource does not represent.
+    const authError =
+      input.useClaudeAuthCheck === false
+        ? null
+        : claudeInitializationAuthError(result, input.account)
     if (authError) {
       throw authError
     }

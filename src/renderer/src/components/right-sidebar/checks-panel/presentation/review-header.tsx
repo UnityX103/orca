@@ -42,7 +42,8 @@ export function ChecksPanelReviewHeader({
   const t = useTranslate()
   const reviewNumberLabel = review.provider === 'gitlab' ? `!${review.number}` : `#${review.number}`
   const ReviewIcon = review.provider === 'gitlab' ? GitMerge : PullRequestIcon
-  const reviewHostLabel = review.provider === 'gitlab' ? 'GitLab' : 'GitHub'
+  const reviewHostLabel =
+    review.provider === 'gitlab' ? 'GitLab' : review.provider === 'cnb' ? 'CNB' : 'GitHub'
   const moreActionsLabel =
     review.provider === 'gitlab'
       ? t('auto.components.right.sidebar.ChecksPanel.gitlabMoreActions', 'More MR actions')
@@ -88,35 +89,40 @@ export function ChecksPanelReviewHeader({
       >
         <RefreshCw className={cn('size-3.5', isRefreshing && 'animate-spin')} />
       </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={moreActionsLabel}
-            title={moreActionsLabel}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Ellipsis className="size-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          <HostedReviewUnlinkMenuItem
-            reviewLabel={review.provider === 'gitlab' ? 'MR' : 'PR'}
-            reviewIdentifier={reviewNumberLabel}
-            providerLabel={reviewHostLabel}
-            disabled={!canUnlinkReview}
-            onSelect={onUnlinkReview}
-          />
-          <DropdownMenuItem onSelect={onLinkAnotherReview}>
-            <Link className="size-3.5" />
-            {review.provider === 'gitlab'
-              ? t('auto.components.right.sidebar.ChecksPanel.gitlabLinkAnother', 'Link another MR')
-              : t('auto.components.right.sidebar.ChecksPanel.07871c0589', 'Link another PR')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {review.provider !== 'cnb' && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={moreActionsLabel}
+              title={moreActionsLabel}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Ellipsis className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <HostedReviewUnlinkMenuItem
+              reviewLabel={review.provider === 'gitlab' ? 'MR' : 'PR'}
+              reviewIdentifier={reviewNumberLabel}
+              providerLabel={reviewHostLabel}
+              disabled={!canUnlinkReview}
+              onSelect={onUnlinkReview}
+            />
+            <DropdownMenuItem onSelect={onLinkAnotherReview}>
+              <Link className="size-3.5" />
+              {review.provider === 'gitlab'
+                ? t(
+                    'auto.components.right.sidebar.ChecksPanel.gitlabLinkAnother',
+                    'Link another MR'
+                  )
+                : t('auto.components.right.sidebar.ChecksPanel.07871c0589', 'Link another PR')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   )
 }

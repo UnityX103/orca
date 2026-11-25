@@ -36,6 +36,7 @@ import type { GithubPullRequestApi } from './api/github/github-pull-request-api'
 import type { GithubWorkItemApi } from './api/github/github-work-item-api'
 import type { GitLabApi } from './api/gitlab/gitlab-api'
 import type { BitbucketApi, HostedReviewApi } from './api/hosted-review/hosted-review-api'
+import type { cnbApi } from './api/hosted-review/cnb-bridge'
 import type { JiraApi } from './api/work-items/jira-api'
 import type { LinearApi } from './api/work-items/linear-api'
 import type { MobileApi } from './api/mobile/mobile-api'
@@ -119,6 +120,7 @@ export type PreloadApi = {
   hostedReview: HostedReviewApi
   gl: GitLabApi
   bitbucket: BitbucketApi
+  cnb?: typeof cnbApi
   linear: LinearApi
   jira: JiraApi
   starNag: StarNagApi

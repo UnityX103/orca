@@ -170,7 +170,8 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       this.sendErrorStatus(`The server update did not complete: ${serveHandoffFailure}`, true)
     }
 
-    if (!app.isPackaged) {
+    // SOrca's local build has a separate bundle and must keep its native integrations.
+    if (!app.isPackaged || app.getVersion().includes('+sorca.')) {
       return
     }
 

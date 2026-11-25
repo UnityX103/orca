@@ -1,3 +1,4 @@
+import { withoutInheritedClaudeConfigDir } from '../structured/launch/claude-config-dir-pin'
 import {
   CLAUDE_AUTH_ENV_VARS,
   applyClaudeEnvPatch
@@ -80,4 +81,14 @@ export function buildClaudeChildProcessEnv(
     delete configured[key]
   }
   return configured
+}
+
+export function buildClaudeStreamJsonEnvironment(launch: {
+  env?: Record<string, string>
+  envToDelete?: readonly string[]
+}): Record<string, string> {
+  return buildClaudeChildProcessEnv(launch.env, {
+    inheritedEnv: withoutInheritedClaudeConfigDir(process.env),
+    envToDelete: launch.envToDelete
+  })
 }

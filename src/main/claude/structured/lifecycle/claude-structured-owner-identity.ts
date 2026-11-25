@@ -1,10 +1,14 @@
 import type { AgentSessionJournalIdentity } from '../../../../shared/agent-session/journal/agent-session-journal-identity'
-import type { AgentSessionProviderHandleLink } from '../../../../shared/agent-session/lifecycle/provider-handles/agent-session-provider-handle'
+import type {
+  AgentSessionProviderHandleLink,
+  AgentSessionProviderHandleNamespace
+} from '../../../../shared/agent-session/lifecycle/provider-handles/agent-session-provider-handle'
 import { claudeProviderHandle } from '../../../../shared/agent-session/lifecycle/provider-handles/agent-session-provider-handle-encoding'
 import type { AgentSessionProcessIdentity } from '../../../../shared/agent-session/lifecycle/agent-session-record'
 import { readProcessStartTimeMs } from '../../../runtime/agent-session/ownership/agent-session-process-identity-probe'
 
 export function claudeProviderHandleLink(input: {
+  namespace?: AgentSessionProviderHandleNamespace
   sessionId: string
   leafUuid: string | null
   resumed: boolean
@@ -17,8 +21,11 @@ export function claudeProviderHandleLink(input: {
   return {
     linkId:
       input.linkId ??
-      `claude-${input.fence}-${input.sessionId}-${input.leafUuid ?? 'empty'}`.slice(0, 128),
-    handle: claudeProviderHandle(input.sessionId, input.leafUuid),
+      `${input.namespace?.agent ?? 'claude'}-${input.fence}-${input.sessionId}-${input.leafUuid ?? 'empty'}`.slice(
+        0,
+        128
+      ),
+    handle: claudeProviderHandle(input.sessionId, input.leafUuid, input.namespace),
     origin:
       input.origin ?? (input.forkedFromKey ? 'forked' : input.resumed ? 'resumed' : 'created'),
     mintedAtFence: input.fence,

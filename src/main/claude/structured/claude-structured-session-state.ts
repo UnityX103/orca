@@ -58,7 +58,10 @@ export type ClaudeLateDispatchOutcome =
   /** The CLI took the send and let it go unanswered: it may have run, so it is never re-sent. */
   | { clientMessageId: string; state: 'unknown'; reason: string }
 
+import type { DirectoryAccountAgentDefinition } from '../../native-chat/agent-session-wire/providers/structured-agent-definition'
+
 export type ClaudeStructuredSessionAdapterDeps = {
+  definition?: DirectoryAccountAgentDefinition
   namingInputs?: (record: AgentSessionRecord) => Promise<ClaudeNamingInputs>
   namingRecord?: (sessionId: string) => AgentSessionRecord | null | undefined
   atRestCommands?: ClaudeAtRestCommandCatalog

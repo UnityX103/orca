@@ -47,10 +47,11 @@ export function agentSessionProviderHandleBelongsTo(
 /** Claude's resume cursor is its leaf: the transcript entry a resume continues from. */
 export function claudeProviderHandle(
   sessionId: string,
-  leafUuid: string | null
+  leafUuid: string | null,
+  namespace: AgentSessionProviderHandleNamespace = CLAUDE_STRUCTURED_HANDLE_NAMESPACE
 ): AgentSessionProviderHandle {
   return {
-    ...CLAUDE_STRUCTURED_HANDLE_NAMESPACE,
+    ...namespace,
     nativeId: sessionId,
     ...(leafUuid === null ? {} : { resumeCursor: leafUuid })
   }

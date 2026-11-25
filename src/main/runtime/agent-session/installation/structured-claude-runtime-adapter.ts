@@ -18,6 +18,7 @@ import { prewarmClaudeCliFlags } from '../../../claude/cli-capabilities/claude-c
 
 export type StructuredClaudeRuntimeAdapterDeps = {
   store: AgentSessionRecordStore
+  definition?: ClaudeStructuredSessionAdapterDeps['definition']
   resolveWorkspacePath: (workspaceId: string) => Promise<string>
   resolveAccountHome?: ClaudeAtRestCommandsDeps['resolveAccountHome']
   resolveLaunch: ClaudeStructuredSessionAdapterDeps['resolveLaunch']
@@ -75,7 +76,10 @@ export function structuredClaudeLifecycleEvent(
 export function createStructuredClaudeRuntimeAdapter(
   deps: StructuredClaudeRuntimeAdapterDeps
 ): ClaudeStructuredSessionAdapter {
-  const { store } = deps
+  const { store, definition } = deps
+  const namespace = definition
+    ? { agent: definition.agent, transport: definition.handleTransport }
+    : undefined
   if (deps.claudeCliFlags) {
     // Before any chat launches, so the first one rarely waits on the version check.
     void prewarmClaudeCliFlags({
@@ -89,6 +93,7 @@ export function createStructuredClaudeRuntimeAdapter(
     })
   }
   return new ClaudeStructuredSessionAdapter({
+    ...(definition ? { definition } : {}),
     atRestCommands: new ClaudeAtRestCommandCatalog({
       resolveWorkspacePath: deps.resolveWorkspacePath,
       ...(deps.resolveAccountHome ? { resolveAccountHome: deps.resolveAccountHome } : {}),
@@ -110,6 +115,7 @@ export function createStructuredClaudeRuntimeAdapter(
         args: {
           fence: currentFence,
           link: claudeProviderHandleLink({
+            ...(namespace ? { namespace } : {}),
             sessionId: providerSessionId,
             leafUuid,
             resumed: true,
@@ -125,7 +131,7 @@ export function createStructuredClaudeRuntimeAdapter(
         kind: 'resume-point',
         args: {
           fence,
-          handle: claudeProviderHandle(providerSessionId, leafUuid),
+          handle: claudeProviderHandle(providerSessionId, leafUuid, namespace),
           now: Date.now()
         }
       })

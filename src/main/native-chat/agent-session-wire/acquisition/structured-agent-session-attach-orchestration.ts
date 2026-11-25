@@ -180,7 +180,7 @@ async function runAttachUnderAbort(
         if (barrier && !barrier.ok) {
           throw barrier.error
         }
-        if (params.agent === 'claude') {
+        if (context.deps.agents.definition(params.agent)?.needsJournalBeforeAcquisition) {
           // The translator classifies against the reserved conversation's actual saved facts.
           await lock.commit(async () => {
             const conversation = await context.openConversation(sessionId, { acquisition: true })

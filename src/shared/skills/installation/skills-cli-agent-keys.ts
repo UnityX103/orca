@@ -4,6 +4,7 @@ import type { TuiAgent } from '../../agent-launch/catalog/tui-agent'
  * Unknown mappings are null because guessed keys abort installation; aider-desk and openclaw are different products. */
 export const SKILLS_CLI_AGENT_KEY_BY_TUI_AGENT = {
   claude: 'claude-code',
+  bobot: null,
   'claude-agent-teams': 'claude-code',
   codebuddy: 'codebuddy',
   // Follow native-chat skillSourceOwner (claude); Orca’s direct installer separately targets .openclaude roots.

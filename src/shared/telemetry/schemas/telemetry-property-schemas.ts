@@ -10,6 +10,7 @@ import type { GlobalSettings } from '../../settings/global-settings-types'
 // Wire names use product names (claude-code for the claude CLI); tuiAgentToAgentKind maps unknowns to other.
 export const AGENT_KIND_VALUES = [
   'claude-code',
+  'bobot',
   'claude-agent-teams',
   'codebuddy',
   'openclaude',

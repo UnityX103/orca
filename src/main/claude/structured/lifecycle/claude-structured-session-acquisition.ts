@@ -6,7 +6,7 @@ import { claudeFrameSendFacts } from '../turns/claude-command-lifecycle'
 import { claudeSessionStateEndsTurn } from '../turns/claude-session-state-turn-over'
 import { settleClaudeTurnEndWaiters } from '../turns/claude-request-end-wait'
 import * as proof from '../startup/claude-structured-init-proof'
-import { claudeConfigDirEnvPatch } from '../launch/claude-config-dir-pin'
+import { structuredStreamJsonAccountEnv } from '../launch/claude-config-dir-pin'
 import { claudeProcessIdentity } from './claude-structured-owner-identity'
 import { ClaudePromptRegistry } from '../permissions/claude-prompt-registry'
 import { adoptClaudeStructuredSpawnOptions } from '../launch/claude-structured-spawn-options'
@@ -197,11 +197,8 @@ export async function acquireClaudeSession({
           prefixArgs: launch.prefixArgs,
           options: launch.options,
           cwd: launch.cwd,
-          env: {
-            ...launch.env,
-            // The saved account directory must override a conflicting environment overlay.
-            ...claudeConfigDirEnvPatch(launch.claudeConfigDir, { env: launch.env })
-          },
+          ...(deps.definition ? { agent: deps.definition.agent } : {}),
+          env: structuredStreamJsonAccountEnv(launch, deps.definition?.agent),
           ...(launch.envToDelete ? { envToDelete: launch.envToDelete } : {})
         },
         {

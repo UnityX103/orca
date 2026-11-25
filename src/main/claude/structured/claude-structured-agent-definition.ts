@@ -9,6 +9,7 @@ export const CLAUDE_STRUCTURED_AGENT: DirectoryAccountAgentDefinition = {
   handleTransport: CLAUDE_STRUCTURED_HANDLE_NAMESPACE.transport,
   accountHomeVariable: 'CLAUDE_CONFIG_DIR',
   managedRuntime: () => managedAgentCli('claude').available(),
+  needsJournalBeforeAcquisition: true,
   capabilities: {
     rewind: true,
     fork: 'checkpoint',

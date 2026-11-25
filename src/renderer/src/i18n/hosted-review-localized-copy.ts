@@ -6,7 +6,7 @@ import {
 import { translate } from '@/i18n/i18n'
 import type { Translate } from '@/i18n/use-translate'
 
-export type SupportedHostedReviewCopyProvider = HostedReviewCreationProvider
+export type SupportedHostedReviewCopyProvider = HostedReviewCreationProvider | 'cnb'
 
 export type LocalizedHostedReviewCopy = {
   shortLabel: string
@@ -18,7 +18,7 @@ export type LocalizedHostedReviewCopy = {
 export function resolveSupportedHostedReviewCopyProvider(
   provider: HostedReviewProvider | null | undefined
 ): SupportedHostedReviewCopyProvider {
-  return resolveHostedReviewCreationProvider(provider)
+  return provider === 'cnb' ? provider : resolveHostedReviewCreationProvider(provider)
 }
 
 export function localizedHostedReviewCopy(
@@ -55,6 +55,14 @@ export function localizedHostedReviewCopy(
       reviewLabel: t('auto.i18n.hostedReview.copy.e9f3a7b1c0', 'pull request'),
       titleLabel: t('auto.i18n.hostedReview.copy.d8e2f6a0b9', 'Pull Request'),
       providerName: 'Bitbucket'
+    }
+  }
+  if (provider === 'cnb') {
+    return {
+      shortLabel: t('auto.i18n.hostedReview.copy.f0a4b8c2d1', 'PR'),
+      reviewLabel: t('auto.i18n.hostedReview.copy.e9f3a7b1c0', 'pull request'),
+      titleLabel: t('auto.i18n.hostedReview.copy.d8e2f6a0b9', 'Pull Request'),
+      providerName: 'CNB'
     }
   }
   return {

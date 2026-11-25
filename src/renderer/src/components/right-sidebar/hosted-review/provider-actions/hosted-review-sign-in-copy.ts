@@ -11,6 +11,7 @@ import {
 const SIGN_IN_COMMANDS = { github: 'gh auth login', gitlab: 'glab auth login' } as const
 const SIGN_IN_VARIABLES = {
   'azure-devops': 'ORCA_AZURE_DEVOPS_TOKEN',
+  cnb: 'ORCA_CNB_TOKEN',
   gitea: 'ORCA_GITEA_TOKEN'
 } as const
 

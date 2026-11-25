@@ -57,6 +57,7 @@ const NATIVE_CHAT_AGENT_PROFILES: Record<NativeChatAgent, NativeChatAgentProfile
     skipsSharedSkillFolders: true,
     expandsSlashCommandsFromText: true
   },
+  bobot: null,
   openclaude: {
     skillPrefix: '/',
     skillSourceOwner: 'claude',

@@ -42,3 +42,13 @@ export function claudeConfigDirEnvPatch(
   }
   return { CLAUDE_CONFIG_DIR: resolved }
 }
+
+export function structuredStreamJsonAccountEnv(
+  launch: { claudeConfigDir: string; env?: Record<string, string> },
+  agent?: string
+): Record<string, string> | undefined {
+  // Other CLIs supply their own account environment in their launch resolver.
+  return agent
+    ? launch.env
+    : { ...launch.env, ...claudeConfigDirEnvPatch(launch.claudeConfigDir, { env: launch.env }) }
+}

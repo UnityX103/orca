@@ -4,6 +4,7 @@ import { isTuiAgent } from '../../agent-launch/catalog/tui-agent-config'
 
 const ICONABLE_AGENT_TYPES: Record<TerminalAgent, true> = {
   claude: true,
+  bobot: true,
   'claude-agent-teams': true,
   codebuddy: true,
   openclaude: true,

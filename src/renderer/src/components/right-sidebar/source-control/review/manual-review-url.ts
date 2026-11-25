@@ -154,6 +154,7 @@ export function buildSourceControlManualReviewUrl(input: ManualReviewUrlInput): 
       : localBranch)
 
   switch (provider) {
+    case 'cnb':
     case null:
       return null
     case 'github':
