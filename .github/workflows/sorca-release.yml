@@ -1,4 +1,5 @@
 name: SOrca 构建与发布
+run-name: SOrca ${{ inputs.platforms || 'both' }} · ${{ github.event_name }}
 
 on:
   schedule:
@@ -76,7 +77,7 @@ jobs:
                 echo '::error::上游源码发生合并冲突，需处理冲突后重新运行。'
                 exit 1
               fi
-              git diff --cached --check
+              git diff --cached --check refs/remotes/sorca-upstream/main
               git commit -m 'chore: 合并上游 Orca main'
               git push origin HEAD:refs/heads/自用版
             fi
