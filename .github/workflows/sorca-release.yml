@@ -103,7 +103,7 @@ jobs:
           fi
 
           version="$(node -p 'const base = /^\d+\.\d+\.\d+/.exec(require("./package.json").version)?.[0]; if (!base) throw Error("Invalid Orca version"); (base.localeCompare("1.4.274", "en", { numeric: true }) < 0 ? "1.4.274" : base) + "+sorca." + process.env.GITHUB_RUN_ID + "." + process.env.GITHUB_RUN_ATTEMPT')"
-          mac='{"platform":"mac","runner":"macos-15","asset":"SOrca-macos-arm64.dmg"}'
+          mac='{"platform":"mac","runner":"macos-26","asset":"SOrca-macos-arm64.dmg"}'
           win='{"platform":"windows","runner":"windows-2022","asset":"SOrca-windows-x64.exe"}'
           case "$PLATFORMS" in
             mac) matrix="[$mac]" ;;
