@@ -31,8 +31,11 @@ import {
   runAgentModelCatalogListing
 } from '../native-chat/agent-model-catalog/agent-model-catalog-probe-runner'
 import { AgentModelCatalogUnavailableError } from '../native-chat/agent-model-catalog/agent-model-catalog-unavailable'
-import type { StructuredAgentModelCatalogContext } from '../runtime/agent-session/installation/structured-agent-runtime-registration-types'
-import { bobotEnvironment, bobotProgram } from './bobot-environment'
+import type {
+  StructuredAgentChatProgram,
+  StructuredAgentModelCatalogContext
+} from '../runtime/agent-session/installation/structured-agent-runtime-registration-types'
+import { bobotEnvironment } from './bobot-environment'
 
 const controlInput = ['initialize', 'get_settings']
   .map(
@@ -41,10 +44,10 @@ const controlInput = ['initialize', 'get_settings']
   )
   .join('')
 
-export function bobotModelCatalogDiscovery({
-  deps,
-  environment
-}: StructuredAgentModelCatalogContext): AgentModelCatalogDiscovery {
+export function bobotModelCatalogDiscovery(
+  { deps, environment }: StructuredAgentModelCatalogContext,
+  resolveProgram: StructuredAgentChatProgram['resolve']
+): AgentModelCatalogDiscovery {
   const resolve = async (
     account: Parameters<AgentModelCatalogProbe>[0],
     cwd?: string,
@@ -62,7 +65,7 @@ export function bobotModelCatalogDiscovery({
           overlay,
           home
         )
-        return { ...bobotProgram(env, settings), env }
+        return resolveProgram(env, settings)
       },
       lookup === 'recover' ? environment.refreshAfterMissingProgram : undefined,
       { env: (result) => result.env, ...(launchDirectory ? { cwd: () => launchDirectory } : {}) },

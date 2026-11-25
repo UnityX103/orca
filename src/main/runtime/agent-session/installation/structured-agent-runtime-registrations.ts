@@ -38,6 +38,7 @@ import {
   structuredAgentLaunchSources
 } from '../launch/structured-agent-launch-composition'
 import {
+  BOBOT_CHAT_PROGRAM,
   STRUCTURED_AGENT_RUNTIME_CATALOG,
   type StructuredAgentRuntimeCatalogEntry
 } from './structured-agent-runtime-metadata'
@@ -176,6 +177,7 @@ function createBoBotAdapter(context: StructuredAgentAdapterContext): StructuredA
       BOBOT_STRUCTURED_AGENT,
       structuredAgentLaunchSources(context),
       bobotStructuredLaunchPart({
+        resolveProgram: BOBOT_CHAT_PROGRAM.resolve,
         resolveLaunchArgs: () => deps.resolveLaunchArgs('bobot'),
         attachmentDirectory: agentSessionAttachmentStoreRoot(deps.stateDirectory)
       })

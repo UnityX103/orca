@@ -1,4 +1,5 @@
 import { BOBOT_STRUCTURED_RUNTIME_METADATA } from '../../../bobot/bobot-structured-runtime'
+import { bobotModelCatalogDiscovery } from '../../../bobot/bobot-model-catalog'
 import { agentSessionAccountHome } from '../../../../shared/agent-session/lifecycle/accounts/agent-session-account-home'
 import { applyStructuredCodexWorkspaceTrust } from '../../../agent-launch/trust/agent-workspace-trust-spawn'
 import { ACP_LAUNCH_SPECS } from '../../../acp/launch/acp-launch-registry'
@@ -67,18 +68,25 @@ function acpChatProgram(spec: AcpLaunchSpec): StructuredAgentChatProgram {
   }
 }
 
-function cliChatProgram(agent: 'claude' | 'codex'): StructuredAgentChatProgram {
+function cliChatProgram(agent: 'claude' | 'codex' | 'bobot'): StructuredAgentChatProgram {
   return {
     resolve: (env, commandSettings) => {
       const homePath = env.HOME ?? env.USERPROFILE
       const pathEnv = env.PATH ?? env.Path ?? null
       const options = { pathEnv, ...(homePath ? { homePath } : {}) }
-      return { ...resolveStructuredAgentCommand(agent, commandSettings, options), env }
+      return {
+        ...resolveStructuredAgentCommand(agent, commandSettings, options, {
+          managedCopy: agent !== 'bobot'
+        }),
+        env
+      }
     },
     // Hosts without the user's own install can install Orca's copy.
-    installable: () => managedAgentCli(agent).available()
+    ...(agent === 'bobot' ? {} : { installable: () => managedAgentCli(agent).available() })
   }
 }
+
+export const BOBOT_CHAT_PROGRAM = cliChatProgram('bobot')
 
 function acpMetadata(spec: AcpLaunchSpec): StructuredAgentRuntimeMetadata {
   const { minimumVersions } = spec
@@ -197,7 +205,14 @@ export const STRUCTURED_AGENT_RUNTIME_CATALOG: readonly StructuredAgentRuntimeCa
         )
     }
   },
-  { kind: 'bobot', metadata: BOBOT_STRUCTURED_RUNTIME_METADATA },
+  {
+    kind: 'bobot',
+    metadata: {
+      ...BOBOT_STRUCTURED_RUNTIME_METADATA,
+      chatProgram: BOBOT_CHAT_PROGRAM,
+      modelCatalog: (context) => bobotModelCatalogDiscovery(context, BOBOT_CHAT_PROGRAM.resolve)
+    }
+  },
   ...ACP_LAUNCH_SPECS.map((spec): StructuredAgentRuntimeCatalogEntry => ({
     kind: 'acp',
     metadata: acpMetadata(spec),

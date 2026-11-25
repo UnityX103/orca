@@ -21,9 +21,11 @@ import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import { resolveAgainAfterRefreshOnMissingProgram } from '../native-chat/agent-launch/structured-agent-command-resolution'
 import type { DirectoryAccountAgentDefinition } from '../native-chat/agent-session-wire/providers/structured-agent-definition'
 import type { StructuredAgentLaunchPartResolver } from '../runtime/agent-session/launch/structured-agent-launch-composition'
-import type { StructuredAgentRuntimeMetadata } from '../runtime/agent-session/installation/structured-agent-runtime-registration-types'
-import { bobotConfigHome, bobotEnvironment, bobotProgram } from './bobot-environment'
-import { bobotModelCatalogDiscovery } from './bobot-model-catalog'
+import type {
+  StructuredAgentChatProgram,
+  StructuredAgentRuntimeMetadata
+} from '../runtime/agent-session/installation/structured-agent-runtime-registration-types'
+import { bobotConfigHome, bobotEnvironment } from './bobot-environment'
 
 export const BOBOT_STRUCTURED_AGENT: DirectoryAccountAgentDefinition = {
   agent: 'bobot',
@@ -46,11 +48,12 @@ export const BOBOT_STRUCTURED_AGENT: DirectoryAccountAgentDefinition = {
   }
 }
 
-export const BOBOT_STRUCTURED_RUNTIME_METADATA: StructuredAgentRuntimeMetadata = {
+export const BOBOT_STRUCTURED_RUNTIME_METADATA: Omit<
+  StructuredAgentRuntimeMetadata,
+  'chatProgram' | 'modelCatalog'
+> = {
   definition: BOBOT_STRUCTURED_AGENT,
   supportsLocation: (location) => isNativeLocalLocation(location),
-  chatProgram: { resolve: (env, settings) => ({ ...bobotProgram(env, settings), env }) },
-  modelCatalog: bobotModelCatalogDiscovery,
   transcriptImport: null,
   sessionHistory: {
     rowAgents: [],
@@ -62,6 +65,7 @@ export const BOBOT_STRUCTURED_RUNTIME_METADATA: StructuredAgentRuntimeMetadata =
 }
 
 export function bobotStructuredLaunchPart(deps: {
+  resolveProgram: StructuredAgentChatProgram['resolve']
   resolveLaunchArgs: () => Promise<string[]> | string[]
   attachmentDirectory: string
 }): StructuredAgentLaunchPartResolver<ClaudeStructuredLaunch> {
@@ -72,7 +76,7 @@ export function bobotStructuredLaunchPart(deps: {
       await resolveAgainAfterRefreshOnMissingProgram(
         async () => {
           const env = bobotEnvironment(await basis.baseEnvironment(), basis.launchEnv(), home)
-          return { ...bobotProgram(env, basis.commandSettings()), env }
+          return deps.resolveProgram(env, basis.commandSettings())
         },
         basis.refreshAfterMissingProgram,
         { env: (result) => result.env, cwd: () => cwd }

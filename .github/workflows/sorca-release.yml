@@ -1,0 +1,221 @@
+name: SOrca 构建与发布
+
+on:
+  schedule:
+    - cron: '0 13 * * *' # 21:00 Asia/Shanghai
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 构建平台
+        type: choice
+        options:
+          - both
+          - mac
+          - windows
+        default: both
+      sync_upstream:
+        description: 构建前同步上游 main
+        type: boolean
+        default: false
+      expected_commit:
+        description: 指定已验证的自用版提交
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sorca-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'UnityX103/orca' && github.ref == 'refs/heads/自用版'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    outputs:
+      build: ${{ steps.source.outputs.build }}
+      sha: ${{ steps.source.outputs.sha }}
+      version: ${{ steps.source.outputs.version }}
+      matrix: ${{ steps.source.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: 自用版
+          fetch-depth: 0
+      - name: 同步上游并确定构建提交
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SYNC_UPSTREAM: ${{ github.event_name == 'schedule' || inputs.sync_upstream }}
+          PLATFORMS: ${{ inputs.platforms || 'both' }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$SYNC_UPSTREAM" == 'true' ]]; then
+            git fetch --no-tags https://github.com/stablyai/orca.git \
+              refs/heads/main:refs/remotes/sorca-upstream/main
+            if ! git merge-base --is-ancestor refs/remotes/sorca-upstream/main HEAD; then
+              git config user.name 'github-actions[bot]'
+              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+              merge_status=0
+              git merge --no-ff --no-commit refs/remotes/sorca-upstream/main || merge_status=$?
+              if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+                exit "$((merge_status == 0 ? 1 : merge_status))"
+              fi
+              # Keep the fork's reviewed workflows independent of the source merge.
+              git restore --source=HEAD --staged --worktree -- .github/workflows
+              if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+                git diff --name-only --diff-filter=U
+                echo '::error::上游源码发生合并冲突，需处理冲突后重新运行。'
+                exit 1
+              fi
+              git diff --cached --check
+              git commit -m 'chore: 合并上游 Orca main'
+              git push origin HEAD:refs/heads/自用版
+            fi
+          fi
+
+          sha="$(git rev-parse HEAD)"
+          if [[ -n "$EXPECTED_COMMIT" && "$EXPECTED_COMMIT" != "$sha" ]]; then
+            echo '::error::分支提交与已验证的提交不一致。'
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == 'schedule' ]]; then
+            published="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '
+              select(([.assets[] | select(.state == "uploaded") | .name]
+                | index("SOrca-macos-arm64.dmg")) != null and
+                ([.assets[] | select(.state == "uploaded") | .name]
+                | index("SOrca-windows-x64.exe")) != null)
+              | .target_commitish' 2>/dev/null || true)"
+            if [[ "$published" == "$sha" ]]; then
+              echo 'build=false' >> "$GITHUB_OUTPUT"
+              echo '当前提交已有完整的双平台成品。'
+              exit 0
+            fi
+          fi
+
+          version="$(node -p 'const base = /^\d+\.\d+\.\d+/.exec(require("./package.json").version)?.[0]; if (!base) throw Error("Invalid Orca version"); (base.localeCompare("1.4.274", "en", { numeric: true }) < 0 ? "1.4.274" : base) + "+sorca." + process.env.GITHUB_RUN_ID + "." + process.env.GITHUB_RUN_ATTEMPT')"
+          mac='{"platform":"mac","runner":"macos-15","asset":"SOrca-macos-arm64.dmg"}'
+          win='{"platform":"windows","runner":"windows-2022","asset":"SOrca-windows-x64.exe"}'
+          case "$PLATFORMS" in
+            mac) matrix="[$mac]" ;;
+            windows) matrix="[$win]" ;;
+            both) matrix="[$mac,$win]" ;;
+            *) exit 1 ;;
+          esac
+          {
+            echo 'build=true'
+            echo "sha=$sha"
+            echo "version=$version"
+            echo "matrix=$matrix"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    name: 构建 ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    env:
+      ORCA_BACKGROUND_LAUNCH: '1'
+      ORCA_LOCAL_BUILD_VERSION: ${{ needs.prepare.outputs.version }}
+      ORCA_BUILD_COMMIT: ${{ needs.prepare.outputs.sha }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            mobile/pnpm-lock.yaml
+      - name: 安装依赖
+        shell: bash
+        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/install-mobile-dependencies
+      - name: 验证 BoBot 和 CNB
+        shell: bash
+        run: pnpm test src/main/bobot/bobot-environment.test.ts src/main/cnb/repository-ref.test.ts src/main/updater/releases/sorca-release-feed.test.ts --maxWorkers=2
+      - name: 构建和打包
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+          pnpm build:release
+          pnpm ensure:electron-runtime
+          if [[ "$PLATFORM" == mac ]]; then
+            target=(--mac dmg --arm64)
+          else
+            target=(--win nsis --x64)
+          fi
+          pnpm exec electron-builder --config config/electron-builder.sorca.config.cjs "${target[@]}" --publish never
+          test -s "dist/$ASSET"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sorca-${{ matrix.platform }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: sorca-*
+          path: release
+          merge-multiple: true
+      - name: 上传成品并发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.sha }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          MATRIX: ${{ needs.prepare.outputs.matrix }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          head_sha="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/自用版 | cut -f1)"
+          if [[ "$head_sha" != "$SOURCE_SHA" ]]; then
+            echo '::error::自用版分支已前进，请为新的提交运行构建。'
+            exit 1
+          fi
+          tag="v$VERSION"
+          cd release
+          mapfile -t assets < <(jq -r '.[].asset' <<< "$MATRIX")
+          for asset in "${assets[@]}"; do
+            test -s "$asset"
+          done
+          sha256sum "${assets[@]}" > SHA256SUMS.txt
+          if existing="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish 2>/dev/null)"; then
+            jq -e --arg sha "$SOURCE_SHA" '.isDraft and .targetCommitish == $sha' <<< "$existing" >/dev/null
+          else
+            {
+              printf '构建提交 %s\n\n' "$SOURCE_SHA"
+              printf '[GitHub Actions 构建记录](%s/%s/actions/runs/%s)\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            } > release-notes.md
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
+              --draft --title "SOrca $VERSION" --notes-file release-notes.md
+          fi
+          gh release upload "$tag" "${assets[@]}" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
