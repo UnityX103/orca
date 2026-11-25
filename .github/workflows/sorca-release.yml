@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sorca-release-${{ inputs.platforms == 'windows-qa' && 'qa' || 'publish' }}
+  group: sorca-release-${{ inputs.sync_upstream && 'both' || inputs.platforms || 'both' }}
   cancel-in-progress: false
 
 jobs:
@@ -180,6 +180,25 @@ jobs:
           else
             test -s "dist/$ASSET"
           fi
+      - name: 验证 Windows 独立安装目录
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $programs = Join-Path $env:LOCALAPPDATA 'Programs'
+          $stock = Join-Path $programs 'orca'
+          $installed = Join-Path $programs 'sorca/SOrca.exe'
+          New-Item -ItemType Directory -Path $stock | Out-Null
+          $marker = Join-Path $stock 'stock-orca-installation.txt'
+          Set-Content -LiteralPath $marker -Value 'Orca'
+
+          $installer = Start-Process -FilePath 'dist/SOrca-windows-x64.exe' -ArgumentList '/S' -Wait -PassThru
+          if ($installer.ExitCode -ne 0 -or !(Test-Path -LiteralPath $installed -PathType Leaf)) {
+            throw 'SOrca did not install in its own program directory.'
+          }
+          $stockEntries = @(Get-ChildItem -LiteralPath $stock -Force)
+          if ($stockEntries.Count -ne 1 -or $stockEntries[0].FullName -ne $marker -or (Get-Content -LiteralPath $marker) -ne 'Orca') {
+            throw 'SOrca changed the existing Orca program directory.'
+          }
       - uses: actions/upload-artifact@v7
         with:
           name: sorca-${{ matrix.platform }}

@@ -8,7 +8,12 @@ module.exports = {
   productName,
   protocols: [],
   publish: null,
-  extraMetadata: { ...base.extraMetadata, productName },
+  extraMetadata: {
+    ...base.extraMetadata,
+    // Per-user NSIS uses the package name for its default directory and uninstall cleanup.
+    name: qa ? 'sorca-qa' : 'sorca',
+    productName
+  },
   mac: {
     ...base.mac,
     identity: '-',
