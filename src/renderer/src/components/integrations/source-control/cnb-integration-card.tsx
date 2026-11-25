@@ -87,9 +87,8 @@ export function CnbIntegrationCard(): React.JSX.Element | null {
       }
     } catch {
       setError(t('cnb.integration.connectError', 'Could not connect to CNB.'))
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
   }
 
   async function disconnect(): Promise<void> {
@@ -104,9 +103,8 @@ export function CnbIntegrationCard(): React.JSX.Element | null {
       setEditing(false)
     } catch {
       setError(t('cnb.integration.disconnectError', 'Could not disconnect CNB.'))
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
   }
 
   return (

@@ -12,6 +12,7 @@ on:
           - both
           - mac
           - windows
+          - windows-qa
         default: both
       sync_upstream:
         description: 构建前同步上游 main
@@ -26,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sorca-release
+  group: sorca-release-${{ inputs.platforms == 'windows-qa' && 'qa' || 'publish' }}
   cancel-in-progress: false
 
 jobs:
@@ -41,6 +42,7 @@ jobs:
       sha: ${{ steps.source.outputs.sha }}
       version: ${{ steps.source.outputs.version }}
       matrix: ${{ steps.source.outputs.matrix }}
+      publish: ${{ steps.source.outputs.publish }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -105,6 +107,7 @@ jobs:
           case "$PLATFORMS" in
             mac) matrix="[$mac]" ;;
             windows) matrix="[$win]" ;;
+            windows-qa) matrix='[{"platform":"windows-qa","runner":"windows-2022","asset":"win-unpacked"}]' ;;
             both) matrix="[$mac,$win]" ;;
             *) exit 1 ;;
           esac
@@ -113,6 +116,7 @@ jobs:
             echo "sha=$sha"
             echo "version=$version"
             echo "matrix=$matrix"
+            [[ "$PLATFORMS" == windows-qa ]] && echo publish=false || echo publish=true
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -156,26 +160,36 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
           ASSET: ${{ matrix.asset }}
+          SORCA_WINDOWS_QA: ${{ matrix.platform == 'windows-qa' && '1' || '0' }}
         run: |
           set -euo pipefail
           pnpm build:release
           pnpm ensure:electron-runtime
           if [[ "$PLATFORM" == mac ]]; then
             target=(--mac dmg --arm64)
+          elif [[ "$PLATFORM" == windows-qa ]]; then
+            target=(--win --dir --x64)
           else
             target=(--win nsis --x64)
           fi
           pnpm exec electron-builder --config config/electron-builder.sorca.config.cjs "${target[@]}" --publish never
-          test -s "dist/$ASSET"
+          if [[ "$PLATFORM" == windows-qa ]]; then
+            test -s "dist/$ASSET/SOrcaQA.exe"
+            printf '%s\n' "$ORCA_BUILD_COMMIT" > "dist/$ASSET/sorca-source-commit.txt"
+          else
+            test -s "dist/$ASSET"
+          fi
       - uses: actions/upload-artifact@v7
         with:
           name: sorca-${{ matrix.platform }}
           path: dist/${{ matrix.asset }}
           if-no-files-found: error
           compression-level: 0
+          retention-days: 7
 
   publish:
     needs: [prepare, build]
+    if: needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

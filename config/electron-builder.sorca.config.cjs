@@ -1,12 +1,14 @@
 const base = require('./electron-builder.config.cjs')
+const qa = process.env.SORCA_WINDOWS_QA === '1'
+const productName = qa ? 'SOrca QA' : 'SOrca'
 
 module.exports = {
   ...base,
-  appId: 'io.github.unityx103.sorca',
-  productName: 'SOrca',
+  appId: qa ? 'io.github.unityx103.sorca.qa' : 'io.github.unityx103.sorca',
+  productName,
   protocols: [],
   publish: null,
-  extraMetadata: { ...base.extraMetadata, productName: 'SOrca' },
+  extraMetadata: { ...base.extraMetadata, productName },
   mac: {
     ...base.mac,
     identity: '-',
@@ -14,7 +16,7 @@ module.exports = {
   },
   win: {
     ...base.win,
-    executableName: 'SOrca',
+    executableName: qa ? 'SOrcaQA' : 'SOrca',
     signtoolOptions: { sign: base.win.signtoolOptions.sign }
   },
   nsis: {

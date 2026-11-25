@@ -91,6 +91,9 @@ export const BOBOT_CHAT_PROGRAM = cliChatProgram('bobot')
 function acpMetadata(spec: AcpLaunchSpec): StructuredAgentRuntimeMetadata {
   const { minimumVersions } = spec
   return {
+    ...(spec.hostBackend?.followsSelectionBeforeFirstTurn
+      ? { followsSelectionBeforeFirstTurn: true as const }
+      : {}),
     definition: acpStructuredAgentDefinition(spec),
     chatProgram: acpChatProgram(spec),
     supportsLocation: (location) => supportsAcpStructuredLocation(spec, location),

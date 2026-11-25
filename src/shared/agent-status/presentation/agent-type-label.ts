@@ -9,7 +9,6 @@ const WELL_KNOWN_LABELS: Record<string, string> = {
   codex: 'Codex',
   qoder: 'Qoder CLI',
   qodercli: 'Qoder CLI',
-  gemini: 'Gemini',
   antigravity: 'Antigravity',
   amp: 'Amp',
   copilot: 'GitHub Copilot',

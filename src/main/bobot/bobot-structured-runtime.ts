@@ -32,6 +32,7 @@ export const BOBOT_STRUCTURED_AGENT: DirectoryAccountAgentDefinition = {
   handleTransport: 'bobot-stream-json',
   accountHomeVariable: 'BOBOT_CONFIG_DIR',
   needsJournalBeforeAcquisition: true,
+  instructionsEachStart: false,
   capabilities: {
     rewind: false,
     compact: false,
