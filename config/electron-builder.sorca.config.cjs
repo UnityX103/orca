@@ -16,7 +16,10 @@ module.exports = {
   },
   mac: {
     ...base.mac,
-    identity: '-',
+    identity: '-'
+  },
+  dmg: {
+    ...base.dmg,
     artifactName: 'SOrca-macos-${arch}.${ext}'
   },
   win: {

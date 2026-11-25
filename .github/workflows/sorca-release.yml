@@ -23,9 +23,9 @@ on:
         description: 手动构建时选择 Mac 运行器
         type: choice
         options:
-          - macos-26
           - xcode-27
-        default: macos-26
+          - macos-26
+        default: xcode-27
       expected_commit:
         description: 指定已验证的自用版提交
         type: string
@@ -62,7 +62,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SYNC_UPSTREAM: ${{ github.event_name == 'schedule' || inputs.sync_upstream }}
           PLATFORMS: ${{ inputs.platforms || 'both' }}
-          MAC_RUNNER: ${{ inputs.mac_runner || 'macos-26' }}
+          MAC_RUNNER: ${{ inputs.mac_runner || 'xcode-27' }}
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
         shell: bash
         run: |
@@ -111,7 +111,7 @@ jobs:
           fi
 
           version="$(node -p 'const base = /^\d+\.\d+\.\d+/.exec(require("./package.json").version)?.[0]; if (!base) throw Error("Invalid Orca version"); (base.localeCompare("1.4.274", "en", { numeric: true }) < 0 ? "1.4.274" : base) + "+sorca." + process.env.GITHUB_RUN_ID + "." + process.env.GITHUB_RUN_ATTEMPT')"
-          mac="$(jq -cn --arg runner "${MAC_RUNNER:-macos-26}" '{platform:"mac",runner:$runner,asset:"SOrca-macos-arm64.dmg"}')"
+          mac="$(jq -cn --arg runner "${MAC_RUNNER:-xcode-27}" '{platform:"mac",runner:$runner,asset:"SOrca-macos-arm64.dmg"}')"
           win='{"platform":"windows","runner":"windows-2022","asset":"SOrca-windows-x64.exe"}'
           case "$PLATFORMS" in
             mac) matrix="[$mac]" ;;
@@ -185,8 +185,9 @@ jobs:
           if [[ "$PLATFORM" == windows-qa ]]; then
             test -s "dist/$ASSET/SOrcaQA.exe"
             printf '%s\n' "$ORCA_BUILD_COMMIT" > "dist/$ASSET/sorca-source-commit.txt"
-          else
-            test -s "dist/$ASSET"
+          elif [[ ! -s "dist/$ASSET" ]]; then
+            echo "::error::Expected installer file dist/$ASSET is missing or empty."
+            exit 1
           fi
       - name: 验证 Windows 独立安装目录
         if: matrix.platform == 'windows'
