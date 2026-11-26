@@ -28,7 +28,12 @@ export default async function sign(options) {
   const require = createRequire(builderRequire.resolve('app-builder-lib'))
   const { retry } = require('builder-util')
   const started = performance.now()
-  await signMacApp(options, { sign: signApplication, retry })
+  // The local Apple Development certificate is selected by fingerprint before electron-builder runs.
+  const localIdentity = options.identity === '-' && process.env.SORCA_MAC_LOCAL_SIGNING_IDENTITY
+  const signingOptions = localIdentity
+    ? { ...options, identity: localIdentity, preAutoEntitlements: false }
+    : options
+  await signMacApp(signingOptions, { sign: signApplication, retry })
   console.log(
     `[mac-sign] batched signing completed in ${Math.round(performance.now() - started)}ms`
   )

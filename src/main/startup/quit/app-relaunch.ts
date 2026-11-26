@@ -8,20 +8,27 @@ import { BACKGROUND_OPEN_ARG } from '../../../shared/app-lifecycle/launch/backgr
 export type AppRelaunchReason =
   | 'admin-restart'
   | 'gpu-fallback'
+  | 'local-update'
   | 'profile-switch'
   | 'profile-transfer'
   | 'renderer-request'
   | 'windows-administrator'
   | 'wsl-drive-conversion'
 
+let relaunchScheduled = false
+
 export function relaunchApp(
   reason: AppRelaunchReason,
   data?: CrashReportBreadcrumbData,
   options?: Electron.RelaunchOptions
 ): void {
+  if (reason === 'local-update' && relaunchScheduled) {
+    return
+  }
   // Persist the cause before relaunch can exit this process.
   recordDurableCrashBreadcrumb('app_relaunch_requested', { ...data, reason })
   runWithLaunchPath(() => app.relaunch(options ?? defaultRelaunchOptions()))
+  relaunchScheduled = true
 }
 
 // The user restarted Orca, so the new window comes forward even when `orca open` started this one.

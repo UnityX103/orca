@@ -5,6 +5,7 @@ import type {
 } from '../../../shared/updater/sorca-local-update'
 import { showSingleFlightOpenDialog } from '../../ipc/dialogs/single-flight-open-dialog'
 import { isSOrcaVersion } from '../../../shared/app-lifecycle/identity/sorca-build-version'
+import { relaunchApp } from '../../startup/quit/app-relaunch'
 import {
   readSOrcaDevelopmentPackage,
   type SOrcaDevelopmentPackage
@@ -129,5 +130,6 @@ export async function applySOrcaLocalUpdateOnQuit(): Promise<void> {
     const staged = pending
     pending = undefined
     await installStagedSOrcaPackage(staged, app.getVersion())
+    relaunchApp('local-update', { version: staged.version }, { args: process.argv.slice(1) })
   }
 }

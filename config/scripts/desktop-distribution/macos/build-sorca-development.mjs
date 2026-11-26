@@ -33,6 +33,7 @@ const appExecutables = new Set([
 ])
 const { macInstaller: artifactName, buildBaseVersion } = distribution
 const logPath = join(sorcaDevelopmentDirectory, 'install.log')
+const signingIdentityPath = join(sorcaDevelopmentDirectory, 'signing-identity')
 
 function isOrcaRunning() {
   return execFileSync('/bin/ps', ['-ax', '-o', 'comm='], { encoding: 'utf8' })
@@ -44,7 +45,50 @@ function run(program, args, env = process.env) {
   execFileSync(program, args, { cwd: repo, env, stdio: 'inherit' })
 }
 
+async function getSigningIdentity() {
+  const output = execFileSync('/usr/bin/security', ['find-identity', '-v', '-p', 'codesigning'], {
+    encoding: 'utf8'
+  })
+  const available = new Set(
+    Array.from(
+      output.matchAll(/^\s*\d+\)\s+([A-F0-9]{40}) "Apple Development:/gm),
+      (match) => match[1]
+    )
+  )
+  let pinned = await readFile(signingIdentityPath, 'utf8').catch((error) => {
+    if (error.code !== 'ENOENT') {
+      throw error
+    }
+    return ''
+  })
+  if (!pinned) {
+    const selected = process.env.SORCA_MAC_LOCAL_SIGNING_IDENTITY?.trim().toUpperCase()
+    const identity = selected || (available.size === 1 ? [...available][0] : undefined)
+    if (!identity || !available.has(identity)) {
+      throw new Error(
+        'Select a valid Apple Development certificate with SORCA_MAC_LOCAL_SIGNING_IDENTITY.'
+      )
+    }
+    try {
+      await writeFile(signingIdentityPath, `${identity}\n`, { flag: 'wx', mode: 0o600 })
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error
+      }
+    }
+    pinned = await readFile(signingIdentityPath, 'utf8')
+  }
+  const identity = pinned.trim()
+  if (!available.has(identity)) {
+    throw new Error(
+      `The Apple Development certificate pinned in ${signingIdentityPath} is unavailable.`
+    )
+  }
+  return identity
+}
+
 async function createDevelopmentPackage(installedVersion) {
+  const signingIdentity = await getSigningIdentity()
   const packageVersion = JSON.parse(await readFile(join(repo, 'package.json'), 'utf8')).version
   const version = `${buildBaseVersion(packageVersion, installedVersion)}+local.${Date.now()}`
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim()
@@ -52,7 +96,8 @@ async function createDevelopmentPackage(installedVersion) {
     ...process.env,
     ORCA_LOCAL_BUILD_VERSION: version,
     ORCA_BUILD_COMMIT: commit,
-    SORCA_WINDOWS_QA: '0'
+    SORCA_WINDOWS_QA: '0',
+    SORCA_MAC_LOCAL_SIGNING_IDENTITY: signingIdentity
   }
   const output = await mkdtemp(join(sorcaDevelopmentDirectory, 'build-'))
   const manifest = join(output, 'latest.json')
@@ -82,7 +127,10 @@ async function createDevelopmentPackage(installedVersion) {
     if ((await readInstalledSOrcaVersion(packagedApp)) !== version) {
       throw new Error('The packaged bundle does not have the development version')
     }
-    run('/usr/bin/codesign', ['--verify', '--deep', '--strict', packagedApp])
+    const requirement = `=identifier "com.stablyai.orca" and anchor apple generic and certificate leaf = H"${signingIdentity}"`
+    run('/usr/bin/codesign', ['--verify', '--deep', '--strict', '-R', requirement, packagedApp])
+    const terminalHost = join(packagedApp, 'Contents', 'Helpers', 'Orca Agents.app')
+    run('/usr/bin/codesign', ['--verify', '--strict', '-R', requirement, terminalHost])
     const hash = createHash('sha256')
     for await (const chunk of createReadStream(builtImage)) {
       hash.update(chunk)
@@ -120,6 +168,9 @@ async function installDevelopmentPackage(staged, installedVersion) {
   }
   await installStagedSOrcaPackage(staged, installedVersion)
   console.log(`Installed ${staged.version} in ${app}`)
+  const backgroundEnvironment =
+    process.env.ORCA_BACKGROUND_LAUNCH === '1' ? ['--env', 'ORCA_BACKGROUND_LAUNCH=1'] : []
+  run('/usr/bin/open', ['-g', '-n', ...backgroundEnvironment, app])
 }
 
 async function installOrQueue(metadata, installedVersion) {

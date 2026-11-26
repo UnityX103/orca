@@ -110,6 +110,7 @@ const isWinDaily = process.env.ORCA_WIN_DAILY === '1'
 const isWinAdhoc = process.env.ORCA_WIN_ADHOC === '1'
 const isWinDevChannel = isWinHourly || isWinDaily || isWinAdhoc
 const isMacRelease = process.env.ORCA_MAC_RELEASE === '1' || isMacHourly || isMacDaily || isMacAdhoc
+const sorcaLocalMacSigningIdentity = !isMacRelease && process.env.SORCA_MAC_LOCAL_SIGNING_IDENTITY
 const isLinuxArm64Release = process.env.ORCA_LINUX_ARM64_RELEASE === '1'
 const localBuildVersion =
   isMacRelease || isWinDevChannel ? undefined : process.env.ORCA_LOCAL_BUILD_VERSION
@@ -693,9 +694,10 @@ module.exports = {
     icon: 'resources/build/icon.icns',
     entitlements: 'resources/build/entitlements.mac.plist',
     entitlementsInherit: 'resources/build/entitlements.mac.plist',
-    ...(isMacRelease
+    ...(isMacRelease || sorcaLocalMacSigningIdentity
       ? { sign: resolve(__dirname, './scripts/desktop-distribution/macos/sign-mac-app.mjs') }
       : {}),
+    ...(sorcaLocalMacSigningIdentity ? { timestamp: 'none' } : {}),
     signIgnore: [
       ...bundledRipgrepMacSignIgnore,
       ...orcadTemplateMacSignIgnore,
@@ -898,10 +900,11 @@ async function signMacComputerUseHelper(helperAppPath, packager) {
       ? await packager.codeSigningInfo.value
       : null
   const identity =
-    process.env.ORCA_COMPUTER_MACOS_SIGN_IDENTITY ??
-    process.env.CSC_NAME ??
-    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
-    (isMacRelease ? null : '-')
+    sorcaLocalMacSigningIdentity ||
+    (process.env.ORCA_COMPUTER_MACOS_SIGN_IDENTITY ??
+      process.env.CSC_NAME ??
+      findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
+      (isMacRelease ? null : '-'))
   if (!identity) {
     throw new Error('Missing signing identity for Orca Computer Use helper app')
   }
@@ -959,9 +962,10 @@ async function signMacStandaloneHelper(helperPath, helperName, packager, entitle
       ? await packager.codeSigningInfo.value
       : null
   const identity =
-    process.env.CSC_NAME ??
-    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
-    (isMacRelease ? null : '-')
+    sorcaLocalMacSigningIdentity ||
+    (process.env.CSC_NAME ??
+      findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
+      (isMacRelease ? null : '-'))
   if (!identity) {
     throw new Error(`Missing signing identity for ${helperName} helper`)
   }

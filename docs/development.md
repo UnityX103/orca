@@ -51,9 +51,11 @@ pnpm dev:fresh [--keep] [--seed-from[=<profile dir>]]   # temporary profile, rem
 
 ### 自用版本机更新（Apple Silicon）
 
-从 Orca 仓库根目录运行 `./scripts/update-orca-dev`，打包并更新 `/Applications/Orca.app`。运行中的 Orca 正常退出后，安装器会替换应用。重新打开 Orca 即可使用新版。
+从 Orca 仓库根目录运行 `./scripts/update-orca-dev`，打包并更新 `/Applications/Orca.app`。运行中的 Orca 正常退出后，安装器会替换应用并自动启动新版。
 
-运行 `./scripts/update-orca-dev --package-only` 可单独生成 `orca-macos-arm64.dmg`，再通过「设置 → 关于 → 选择更新包」暂存。开发包和安装日志位于 `~/.orca/sorca-development/`。
+运行 `./scripts/update-orca-dev --package-only` 可单独生成 `orca-macos-arm64.dmg`，再通过「设置 → 关于 → 选择更新包」暂存。暂存的更新会在 Orca 正常退出时安装，安装成功后自动重启。开发包和安装日志位于 `~/.orca/sorca-development/`。
+
+本机包使用钥匙串中的 Apple Development 证书。首次打包会把证书指纹保存到 `~/.orca/sorca-development/signing-identity`。有多张证书时，可在首次打包用 `SORCA_MAC_LOCAL_SIGNING_IDENTITY` 指定指纹。固定证书不可用时，打包会报错。从临时签名切换到证书签名后，macOS 可能会重新请求现有权限。
 
 升级后，Orca 会继续读取原 `orca` 或 `SOrca` 数据目录中的项目、设置、会话和凭据。macOS 的目录位于 `~/Library/Application Support/`，Windows 的目录位于 `%APPDATA%`。如果两个目录都已有数据，首次打开兼容版本时请选择此前使用的目录。Orca 会记住选择并保留两个目录。
 
