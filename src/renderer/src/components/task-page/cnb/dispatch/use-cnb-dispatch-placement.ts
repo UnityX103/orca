@@ -22,7 +22,6 @@ export function useCnbDispatchPlacement(
   sourceUrl?: string
 ): CnbDispatchPlacement {
   const worktrees = useAllWorktrees()
-  const targetKey = `${target.repoId}:${target.type}:${target.number}`
   const [spec, setSpecState] = useState(() => readCnbDispatchDraft(target))
 
   const worktree = useMemo(
@@ -42,9 +41,7 @@ export function useCnbDispatchPlacement(
       setSpecState(next)
       saveCnbDispatchDraft(target, next)
     },
-    // The work item's identity is the whole key.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [targetKey]
+    [target]
   )
 
   return { worktree, spec, setSpec }

@@ -1,18 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import {
-  chmodSync,
-  existsSync,
-  lstatSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  statSync,
-  writeFileSync
-} from 'node:fs'
+import { existsSync } from 'node:fs'
+import { chmod, lstat, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, posix, resolve, win32 } from 'node:path'
 import { homedir } from 'node:os'
 import '../../filesystem/atomic-file-publication'
-import { renameFileWithWindowsRetry } from '../../../shared/file-write/windows-retry-file-operations'
+import { renameFileWithWindowsRetryAsync } from '../../../shared/file-write/windows-retry-file-operations'
 import { lockClaudeConfig, runSerializedForClaudeConfig } from './claude-global-config-lock'
 import { parseWslUncPath } from '../../../shared/file-access/wsl-paths'
 import { runWslProcess } from '../../wsl/execution/wsl-runner'
@@ -100,35 +92,30 @@ function isMissingFileError(error: unknown): boolean {
 type ConfigTarget = { kind: 'file'; path: string } | { kind: 'missing' } | { kind: 'unreadable' }
 
 /** Resolve symlinks before replacement so the rename preserves the link. */
-function resolveConfigTarget(configFile: string): ConfigTarget {
+async function resolveConfigTarget(configFile: string): Promise<ConfigTarget> {
   try {
-    const entry = lstatSync(configFile)
-    const path = entry.isSymbolicLink() ? realpathSync(configFile) : configFile
-    return statSync(path).isFile() ? { kind: 'file', path } : { kind: 'unreadable' }
+    const entry = await lstat(configFile)
+    const path = entry.isSymbolicLink() ? await realpath(configFile) : configFile
+    return (await stat(path)).isFile() ? { kind: 'file', path } : { kind: 'unreadable' }
   } catch (error) {
     return { kind: isMissingFileError(error) ? 'missing' : 'unreadable' }
   }
 }
 
-function readConfigAt(
+async function readConfigAt(
   target: ConfigTarget
-): { path: string; config: Record<string, unknown> } | 'missing-config' | 'unreadable' {
+): Promise<{ path: string; config: Record<string, unknown> } | 'missing-config' | 'unreadable'> {
   if (target.kind === 'missing') {
     return 'missing-config'
   }
   if (target.kind === 'unreadable') {
     return 'unreadable'
   }
-  const config = readConfigObject(target.path)
-  return config ? { path: target.path, config } : 'unreadable'
-}
-
-function readConfigObject(target: string): Record<string, unknown> | null {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(target, 'utf-8'))
-    return isPlainObject(parsed) ? parsed : null
+    const config: unknown = JSON.parse(await readFile(target.path, 'utf-8'))
+    return isPlainObject(config) ? { path: target.path, config } : 'unreadable'
   } catch {
-    return null
+    return 'unreadable'
   }
 }
 
@@ -142,7 +129,7 @@ async function createReplacementFile(target: string): Promise<ReplacementFile> {
   try {
     if (guestFile) {
       // Copy modes in the guest: Windows exposes synthetic permissions for WSL UNC files.
-      writeFileSync(path, '', { flag: 'wx' })
+      await writeFile(path, '', { flag: 'wx' })
       const copied = await runWslProcess({
         distro: guestFile.distro,
         loginPath: 'none',
@@ -153,27 +140,30 @@ async function createReplacementFile(target: string): Promise<ReplacementFile> {
         throw new Error(`could not copy the guest mode of ${target}: ${copied.stderr.trim()}`)
       }
     } else {
-      const mode = statSync(target).mode & 0o777
-      writeFileSync(path, '', { flag: 'wx', mode })
+      const mode = (await stat(target)).mode & 0o777
+      await writeFile(path, '', { flag: 'wx', mode })
       if (process.platform !== 'win32') {
         // Restore bits narrowed by umask.
-        chmodSync(path, mode)
+        await chmod(path, mode)
       }
     }
   } catch (error) {
-    rmSync(path, { force: true })
+    await rm(path, { force: true })
     throw error
   }
   return { target, path }
 }
 
-function replaceConfig(replacement: ReplacementFile, config: Record<string, unknown>): void {
+async function replaceConfig(
+  replacement: ReplacementFile,
+  config: Record<string, unknown>
+): Promise<void> {
   // Reuse the prepared file so its permission bits survive.
-  writeFileSync(replacement.path, `${JSON.stringify(config, null, 2)}\n`, {
+  await writeFile(replacement.path, `${JSON.stringify(config, null, 2)}\n`, {
     encoding: 'utf-8',
     flag: 'r+'
   })
-  renameFileWithWindowsRetry(replacement.path, replacement.target)
+  await renameFileWithWindowsRetryAsync(replacement.path, replacement.target)
 }
 
 export async function grantClaudeFolderTrust(args: {
@@ -204,7 +194,7 @@ async function updateClaudeGlobalConfigNow(args: {
   configFile: string
   change: (config: Record<string, unknown>) => ClaudeGlobalConfigChange
 }): Promise<ClaudeGlobalConfigUpdateOutcome> {
-  const probe = readConfigAt(resolveConfigTarget(args.configFile))
+  const probe = await readConfigAt(await resolveConfigTarget(args.configFile))
   if (typeof probe === 'string') {
     return probe
   }
@@ -213,7 +203,7 @@ async function updateClaudeGlobalConfigNow(args: {
     return planned === 'refuse' ? 'unreadable' : 'unchanged'
   }
 
-  // Copy guest permissions before locking; hold the lock only for synchronous read through rename.
+  // Copy guest permissions before taking the config lock.
   const replacement = await createReplacementFile(probe.path)
   try {
     let release: () => Promise<void>
@@ -223,8 +213,7 @@ async function updateClaudeGlobalConfigNow(args: {
       return 'locked'
     }
     try {
-      // Stay synchronous so the auth writer cannot interleave and lose updates.
-      const current = readConfigAt(resolveConfigTarget(args.configFile))
+      const current = await readConfigAt(await resolveConfigTarget(args.configFile))
       if (typeof current === 'string') {
         return current
       }
@@ -239,24 +228,24 @@ async function updateClaudeGlobalConfigNow(args: {
       if (change.kind === 'unchanged') {
         return 'unchanged'
       }
-      replaceConfig(replacement, change.config)
+      await replaceConfig(replacement, change.config)
       return 'updated'
     } finally {
       await release().catch(() => {})
     }
   } finally {
-    rmSync(replacement.path, { force: true })
+    await rm(replacement.path, { force: true })
   }
 }
 
-export function claudeTrustKeysForHostPath(
+async function claudeTrustKeysForHostPath(
   workspacePath: string,
   keyStyle: ClaudeTrustPathStyle,
   toClaudePath: (hostPath: string) => string | null = (hostPath) => hostPath
-): string[] {
+): Promise<string[]> {
   const forms = [resolve(workspacePath)]
   try {
-    forms.push(realpathSync.native(workspacePath))
+    forms.push(await realpath(workspacePath))
   } catch {
     // The resolved form alone still matches an unsymlinked path.
   }
@@ -321,7 +310,11 @@ export async function grantClaudeWorkspaceTrust(
   target: ClaudeTrustConfigTarget,
   workspacePath: string
 ): Promise<ClaudeFolderTrustOutcome> {
-  const folderKeys = claudeTrustKeysForHostPath(workspacePath, target.keyStyle, target.toClaudePath)
+  const folderKeys = await claudeTrustKeysForHostPath(
+    workspacePath,
+    target.keyStyle,
+    target.toClaudePath
+  )
   return folderKeys.length === 0
     ? 'unchanged'
     : grantClaudeFolderTrust({ configFile: target.configFile, folderKeys })

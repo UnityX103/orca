@@ -28,6 +28,7 @@ import type { TaskPageComposerActionsModel } from '../use-task-page-composer-act
 import type { CnbTaskRow } from '../../../../../shared/cnb/cnb-tasks'
 
 type CnbApi = NonNullable<PreloadApi['cnb']>
+const NO_ORGANIZATIONS: string[] = []
 
 export function CnbTasks({ model }: { model: TaskPageComposerActionsModel }): React.JSX.Element {
   const t = useTranslate()
@@ -52,9 +53,7 @@ export function CnbTasks({ model }: { model: TaskPageComposerActionsModel }): Re
   const openIntegrations = useCnbOpenIntegrations()
   useEffect(() => {
     setTaskResumeState({ cnbMode: mode, cnbPreset: statePreset, cnbQuery: appliedSearch })
-    // Persist on change only; the setter is stable across renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, statePreset, appliedSearch])
+  }, [mode, statePreset, appliedSearch, setTaskResumeState])
 
   const kind = mode === 'missions' ? 'issues' : mode
   const activePreset = normalizeCnbPreset(statePreset, kind)
@@ -128,7 +127,7 @@ export function CnbTasks({ model }: { model: TaskPageComposerActionsModel }): Re
   })
   const missions = useCnbMissions({
     api,
-    orgs: mode === 'missions' ? selectedOrgs : [],
+    orgs: mode === 'missions' ? selectedOrgs : NO_ORGANIZATIONS,
     refreshNonce
   })
 

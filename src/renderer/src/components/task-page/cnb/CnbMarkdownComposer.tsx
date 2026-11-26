@@ -97,22 +97,22 @@ export function CnbMarkdownComposer({
     fileInputRef.current?.click()
   }, [])
   const onFilePicked = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
+    (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       event.target.value = ''
       if (!file || !target || disabled || filePending) {
         return
       }
       setFilePending(true)
-      try {
-        const { markdown } = await uploader(file)
-        const current = draft.current
-        onChange(`${current}${current ? '\n\n' : ''}${markdown}\n`)
-      } catch (error) {
-        onError?.(error instanceof Error ? error.message : 'Could not attach the file.')
-      } finally {
-        setFilePending(false)
-      }
+      void uploader(file)
+        .then(({ markdown }) => {
+          const current = draft.current
+          onChange(`${current}${current ? '\n\n' : ''}${markdown}\n`)
+        })
+        .catch((error: unknown) => {
+          onError?.(error instanceof Error ? error.message : 'Could not attach the file.')
+        })
+        .finally(() => setFilePending(false))
     },
     [disabled, filePending, target, uploader, onChange, onError]
   )
@@ -128,12 +128,7 @@ export function CnbMarkdownComposer({
         disabled={disabled}
         minHeightClassName="min-h-32"
       />
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={(event) => void onFilePicked(event)}
-      />
+      <input ref={fileInputRef} type="file" className="hidden" onChange={onFilePicked} />
     </>
   )
 }

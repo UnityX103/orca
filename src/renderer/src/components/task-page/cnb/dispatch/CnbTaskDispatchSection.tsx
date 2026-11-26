@@ -1,6 +1,4 @@
-// The dispatch section both CNB details share: the record's workspace (reused when attached), the
-// owner's instructions, and the BoBot dispatch that runs in it. Without a workspace, the owner goes
-// through the existing creation flow and dispatches from here once it exists — a two-step confirm.
+import { useMemo } from 'react'
 import { useAppStore } from '@/store'
 import { useAllWorktrees } from '@/store/slices/worktrees/listing/use-worktree-catalog'
 import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
@@ -27,7 +25,8 @@ export function CnbTaskDispatchSection({
   onCreateWorkspace: (row: CnbTaskRow) => void
 }): React.JSX.Element {
   const type = cnbRowWorkItemType(row)
-  const target = { repoId: row.repoId, type, number: row.number }
+  const { repoId, number } = row
+  const target = useMemo(() => ({ repoId, type, number }), [repoId, type, number])
   const placement = useCnbDispatchPlacement(target, row.url)
   const worktrees = useAllWorktrees()
   const dispatch = useCnbTaskDispatch({ api, target })

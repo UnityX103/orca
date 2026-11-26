@@ -9,6 +9,7 @@ import type {
   CnbTaskDispatchTarget
 } from '../../../../../../shared/cnb/cnb-task-dispatch'
 import { openDesktopStructuredSession } from '@/lib/agent-session/open/activate-ai-vault-structured-session'
+import { installWindowVisibilityInterval } from '@/lib/window-activity/window-visibility-interval'
 import { hasCnbTaskDispatchApi } from './cnb-dispatch-api-support'
 
 type CnbApi = NonNullable<PreloadApi['cnb']>
@@ -43,7 +44,6 @@ export function useCnbTaskDispatch(args: {
   // A read settling after a start must not replace the record the start returned.
   const readToken = useRef(0)
 
-  const targetKey = target ? `${target.repoId}:${target.type}:${target.number}` : ''
   const supported = hasCnbTaskDispatchApi(api)
 
   const read = useCallback(async (): Promise<void> => {
@@ -64,22 +64,19 @@ export function useCnbTaskDispatch(args: {
   useEffect(() => {
     setDispatch(null)
     setError(null)
-    if (!api?.getTaskDispatch || !target) {
-      return
-    }
     void read()
-    // The work item's identity is the whole read; read() closes over it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supported, targetKey])
+    return () => {
+      readToken.current += 1
+    }
+  }, [read])
 
-  // Poll only while the record can still move.
+  const canPoll = reReadable(dispatch)
   useEffect(() => {
-    if (!reReadable(dispatch)) {
+    if (!canPoll) {
       return
     }
-    const timer = setInterval(() => void read(), POLL_MS)
-    return () => clearInterval(timer)
-  }, [dispatch, read])
+    return installWindowVisibilityInterval({ run: () => void read(), intervalMs: POLL_MS })
+  }, [canPoll, read])
 
   const start = useCallback(
     async (request: CnbTaskDispatchRequest): Promise<CnbTaskDispatch | null> => {

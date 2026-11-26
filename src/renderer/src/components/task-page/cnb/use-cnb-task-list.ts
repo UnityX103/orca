@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { PreloadApi } from '../../../../../preload/api-types'
 import type {
   CnbListFilters,
@@ -71,11 +71,6 @@ export function useCnbTaskList(args: {
 }) {
   const { api, repositories, selectedIds, kind, filters, page, refreshNonce } = args
   const [state, setState] = useState<CnbListState>({ status: 'loading' })
-  const filtersKey = JSON.stringify(filters)
-  // Ignore a late response for a filter/page set the user already moved past.
-  const requestKey = `${kind}:${page}:${refreshNonce}:${[...selectedIds].sort().join(',')}:${filtersKey}`
-  const latestKeyRef = useRef(requestKey)
-  latestKeyRef.current = requestKey
   useEffect(() => {
     if (!api) {
       return
@@ -90,7 +85,7 @@ export function useCnbTaskList(args: {
     setState({ status: 'loading' })
     void api.taskList({ repoIds, kind, filters, page }).then(
       (result) => {
-        if (!active || latestKeyRef.current !== requestKey) {
+        if (!active) {
           return
         }
         setState(
@@ -98,7 +93,7 @@ export function useCnbTaskList(args: {
         )
       },
       () => {
-        if (active && latestKeyRef.current === requestKey) {
+        if (active) {
           setState({ status: 'error', reason: 'request-failed' })
         }
       }
@@ -106,7 +101,7 @@ export function useCnbTaskList(args: {
     return () => {
       active = false
     }
-  }, [api, repositories, selectedIds, kind, filters, page, refreshNonce, requestKey])
+  }, [api, repositories, selectedIds, kind, filters, page, refreshNonce])
 
   const retry = useCallback(() => setState({ status: 'loading' }), [])
   return { state, retry }
@@ -142,15 +137,11 @@ export function useCnbMissions(args: {
   refreshNonce: number
 }) {
   const { api, orgs, refreshNonce } = args
-  const orgsKey = orgs.join('\u0000')
   const [state, setState] = useState<CnbMissionState>({ status: 'idle' })
   const [cursor, setCursor] = useState<string | null>(null)
   const [more, setMore] = useState<CnbMissionResource[]>([])
   const selectedPath = state.status === 'ready' ? state.selectedPath : null
   const selectedViewId = state.status === 'ready' ? state.selectedViewId : null
-  const requestKey = `${orgsKey}:${selectedPath ?? ''}:${selectedViewId ?? ''}:${cursor}:${refreshNonce}`
-  const latestKeyRef = useRef(requestKey)
-  latestKeyRef.current = requestKey
 
   // Discover missions across every selected org.
   useEffect(() => {
@@ -197,8 +188,7 @@ export function useCnbMissions(args: {
     return () => {
       active = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, orgsKey, refreshNonce])
+  }, [api, orgs, refreshNonce])
 
   // Load one page of resources for the selected mission + view, replaying the view's saved config.
   useEffect(() => {
@@ -210,7 +200,7 @@ export function useCnbMissions(args: {
       const viewConfig: CnbMissionViewConfig | null = selectedViewId
         ? await api.missionViewConfig({ missionPath: selectedPath, viewId: selectedViewId })
         : null
-      if (!active || latestKeyRef.current !== requestKey) {
+      if (!active) {
         return
       }
       const result = await api
@@ -222,7 +212,7 @@ export function useCnbMissions(args: {
             : null
         })
         .catch(() => ({ ok: false as const, reason: 'request-failed' as const }))
-      if (!active || latestKeyRef.current !== requestKey) {
+      if (!active) {
         return
       }
       if (!result.ok) {
@@ -254,7 +244,7 @@ export function useCnbMissions(args: {
     return () => {
       active = false
     }
-  }, [api, selectedPath, selectedViewId, cursor, requestKey, refreshNonce])
+  }, [api, orgs, selectedPath, selectedViewId, cursor, refreshNonce])
 
   const missions = state.status === 'ready' ? state.missions : []
   const views = state.status === 'ready' ? state.views : []

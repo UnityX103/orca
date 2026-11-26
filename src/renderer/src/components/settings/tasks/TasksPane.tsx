@@ -75,7 +75,7 @@ const PROVIDER_META: Record<
       return translate('cnb.tasks.source', 'CNB')
     },
     get description() {
-      return translate('cnb.tasks.description', 'Browse CNB issues and merged pull requests.')
+      return translate('cnb.tasks.description', 'Browse CNB issues, pull requests, and missions.')
     },
     Icon: ({ className }) => <GitPullRequest className={className} />
   },

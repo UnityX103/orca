@@ -27,8 +27,9 @@ it('projects the current BoBot turn from a live terminal without recording a com
     agentLaunchAuthority: { launchToken: 'bobot-test-launch', launchAgent: 'bobot' }
   })
 
+  let receivedAt = 1_700_000_000_000
   const render = async (lines: string[]) => {
-    runtime.onPtyData(ptyId, `\x1b[2J\x1b[H${lines.join('\r\n')}`, Date.now())
+    runtime.onPtyData(ptyId, `\x1b[2J\x1b[H${lines.join('\r\n')}`, receivedAt++)
     await runtime.serializeHiddenOutputRecoveryBuffer(ptyId)
     return hooks.getStatusSnapshotForPane(pane)[0]
   }

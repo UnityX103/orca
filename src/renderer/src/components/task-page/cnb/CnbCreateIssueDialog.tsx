@@ -55,8 +55,8 @@ export function CnbCreateIssueDialog({
       return
     }
     setBusy(true)
-    try {
-      const result = await api.writeIssue({
+    const result = await api
+      .writeIssue({
         repoId,
         number: null,
         payload: {
@@ -73,17 +73,16 @@ export function CnbCreateIssueDialog({
             .filter(Boolean)
         }
       })
-      if (result.ok) {
-        onCreated()
-      } else {
-        toast.error(
-          t('cnb.tasks.writeFailed', 'CNB rejected the change: {{reason}}', {
-            reason: result.reason
-          })
-        )
-      }
-    } finally {
-      setBusy(false)
+      .catch(() => ({ ok: false as const, reason: 'request-failed' }))
+      .finally(() => setBusy(false))
+    if (result.ok) {
+      onCreated()
+    } else {
+      toast.error(
+        t('cnb.tasks.writeFailed', 'CNB rejected the change: {{reason}}', {
+          reason: result.reason
+        })
+      )
     }
   }
 

@@ -18,20 +18,22 @@ export type CnbDetailState<T> =
   | { status: 'error'; reason: string }
 
 function useCnbDetail<T>(
-  load: ((signal: { active: boolean }) => Promise<CnbDetailResult<T>>) | null,
-  key: string,
+  load: (request: { repoId: string; number: number }) => Promise<CnbDetailResult<T>>,
+  row: CnbTaskRow | null,
   refreshNonce: number
 ): CnbDetailState<T> {
+  const repoId = row?.repoId
+  const number = row?.number
   const [state, setState] = useState<CnbDetailState<T>>({ status: 'loading' })
   useEffect(() => {
-    if (!load) {
+    if (repoId === undefined || number === undefined) {
       return
     }
-    const signal = { active: true }
+    let active = true
     setState({ status: 'loading' })
-    void load(signal).then(
+    void load({ repoId, number }).then(
       (result) => {
-        if (!signal.active) {
+        if (!active) {
           return
         }
         setState(
@@ -41,17 +43,15 @@ function useCnbDetail<T>(
         )
       },
       () => {
-        if (signal.active) {
+        if (active) {
           setState({ status: 'error', reason: 'request-failed' })
         }
       }
     )
     return () => {
-      signal.active = false
+      active = false
     }
-    // Key captures api/row identity; refreshNonce re-runs on demand.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, refreshNonce])
+  }, [load, repoId, number, refreshNonce])
   return state
 }
 
@@ -61,12 +61,7 @@ export function useCnbIssueDetail(args: {
   refreshNonce: number
 }): CnbDetailState<CnbIssueDetail> {
   const { api, row, refreshNonce } = args
-  const key = row ? `issue:${row.repoId}:${row.number}` : ''
-  return useCnbDetail(
-    row ? () => api.issueDetail({ repoId: row.repoId, number: row.number }) : null,
-    key,
-    refreshNonce
-  )
+  return useCnbDetail(api.issueDetail, row, refreshNonce)
 }
 
 export function useCnbPullDetail(args: {
@@ -75,12 +70,7 @@ export function useCnbPullDetail(args: {
   refreshNonce: number
 }): CnbDetailState<CnbPullDetail> {
   const { api, row, refreshNonce } = args
-  const key = row ? `pull:${row.repoId}:${row.number}` : ''
-  return useCnbDetail(
-    row ? () => api.pullDetail({ repoId: row.repoId, number: row.number }) : null,
-    key,
-    refreshNonce
-  )
+  return useCnbDetail(api.pullDetail, row, refreshNonce)
 }
 
 function useCnbWriter<TPayload>(run: ((payload: TPayload) => Promise<CnbWriteResult>) | null) {
@@ -91,11 +81,7 @@ function useCnbWriter<TPayload>(run: ((payload: TPayload) => Promise<CnbWriteRes
         return { ok: false, reason: 'unavailable' }
       }
       setBusy(true)
-      try {
-        return await run(payload)
-      } finally {
-        setBusy(false)
-      }
+      return run(payload).finally(() => setBusy(false))
     },
     [run]
   )
