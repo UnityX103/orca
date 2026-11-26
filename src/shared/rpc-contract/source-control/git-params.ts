@@ -286,7 +286,14 @@ export const GitRebaseFromBase = WorktreeSelector.extend({
 })
 
 export const GitSwitchBranch = WorktreeSelector.extend({
-  target: z.object({ kind: z.enum(['local', 'remote', 'new']), name: z.string().min(1) })
+  target: z.discriminatedUnion('kind', [
+    z.object({ kind: z.enum(['local', 'remote', 'new']), name: z.string().min(1) }),
+    z.object({
+      kind: z.literal('new-clean'),
+      name: z.string().min(1),
+      startPoint: z.string().min(1)
+    })
+  ])
 })
 
 export const GitCheckout = WorktreeSelector.extend({

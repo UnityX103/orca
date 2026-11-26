@@ -92,7 +92,7 @@ import {
   resolveWorktreeCreateDisplayNameRequest,
   resolveWorktreeCreateDisplayNameMeta
 } from './creation/worktree-display-name'
-import { computeValidatedBranchName } from './creation/worktree-branch-name'
+import { resolveCreateBranchName } from '../../git/worktrees/creation/resolve-create-branch-name'
 import { mergeWorktree } from './metadata/worktree-metadata-merge'
 import { resolveCreatedWorktree } from './creation/created-worktree-reconciliation'
 import { notifyLineageRepos } from '../../workspaces/catalog/worktree-lineage-change-notification'
@@ -102,7 +102,6 @@ import {
   getRepoExecutionHostId,
   type ExecutionHostId
 } from '../../../shared/execution-host/execution-host'
-import type { BranchPrefixSettings } from '../../../shared/git/branches/branch-prefix'
 import {
   parseWorkspaceKey,
   worktreeWorkspaceKey
@@ -528,27 +527,6 @@ async function spawnLocalStartupAndSetupTerminals(args: {
     didSpawnSetup,
     ...(warning ? { warning } : {})
   }
-}
-
-async function resolveCreateBranchName(
-  repoPath: string,
-  branchNameOverride: string | undefined,
-  sanitizedName: string,
-  settings: BranchPrefixSettings,
-  username: string | null,
-  gitOptions: { wslDistro?: string } = {}
-): Promise<string> {
-  if (!branchNameOverride) {
-    return computeValidatedBranchName(sanitizedName, settings, username)
-  }
-  if (branchNameOverride.startsWith('-')) {
-    throw new Error('Branch name must not start with "-"')
-  }
-  await gitExecFileAsync(['check-ref-format', '--branch', branchNameOverride], {
-    cwd: repoPath,
-    ...gitOptions
-  })
-  return branchNameOverride
 }
 
 function hasLocalGitOptions(gitOptions: { wslDistro?: string }): boolean {
@@ -1244,7 +1222,8 @@ async function performLocalWorktreeCreate(
           branchSafeName,
           settings,
           username,
-          localWorktreeGitOptions
+          localWorktreeGitOptions,
+          !exactName
         ))
     })
   }
@@ -1374,7 +1353,8 @@ async function performLocalWorktreeCreate(
           : getWorktreeCreateCandidate(branchSafeName, suffix),
         settings,
         username,
-        localWorktreeGitOptions
+        localWorktreeGitOptions,
+        !exactName
       )
       const tryExistingBranch = async (): Promise<boolean> => {
         checkoutExistingBranch = await canCheckoutExistingLocalBranch(

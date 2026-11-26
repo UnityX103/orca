@@ -2,8 +2,7 @@ import {
   assertBranchPrefixValid,
   getBranchPrefixIssue,
   normalizeBranchPrefix,
-  selectBranchPrefixInput,
-  type BranchPrefixSettings
+  selectBranchPrefixInput
 } from '../../../../shared/git/branches/branch-prefix'
 
 /** Expose a normalized prefix so callers avoid double-prefixing and invalid slash combinations. */
@@ -27,7 +26,7 @@ export function computeBranchName(
 /** Validate prefix settings early so creation errors identify configuration rather than opaque Git failures. */
 export function computeValidatedBranchName(
   sanitizedWorktreeName: string,
-  settings: BranchPrefixSettings,
+  settings: Parameters<typeof selectBranchPrefixInput>[0],
   gitUsername: string | null
 ): string {
   // Git rejects a ref component ending in .lock; only the branch is rewritten so the folder keeps its name.

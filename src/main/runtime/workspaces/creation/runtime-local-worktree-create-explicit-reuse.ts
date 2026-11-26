@@ -3,10 +3,8 @@ import { getBranchConflictKind } from '../../../git/refs/resolution/repo-branch-
 import { getSelectedReviewBranch } from '../../integrations/reviews/selected-review-branch'
 import type { RemoteTrackingBase } from '../../repositories/runtime-remote-fetch-controller'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
-import {
-  canCheckoutExistingLocalBranch,
-  resolveCreateBranchName
-} from './runtime-worktree-create-git'
+import { canCheckoutExistingLocalBranch } from './runtime-worktree-create-git'
+import { resolveCreateBranchName } from '../../../git/worktrees/creation/resolve-create-branch-name'
 
 /** open-existing-v2 pins the selected branch, or refuses before any candidate is tried. */
 export async function resolveExplicitReuseBranch(args: {

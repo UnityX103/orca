@@ -67,9 +67,20 @@ export async function resolveBranchSwitchTarget(
 ): Promise<{ branch: string; creation?: BranchSwitchCreation }> {
   const execution = gitOptionsForWorktree(path, { ...options, admissionTier: 'interactive' })
   const run = (args: string[]) => gitExecFileAsync(args, execution)
-  if (target.kind === 'new') {
+  if (target.kind === 'new' || target.kind === 'new-clean') {
     await validateNewBranchName(path, target.name, { ...options, admissionTier: 'interactive' })
-    return { branch: target.name, creation: { kind: 'new' } }
+    if (target.kind !== 'new-clean') {
+      return { branch: target.name, creation: { kind: 'new' } }
+    }
+    if (!isBranchNameValid(target.startPoint)) {
+      throw new Error('Choose a valid base branch before reusing this workspace.')
+    }
+    const { stdout } = await run(['rev-parse', '--verify', `${target.startPoint}^{commit}`]).catch(
+      () => {
+        throw new Error('The base branch is unavailable in this workspace. Fetch it and try again.')
+      }
+    )
+    return { branch: target.name, creation: { kind: 'new', startPoint: stdout.trim() } }
   }
   if (!isBranchNameValid(target.name)) {
     throw new Error('This branch name is invalid. Choose a different name.')

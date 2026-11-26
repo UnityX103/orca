@@ -1,5 +1,5 @@
 import type { CnbTaskRow } from '../../../../../shared/cnb/cnb-tasks'
-import type { LinkedWorkItemSummary } from '@/lib/workspace/creation/new-workspace'
+import type { WorkspaceLinkedItem } from '../../../../../shared/worktree/types'
 import type { Repo } from '../../../../../shared/repository/repo-types'
 import { getTaskPageRepoSourceContext } from '@/lib/work-items/task-repo-source-context'
 import { getLinkedWorkItemSuggestedName } from '../../../../../shared/workspace/naming/workspace-name'
@@ -9,7 +9,7 @@ export function cnbRowWorkItemType(row: CnbTaskRow): 'issue' | 'pr' {
 }
 
 /** The composer's linked item for a CNB row, mirroring GitHub/GitLab seeding. */
-export function cnbLinkedWorkItem(row: CnbTaskRow): LinkedWorkItemSummary {
+export function cnbLinkedWorkItem(row: CnbTaskRow): WorkspaceLinkedItem {
   return {
     provider: 'cnb',
     type: cnbRowWorkItemType(row),

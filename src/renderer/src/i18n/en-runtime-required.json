@@ -2400,9 +2400,6 @@
       "statusUnknown": "Status unknown",
       "statusWaiting": "Waiting on you",
       "statusWorking": "Working"
-    },
-    "tasks": {
-      "description": "Browse CNB issues, pull requests, and missions."
     }
   },
   "codeHost": {

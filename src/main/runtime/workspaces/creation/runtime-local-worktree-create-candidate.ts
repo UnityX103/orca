@@ -38,9 +38,9 @@ import {
 import {
   canCheckoutExistingLocalBranch,
   getLocalGitHubPrForBranch,
-  getSelectedHostedReviewForBranch,
-  resolveCreateBranchName
+  getSelectedHostedReviewForBranch
 } from './runtime-worktree-create-git'
+import { resolveCreateBranchName } from '../../../git/worktrees/creation/resolve-create-branch-name'
 import { runtimePathExists } from '../catalog/runtime-worktree-filesystem'
 import { assertNoPendingWorktreeRemovalConflict } from '../../../workspaces/removal/worktree-removal-table'
 import { isWorktreePathReserved } from '../../../workspaces/creation/reserved-worktree-path'
@@ -111,7 +111,8 @@ export async function resolveRuntimeLocalWorktreeCreateCandidate(args: {
           branchSafeName,
           args.settings,
           args.username,
-          args.localWorktreeGitOptions
+          args.localWorktreeGitOptions,
+          !exactName
         ))
     })
   }
@@ -173,7 +174,8 @@ export async function resolveRuntimeLocalWorktreeCreateCandidate(args: {
         : getWorktreeCreateCandidate(branchSafeName, suffix),
       args.settings,
       args.username,
-      args.localWorktreeGitOptions
+      args.localWorktreeGitOptions,
+      !exactName
     )
     const tryExistingBranch = async (): Promise<boolean> => {
       checkoutExistingBranch = await canCheckoutExistingLocalBranch(

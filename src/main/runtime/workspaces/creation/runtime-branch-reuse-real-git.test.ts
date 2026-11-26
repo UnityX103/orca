@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, realpath } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, unlink, writeFile } from 'node:fs/promises'
 
 import { tmpdir } from 'node:os'
 
@@ -11,6 +11,9 @@ import { removeTempDirs } from '../../../../shared/testing/remove-temp-dirs.test
 import { gitExecFileAsync } from '../../../git/command-runner/git-exec-file'
 import { addSparseWorktree } from '../../../git/worktrees/creation/worktree-sparse-add'
 import { addWorktree } from '../../../git/worktrees/creation/worktree-add'
+import { switchBranchGuarded } from '../../../git/worktrees/checkout/branch-switch'
+import { checkoutBranch } from '../../../git/worktrees/checkout/checkout'
+import { getStatus } from '../../../git/source-control/status/status-read'
 import { openWorktreeCreatePathClaim } from '../../../workspaces/creation/worktree-create-in-flight'
 import { exactNameLateCollision } from '../../../workspaces/creation/worktree-create-exact-name'
 import { pendingWorktreeRemovals } from '../../../workspaces/removal/worktree-removal-table'
@@ -32,7 +35,8 @@ async function git(cwd: string, ...argv: string[]): Promise<string> {
 
 async function fixture(
   remote = 'origin',
-  prefix: { branchPrefix: string; branchPrefixCustom?: string } = { branchPrefix: '' }
+  prefix: { branchPrefix: string; branchPrefixCustom?: string } = { branchPrefix: '' },
+  username = ''
 ) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'orca-branch-reuse-')))
   roots.push(root)
@@ -71,7 +75,7 @@ async function fixture(
         settings,
         worktreePathSettings: settings,
         workspaceRoot,
-        username: '',
+        username,
         baseBranch: base,
         remoteTrackingBase,
         localWorktreeGitOptions: {},
@@ -114,6 +118,56 @@ async function fixture(
 }
 
 describe('explicit branch reuse with real Git', () => {
+  it('creates an independent CNB issue branch when a derived namespace is occupied', async () => {
+    const f = await fixture('origin', { branchPrefix: 'git-username' }, 'xpy')
+    await git(f.repoPath, 'branch', 'XPY')
+    const picked = await f.create({
+      name: 'cnb',
+      branchNameOverride: undefined,
+      branchIntent: 'create-new',
+      linkedWorkItem: {
+        provider: 'cnb',
+        type: 'issue',
+        number: 138,
+        title: 'CNB workspace',
+        url: 'https://cnb.cool/team/repo/-/issues/138',
+        repoId: 'repo'
+      }
+    })
+    expect(picked.branchName).toBe('xpy-cnb')
+    expect(await git(picked.worktreePath, 'branch', '--show-current')).toBe('xpy-cnb')
+    expect(await git(f.repoPath, 'rev-parse', 'refs/heads/XPY')).toBe(f.initialTip)
+  })
+
+  it('would not reuse a dirty checkout and starts its new branch at the selected base', async () => {
+    const f = await fixture()
+    await git(f.repoPath, 'commit', '--quiet', '--allow-empty', '-m', 'unrelated work')
+    const oldHead = await git(f.repoPath, 'rev-parse', 'HEAD')
+    const marker = join(f.repoPath, 'pending.txt')
+    await writeFile(marker, 'unsaved work')
+    const switchForIssue = () =>
+      switchBranchGuarded(
+        f.repoPath,
+        { kind: 'new-clean', name: 'cnb-issue-138', startPoint: f.base },
+        {},
+        {
+          getStatus: () => getStatus(f.repoPath, { includeLineStats: false }),
+          getAgentBlocker: async () => null,
+          checkout: (branch, creation) => checkoutBranch(f.repoPath, branch, {}, creation)
+        }
+      )
+    await expect(switchForIssue()).rejects.toThrow('This workspace has pending changes')
+    expect(await git(f.repoPath, 'branch', '--show-current')).toBe('main')
+    expect(await git(f.repoPath, 'branch', '--list', 'cnb-issue-138')).toBe('')
+    expect(await git(f.repoPath, 'status', '--porcelain')).toBe('?? pending.txt')
+    await unlink(marker)
+    await expect(switchForIssue()).resolves.toMatchObject({
+      branch: 'cnb-issue-138',
+      head: f.initialTip
+    })
+    expect(await git(f.repoPath, 'rev-parse', 'refs/heads/main')).toBe(oldHead)
+  })
+
   it('preserves an old V1 remote pick when the same-name local branch has diverged', async () => {
     const f = await fixture()
     await git(f.repoPath, 'checkout', '--quiet', '-b', f.branch)

@@ -3,6 +3,7 @@ import type { HostedReviewProvider } from '../../shared/source-control/hosted-re
 import type { HostedReviewCreationProvider } from '../../shared/source-control/hosted-review/hosted-review-creation-providers'
 import { isAzureDevOpsReviewCreationAuthenticated } from '../azure-devops/pull-request-creation'
 import { isBitbucketReviewCreationAuthenticated } from '../bitbucket/pull-request-creation'
+import { getCnbCredentialToken } from '../cnb/credentials'
 import { isGiteaReviewCreationAuthenticated } from '../gitea/pull-request-creation'
 import { getEnterpriseGitHubRepoSlug } from '../github/repositories/github-enterprise-repository'
 import { acquire, release } from '../github/execution/github-operation-slots'
@@ -107,6 +108,14 @@ export function reviewCopy(provider: HostedReviewProvider): {
       authInstruction: 'Connect Bitbucket in Settings > Integrations'
     }
   }
+  if (provider === 'cnb') {
+    return {
+      shortLabel: 'PR',
+      reviewLabel: 'pull request',
+      providerName: 'CNB',
+      authInstruction: 'Connect CNB in Settings > Integrations'
+    }
+  }
   return {
     shortLabel: 'PR',
     reviewLabel: 'pull request',
@@ -130,6 +139,9 @@ export async function isProviderAuthenticated(
   if (provider === 'bitbucket') {
     // Bitbucket authentication must not fall through to GitHub login requirements.
     return isBitbucketReviewCreationAuthenticated()
+  }
+  if (provider === 'cnb') {
+    return (await getCnbCredentialToken()) !== null
   }
   // Only CLI-backed providers need host-routed Git reads; their CLIs run here. Token-backed providers do not touch the repo.
   const connectionId = hostedReviewSshConnectionId(executionHostId)

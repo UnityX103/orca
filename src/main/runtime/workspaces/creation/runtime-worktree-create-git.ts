@@ -1,12 +1,10 @@
 import { getStoredRepoExecutionHostId } from '../../../workspaces/execution-host/repo-execution-host'
-import type { BranchPrefixStrategy } from '../../../../shared/ui-chrome/ui-chrome-types'
 import type { Repo } from '../../../../shared/repository/repo-types'
 import { getPRForBranch } from '../../../github/client/lookup/get-pr-for-branch'
 import type { GitAdmissionTier } from '../../../../shared/rpc-contract/source-control/git-admission-tier-params'
 import { gitExecFileAsync } from '../../../git/command-runner/git-exec-file'
 import { foldGitRefNameCase } from '../../../git/refs/resolution/repo-branch-conflict'
 import { listWorktrees } from '../../../git/worktrees/catalog/worktree-scan-cache'
-import { computeValidatedBranchName } from '../../../ipc/worktrees/creation/worktree-branch-name'
 import { getHostedReviewForBranch } from '../../../source-control/hosted-review'
 import {
   getSelectedReviewBranch,
@@ -15,31 +13,6 @@ import {
 } from '../../integrations/reviews/selected-review-branch'
 import { hasLocalGitOptions, normalizeLocalBranchName } from '../catalog/runtime-worktree-selection'
 import type { HostedReviewExecutionOptions } from '../../../source-control/hosted-review-git-options'
-
-export async function resolveCreateBranchName(
-  repoPath: string,
-  branchNameOverride: string | undefined,
-  sanitizedName: string,
-  settings: { branchPrefix: string; branchPrefixCustom?: string },
-  username: string | null,
-  gitOptions: { wslDistro?: string; admissionTier?: GitAdmissionTier } = {}
-): Promise<string> {
-  if (!branchNameOverride) {
-    return computeValidatedBranchName(
-      sanitizedName,
-      { ...settings, branchPrefix: settings.branchPrefix as BranchPrefixStrategy },
-      username
-    )
-  }
-  if (branchNameOverride.startsWith('-')) {
-    throw new Error('Branch name must not start with "-"')
-  }
-  await gitExecFileAsync(['check-ref-format', '--branch', branchNameOverride], {
-    cwd: repoPath,
-    ...gitOptions
-  })
-  return branchNameOverride
-}
 
 export async function canCheckoutExistingLocalBranch(
   repoPath: string,

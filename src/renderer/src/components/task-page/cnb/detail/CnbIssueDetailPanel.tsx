@@ -12,6 +12,7 @@ import { useCnbIssueDetail, useCnbIssueWriter } from '../use-cnb-task-detail'
 import { CnbIssueEditor } from './CnbIssueEditor'
 import { CnbCommentComposer } from './CnbCommentComposer'
 import { CnbTaskDispatchSection } from '../dispatch/CnbTaskDispatchSection'
+import { CnbReuseWorkspaceAction } from './CnbReuseWorkspaceAction'
 
 type CnbApi = NonNullable<PreloadApi['cnb']>
 
@@ -82,6 +83,7 @@ export function CnbIssueDetailPanel({
         >
           <RefreshCw className="size-4" />
         </Button>
+        <CnbReuseWorkspaceAction row={row} />
         <Button size="sm" onClick={() => onStartWorkspace(row)}>
           {t('cnb.tasks.startWorkspaceShort', 'Start workspace')}
           <ArrowRight className="size-3" />

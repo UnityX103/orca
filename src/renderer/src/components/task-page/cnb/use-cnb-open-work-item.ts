@@ -5,7 +5,12 @@ import { INTEGRATION_SETTING_TARGET_IDS } from '@/components/settings/integratio
 import { getWorkItemRepo } from '@/lib/work-items/work-item-repo-row'
 import { findCnbWorkItemWorkspaceAttachment } from '@/lib/work-items/cnb/cnb-work-item-workspace-attachment'
 import { activateAndRevealWorktree } from '@/lib/workspace/activation/worktree-activation'
-import { cnbRowWorkItemType, cnbWorkspaceSeed, cnbRowSourceContext } from './cnb-work-item'
+import {
+  cnbLinkedWorkItem,
+  cnbRowWorkItemType,
+  cnbWorkspaceSeed,
+  cnbRowSourceContext
+} from './cnb-work-item'
 import type { TaskPageComposerActionsModel } from '../use-task-page-composer-actions'
 import type { CnbTaskRow } from '../../../../../shared/cnb/cnb-tasks'
 
@@ -37,14 +42,7 @@ export function useCnbOpenWorkItem(
       const repo = getWorkItemRepo(model.repos, row)
       const openComposer = (baseBranch?: string): void => {
         model.openModal('new-workspace-composer', {
-          linkedWorkItem: {
-            provider: 'cnb',
-            type,
-            number: row.number,
-            title: row.title,
-            url: row.url,
-            repoId: row.repoId
-          },
+          linkedWorkItem: cnbLinkedWorkItem(row),
           taskSourceContext: cnbRowSourceContext(repo),
           prefilledName: cnbWorkspaceSeed(row),
           initialRepoId: row.repoId,

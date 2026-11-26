@@ -278,6 +278,26 @@ export function getBranchConflictKindStrict(
   )
 }
 
+export async function isLocalBranchNamespaceBlocked(
+  path: string,
+  branchName: string,
+  options: LocalGitExecOptions
+): Promise<boolean> {
+  try {
+    await hasLocalNamespaceConflict(
+      localGitProbeExec(path, options),
+      `refs/heads/${branchName}`,
+      {}
+    )
+    return false
+  } catch (error) {
+    if (error instanceof BranchNamespaceConflictError) {
+      return true
+    }
+    throw error
+  }
+}
+
 export function getBranchConflictKind(
   path: string,
   branchName: string,
