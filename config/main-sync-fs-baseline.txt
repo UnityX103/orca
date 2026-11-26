@@ -86,7 +86,7 @@
 7 src/main/claude-accounts/sign-in/claude-account-folder.ts
 3 src/main/claude/agent-view/agent-view-install.ts
 1 src/main/claude/configuration/claude-diff-panel-auto-open.ts
-14 src/main/claude/configuration/claude-folder-trust-file.ts
+2 src/main/claude/configuration/claude-folder-trust-file.ts
 1 src/main/claude/configuration/claude-global-config.ts
 1 src/main/claude/hook-service.ts
 2 src/main/claude/hooks/claude-profile-hook-target.ts

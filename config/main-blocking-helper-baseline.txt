@@ -28,7 +28,7 @@
 2 src/main/agent-launch/trust/agent-workspace-trust-spawn.ts
 5 src/main/agent-launch/trust/agent-workspace-trust.ts
 1 src/main/agent-launch/trust/antigravity-workspace-trust-ownership.ts
-12 src/main/agent-launch/trust/execution-host-workspace-trust.ts
+11 src/main/agent-launch/trust/execution-host-workspace-trust.ts
 3 src/main/ai-vault-search/session-search-child-service.ts
 4 src/main/ai-vault-search/session-search-enablement.ts
 2 src/main/ai-vault-search/storage/session-search-schema.ts
@@ -186,7 +186,7 @@
 11 src/main/claude-accounts/profiles/routing/claude-profile-router.ts
 3 src/main/claude-accounts/profiles/setup/claude-profile-history.ts
 14 src/main/claude-accounts/profiles/setup/claude-profile-prompt-history.ts
-11 src/main/claude-accounts/profiles/setup/claude-profile-provisioning.ts
+10 src/main/claude-accounts/profiles/setup/claude-profile-provisioning.ts
 6 src/main/claude-accounts/profiles/setup/claude-profile-settings.ts
 1 src/main/claude-accounts/profiles/setup/claude-profile-setup-worker.ts
 3 src/main/claude-accounts/profiles/setup/claude-profile-setup.ts
@@ -208,7 +208,7 @@
 1 src/main/claude/child-process/claude-agent-sdk-process-spawn.ts
 1 src/main/claude/claude-stream-json-connection.ts
 1 src/main/claude/configuration/claude-diff-panel-auto-open.ts
-13 src/main/claude/configuration/claude-folder-trust-file.ts
+1 src/main/claude/configuration/claude-folder-trust-file.ts
 1 src/main/claude/configuration/claude-in-chrome-default.ts
 1 src/main/claude/configuration/claude-rejected-api-key.ts
 1 src/main/claude/conversation-naming/claude-naming-invocation.ts

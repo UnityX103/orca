@@ -85,19 +85,20 @@ export function useCnbTaskDispatch(args: {
       }
       setBusy(true)
       setError(null)
-      try {
-        const started = await api.startTaskDispatch(request)
-        readToken.current += 1
-        setDispatch(started)
-        return started
-      } catch (failure) {
-        setError(failure instanceof Error ? failure.message : String(failure))
-        // A refused start may still have written a record; one read keeps the panel truthful.
-        void read()
-        return null
-      } finally {
-        setBusy(false)
-      }
+      return api
+        .startTaskDispatch(request)
+        .then((started) => {
+          readToken.current += 1
+          setDispatch(started)
+          return started
+        })
+        .catch((failure: unknown) => {
+          setError(failure instanceof Error ? failure.message : String(failure))
+          // A refused start may already have written a record.
+          void read()
+          return null
+        })
+        .finally(() => setBusy(false))
     },
     [api, read]
   )
