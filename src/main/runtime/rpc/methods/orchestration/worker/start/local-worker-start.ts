@@ -2,27 +2,17 @@ import { createLocalWorkerStartDispatch } from './local-worker-start-dispatch'
 import { refuseClaimedWorkerTerminal } from '../../../../../orchestration/db/worker-dispatch/worker-terminal-claim'
 import { probeWorkerOpenCodeModelLaunchSupport } from './launch/worker-opencode-model-preflight'
 import { resolveWorkerConfiguredAgentParams } from './launch/worker-configured-agent-preflight'
-import type { OrcaRuntimeService } from '../../../../../orca-runtime'
-import type { OrchestrationDb } from '../../../../../orchestration/db/orchestration-db'
-import type {
-  DispatchContextRow,
-  RunRow,
-  TaskRow
-} from '../../../../../orchestration/db/orchestration-records'
-import type { OrchestrationEntryCaller } from '../../../../../orchestration/addressing/orchestration-caller-identity'
-import type { OrchestrationPartyIdentity as OrchestrationCallerIdentity } from '../../../../../../../shared/orchestration/mailbox/orchestration-party-identity'
 import { resolveDispatchCallerWorktreeId } from '../../orchestration-caller-workspace'
 import {
   refuseUnmatchedWorkerSelector,
   workerStartTargetLabel
 } from './worker-start-selector-refusal'
-import { resolveWorkerStartModeOnHost } from '../../structured-workers/orchestration-worker-start-mode'
+import { preflightWorkerAgentOnHost } from './launch/worker-agent-host-preflight'
 import { lineageModeForResolvedAgent } from './worker-chat-lineage'
-import type { AgentLaunchModeReceipt as WorkerStartModeReceipt } from '../../../../../../../shared/agent-launch/contracts/agent-launch-intent'
 import { EXISTING_WORKTREE_SETUP, placeWorkerAgent } from './placement/worker-start-agent-placement'
 import { resolveExistingWorkerWorkspace } from './placement/folder-worktree-placement'
 import { resolveWorkerWorktreeCreationTarget } from './placement/worker-worktree-creation'
-import type { WorkerStartInput } from './worker-start-input'
+import type { LocalWorkerStartArgs } from './worker-start-input'
 import {
   persistGatedSetupSpawnFailure,
   persistWorkerReadinessStage
@@ -42,35 +32,15 @@ import {
 import { requireWorkerAuthority, type WorkerEffect } from './placement/worker-placement-topology'
 import { prepareLocalWorkerStart } from './launch/worker-start-validation'
 import { deliverAndSettleWorkerStartReadiness } from './readiness/worker-start-readiness-settlement'
-import { handOverWhenReady } from './readiness/placed-worker-readiness'
-import type { WorkerStartMutation } from './worker-start-mutation'
+import { handOverWhenReady, wakeReusedSleptAgent } from './readiness/placed-worker-readiness'
 import {
   prepareWorkerStartCard,
   recordWorkerStartOutcome
 } from '../../../../../orchestration/workers/launch/worker-start-card'
 import { rebindReusedStructuredWorker } from '../../structured-workers/orchestration-structured-worker-session'
-import { placedWorkerParty, type WorkerFollowUp } from '../follow-up/worker-follow-up-placement'
+import { placedWorkerParty } from '../follow-up/worker-follow-up-placement'
 
-export async function startLocalWorker(args: {
-  params: WorkerStartInput
-  runtime: OrcaRuntimeService
-  db: OrchestrationDb
-  /** Called only once effect-free validation passes, so a refused start binds no new Run. */
-  bindRun: () => RunRow
-  taskDeps: string[] | undefined
-  coordinator: OrchestrationCallerIdentity | null
-  callerSession?: OrchestrationEntryCaller
-  personWorktree?: { id: string; repoId: string }
-  existingTask?: TaskRow
-  orchestrationMutation?: WorkerStartMutation
-  /** Settings-driven; the executing host still gets to refuse below. */
-  mode: WorkerStartModeReceipt
-  /** Stamped on the Dispatch so the workers this one starts start as chats too. */
-  chatLineage?: boolean
-  /** Set when a worker starts its own helper; the helper reports to this Dispatch. */
-  helperCreator?: DispatchContextRow
-  followUp?: WorkerFollowUp
-}): Promise<unknown> {
+export async function startLocalWorker(args: LocalWorkerStartArgs): Promise<unknown> {
   const { runtime, db, coordinator, callerSession, orchestrationMutation, personWorktree } = args
   const recordStart = prepareWorkerStartCard(runtime, callerSession)
   // `--terminal` names a party: a chat by its `/clear` root address, as its Dispatch does.
@@ -134,8 +104,18 @@ export async function startLocalWorker(args: {
     resolvedWorktreeId: resolvedWorktree?.id
   })
   const decided = lineageModeForResolvedAgent(runtime, args.mode, { ...args, params, agent })
-  const hostMode = resolveWorkerStartModeOnHost(runtime, decided, resolvedWorktree?.id, agent)
-  let mode = chatWorkerMode(await hostMode, chat, Boolean(personWorktree))
+  let mode = chatWorkerMode(
+    await preflightWorkerAgentOnHost({
+      runtime,
+      agent,
+      resolvedWorktree,
+      creationTarget,
+      terminal: params.terminal,
+      mode: decided
+    }),
+    chat,
+    Boolean(personWorktree)
+  )
 
   // Synchronous through the Dispatch insert, so nothing else claims the terminal in between.
   refuseClaimedWorkerTerminal(db, params.terminal, runtime, args.followUp?.of)
@@ -242,10 +222,10 @@ export async function startLocalWorker(args: {
       reusesTerminal: Boolean(params.terminal),
       creation: placed.terminalCreation
     }
+    const sleptIncarnation = await wakeReusedSleptAgent(runtime, placed, workerChat, timeoutMs)
     // Fixed now: the hand-over may run later, from the background wait.
     const placement = placed
     const handle = terminalHandle
-    const worktreeId = resolvedWorktree.id
     // A hand-over from the background wait gets a fresh delivery budget; one in time keeps the shared one.
     const bindTerminal = (): void => {
       const terminalAuthority = authority ?? requireWorkerAuthority(runtime, handle)
@@ -253,10 +233,11 @@ export async function startLocalWorker(args: {
         dispatchId: started.dispatch.id,
         handle,
         ...terminalAuthority,
-        worktreeId,
+        worktreeId: placement.worktree.id,
         effects,
         setupState: setupReceipt.state,
-        terminalOwnership: external ? 'external' : 'created'
+        terminalOwnership: external ? 'external' : 'created',
+        sleptProcessIncarnation: sleptIncarnation
       })
     }
     const handOver = async (deliveryDeadline = readinessDeadline): Promise<unknown> => {
