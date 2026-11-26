@@ -63,7 +63,9 @@ export function sessionWorkerRestingLabel(look: SessionWorkerLook, coordinator: 
     case 'needsYou':
       return translate('bots.activity.needsYou', 'Needs you')
     case 'idle':
-      return translate('bots.activity.idle', 'Idle')
+      return look.status === 'unconfirmed'
+        ? getWorktreeStatusLabel(look.status)
+        : translate('bots.activity.idle', 'Idle')
     case 'failed':
     case 'working':
       return getWorktreeStatusLabel(look.status)

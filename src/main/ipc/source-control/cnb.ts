@@ -1,10 +1,315 @@
 import { ipcMain } from 'electron'
-import { connectCnb, disconnectCnb, getCnbCredentialStatus } from '../../cnb/credentials'
-import { readCnbReviewDetails } from '../../cnb/pull-requests'
+import { z } from 'zod'
+import type { CnbTaskRepository } from '../../../shared/cnb/cnb-tasks'
 
-export function registerCnbHandlers(): void {
+type CnbMissionsResultMission = {
+  org: string
+  path: string
+  name: string
+  description: string
+  visibility: string | null
+}
+import { mapSettledWithConcurrency } from '../../../shared/concurrency/map-with-concurrency'
+import { isGitRepoKind } from '../../../shared/repository/repo-kind'
+import type { Repo } from '../../../shared/repository/repo-types'
+import { getTaskEligibleRepos } from '../../../shared/work-items/task-repo-selection'
+import { connectCnb, disconnectCnb, getCnbCredentialStatus } from '../../cnb/credentials'
+import { cnbForgeProvider } from '../../cnb/forge-provider'
+import { readCnbReviewDetails } from '../../cnb/pull-requests'
+import {
+  readCnbIssueDetail,
+  readCnbLabels,
+  readCnbMissionResources,
+  readCnbMissionViewConfig,
+  readCnbMissions,
+  readCnbViewer,
+  readCnbPullDetail,
+  readCnbTaskList,
+  uploadCnbAttachment,
+  writeCnbIssue,
+  writeCnbPull
+} from '../../cnb/tasks'
+import type { Store } from '../../persistence/loading-store/store'
+import { getLocalProjectWorktreeGitOptions } from '../../workspaces/execution-host/project-runtime-git-options'
+import { getStoredRepoExecutionHostId } from '../../workspaces/execution-host/repo-execution-host'
+import { guardWslUncPathAccess } from '../../wsl/filesystem/wsl-unc-access-gate'
+
+const filtersSchema = z.object({
+  state: z.enum(['open', 'closed', 'all']),
+  keyword: z.string().max(200),
+  authors: z.array(z.string().max(100)).max(16),
+  assignees: z.array(z.string().max(100)).max(16),
+  reviewers: z.array(z.string().max(100)).max(16),
+  labels: z.array(z.string().max(200)).max(20)
+})
+
+const listRequest = z.object({
+  repoIds: z.array(z.string().min(1)).min(1).max(50),
+  kind: z.enum(['issues', 'pull-requests']),
+  filters: filtersSchema,
+  page: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
+})
+
+const targetRequest = z.object({
+  repoId: z.string().min(1),
+  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
+})
+
+const missionResourceRequest = z.object({
+  missionPath: z.string().min(1).max(400),
+  cursor: z.string().max(2048).nullable(),
+  view: z
+    .object({
+      selector: z
+        .array(
+          z.object({
+            field: z.string().max(200),
+            operator: z.string().max(50),
+            value: z.array(z.string().max(500)).max(50)
+          })
+        )
+        .max(50),
+      sort: z
+        .array(z.object({ field: z.string().max(200), order: z.enum(['asc', 'desc']) }))
+        .max(10),
+      fields: z.array(z.string().max(200)).max(100)
+    })
+    .nullable()
+})
+
+const missionViewConfigRequest = z.object({
+  missionPath: z.string().min(1).max(400),
+  viewId: z.string().min(1).max(200)
+})
+
+const missionListRequest = z.object({ orgs: z.array(z.string().min(1).max(200)).min(1).max(20) })
+
+const labelsRequest = z.object({ repoIds: z.array(z.string().min(1)).min(1).max(50) })
+
+const attachRequest = z.object({
+  repoId: z.string().min(1),
+  issueNumber: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
+  fileName: z.string().min(1).max(255),
+  contentType: z.string().min(1).max(100),
+  base64: z
+    .string()
+    .min(1)
+    .max(40 * 1024 * 1024)
+})
+
+const issueWriteRequest = z.object({
+  repoId: z.string().min(1),
+  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
+  payload: z.discriminatedUnion('action', [
+    z.object({
+      action: z.literal('create'),
+      title: z.string().min(1).max(255),
+      body: z.string().max(65_536),
+      labels: z.array(z.string().max(200)).max(10),
+      assignees: z.array(z.string().max(100)).max(8)
+    }),
+    z.object({
+      action: z.literal('update'),
+      title: z.string().min(1).max(255).optional(),
+      body: z.string().max(65_536).optional(),
+      state: z.enum(['open', 'closed']).optional()
+    }),
+    z.object({ action: z.literal('comment'), body: z.string().min(1).max(65_536) }),
+    z.object({ action: z.literal('labels'), labels: z.array(z.string().max(200)).max(10) }),
+    z.object({ action: z.literal('assignees'), assignees: z.array(z.string().max(100)).max(8) }),
+    z.object({
+      action: z.literal('property'),
+      key: z
+        .string()
+        .min(1)
+        .max(255)
+        .regex(/^[A-Za-z0-9_]+$/),
+      value: z.string().max(50)
+    })
+  ])
+})
+
+const pullWriteRequest = z.object({
+  repoId: z.string().min(1),
+  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  payload: z.discriminatedUnion('action', [
+    z.object({
+      action: z.literal('update'),
+      title: z.string().min(1).max(255).optional(),
+      body: z.string().max(65_536).optional(),
+      state: z.enum(['open', 'closed']).optional()
+    }),
+    z.object({ action: z.literal('comment'), body: z.string().min(1).max(65_536) }),
+    z.object({ action: z.literal('reviewers'), reviewers: z.array(z.string().max(100)).max(16) }),
+    z.object({ action: z.literal('labels'), labels: z.array(z.string().max(200)).max(10) }),
+    z.object({
+      action: z.literal('review'),
+      event: z.enum(['approve', 'comment', 'request_changes']),
+      body: z.string().max(65_536)
+    }),
+    z.object({
+      action: z.literal('merge'),
+      style: z.enum(['merge', 'squash', 'rebase']),
+      title: z.string().max(500),
+      message: z.string().max(65_536)
+    })
+  ])
+})
+
+async function resolveTaskRepository(store: Store, repo: Repo): Promise<string | null> {
+  const localGitExecOptions = getLocalProjectWorktreeGitOptions(store, repo)
+  return guardWslUncPathAccess(
+    repo.path,
+    () =>
+      cnbForgeProvider.resolveRepository({
+        repoPath: repo.path,
+        executionHostId: getStoredRepoExecutionHostId(repo),
+        localGitExecOptions
+      }),
+    { wslDistro: localGitExecOptions.wslDistro }
+  )
+}
+
+async function resolveRepoSlug(store: Store, repoId: string): Promise<string | null> {
+  const repo = store.getRepo(repoId)
+  if (!repo || !isGitRepoKind(repo)) {
+    return null
+  }
+  return resolveTaskRepository(store, repo).catch(() => null)
+}
+
+export function registerCnbHandlers(store: Store): void {
   ipcMain.handle('cnb:connect', (_event, token: unknown) => connectCnb(token))
   ipcMain.handle('cnb:disconnect', () => disconnectCnb())
   ipcMain.handle('cnb:status', () => getCnbCredentialStatus())
   ipcMain.handle('cnb:review-details', (_event, url: unknown) => readCnbReviewDetails(url))
+  ipcMain.handle('cnb:task-repositories', async () => {
+    const candidates = getTaskEligibleRepos(store.getRepos())
+    const resolved = await mapSettledWithConcurrency(candidates, 4, (repo) =>
+      resolveTaskRepository(store, repo)
+    )
+    const repositories = new Map<string, CnbTaskRepository>()
+    for (let index = 0; index < resolved.length; index++) {
+      const result = resolved[index]
+      if (result.status === 'fulfilled' && result.value) {
+        const slug = result.value
+        const key = slug.toLowerCase()
+        if (!repositories.has(key)) {
+          repositories.set(key, { id: candidates[index].id, slug })
+        }
+      }
+    }
+    return { ok: true as const, repositories: [...repositories.values()] }
+  })
+  ipcMain.handle('cnb:task-list', async (_event, request: unknown) => {
+    const { repoIds, kind, filters, page } = listRequest.parse(request)
+    const repositories: CnbTaskRepository[] = []
+    for (const repoId of repoIds) {
+      const slug = await resolveRepoSlug(store, repoId)
+      if (slug) {
+        repositories.push({ id: repoId, slug })
+      }
+    }
+    return readCnbTaskList({ repositories, kind, filters, page })
+  })
+  ipcMain.handle('cnb:issue-detail', async (_event, request: unknown) => {
+    const { repoId, number } = targetRequest.parse(request)
+    const slug = await resolveRepoSlug(store, repoId)
+    if (!slug) {
+      return { ok: false as const, reason: 'repository-unavailable' as const }
+    }
+    return readCnbIssueDetail(slug, number)
+  })
+  ipcMain.handle('cnb:pull-detail', async (_event, request: unknown) => {
+    const { repoId, number } = targetRequest.parse(request)
+    const slug = await resolveRepoSlug(store, repoId)
+    if (!slug) {
+      return { ok: false as const, reason: 'repository-unavailable' as const }
+    }
+    return readCnbPullDetail(slug, number)
+  })
+  ipcMain.handle('cnb:viewer', () => readCnbViewer())
+  ipcMain.handle('cnb:labels', async (_event, request: unknown) => {
+    const { repoIds } = labelsRequest.parse(request)
+    const repositories: CnbTaskRepository[] = []
+    for (const repoId of repoIds) {
+      const slug = await resolveRepoSlug(store, repoId)
+      if (slug) {
+        repositories.push({ id: repoId, slug })
+      }
+    }
+    return readCnbLabels(repositories)
+  })
+  ipcMain.handle('cnb:missions', async (_event, request: unknown) => {
+    const { orgs } = missionListRequest.parse(request)
+    // Aggregate across every selected org so a selection spanning orgs isn't truncated to the shortest repo.
+    const results = await Promise.all(orgs.map((org) => readCnbMissions(org)))
+    const missions: CnbMissionsResultMission[] = []
+    let canQueryResources = false
+    let sawForbidden = false
+    let sawRequestFailed = false
+    for (const result of results) {
+      if (!result.ok) {
+        if (result.reason === 'not-connected') {
+          return { ok: false as const, reason: 'not-connected' as const }
+        }
+        if (result.reason === 'forbidden') {
+          sawForbidden = true
+        } else {
+          sawRequestFailed = true
+        }
+        continue
+      }
+      canQueryResources = canQueryResources || result.canQueryResources
+      missions.push(...result.missions)
+    }
+    if (missions.length === 0 && (sawForbidden || sawRequestFailed)) {
+      return {
+        ok: false as const,
+        reason: sawForbidden ? ('forbidden' as const) : ('request-failed' as const)
+      }
+    }
+    return { ok: true as const, missions, canQueryResources }
+  })
+  ipcMain.handle('cnb:mission-resources', async (_event, request: unknown) => {
+    const { missionPath, cursor, view } = missionResourceRequest.parse(request)
+    return readCnbMissionResources({ missionPath, cursor, view })
+  })
+  ipcMain.handle('cnb:mission-view-config', async (_event, request: unknown) => {
+    const { missionPath, viewId } = missionViewConfigRequest.parse(request)
+    return readCnbMissionViewConfig(missionPath, viewId)
+  })
+  ipcMain.handle('cnb:upload-attachment', async (_event, request: unknown) => {
+    const { repoId, issueNumber, fileName, contentType, base64 } = attachRequest.parse(request)
+    const slug = await resolveRepoSlug(store, repoId)
+    if (!slug) {
+      return { ok: false as const, reason: 'repository-unavailable' }
+    }
+    const bytes = Buffer.from(base64, 'base64')
+    return uploadCnbAttachment({
+      target:
+        issueNumber !== null
+          ? { kind: 'issue-comment', repository: slug, number: issueNumber }
+          : { kind: 'repo', repository: slug },
+      fileName,
+      contentType,
+      bytes
+    })
+  })
+  ipcMain.handle('cnb:issue-write', async (_event, request: unknown) => {
+    const { repoId, number, payload } = issueWriteRequest.parse(request)
+    const slug = await resolveRepoSlug(store, repoId)
+    if (!slug) {
+      return { ok: false as const, reason: 'repository-unavailable' }
+    }
+    return writeCnbIssue(slug, number, payload)
+  })
+  ipcMain.handle('cnb:pull-write', async (_event, request: unknown) => {
+    const { repoId, number, payload } = pullWriteRequest.parse(request)
+    const slug = await resolveRepoSlug(store, repoId)
+    if (!slug) {
+      return { ok: false as const, reason: 'repository-unavailable' }
+    }
+    return writeCnbPull(slug, number, payload)
+  })
 }

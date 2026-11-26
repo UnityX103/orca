@@ -47,6 +47,7 @@ export type TuiAgentConfig = {
   /** Trust Orca pre-writes at PTY spawn (agent-workspace-trust.ts) so the agent's first-launch "trust this folder?" menu doesn't consume the bracketed paste. */
   preflightTrust?:
     | 'claude'
+    | 'bobot'
     | 'cursor'
     | 'copilot'
     | 'codex'

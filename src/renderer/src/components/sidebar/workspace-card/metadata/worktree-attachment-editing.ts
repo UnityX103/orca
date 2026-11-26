@@ -62,7 +62,8 @@ export function workspaceAttachmentProviderLabel(item: WorkspaceAttachment): str
     jira: 'Jira',
     bitbucket: 'Bitbucket',
     'azure-devops': 'Azure DevOps',
-    gitea: 'Gitea'
+    gitea: 'Gitea',
+    cnb: 'CNB'
   }
   return labels[item.provider]
 }
@@ -97,6 +98,10 @@ export function parseWorkspaceAttachmentInput(
     }
     if (gitlab && Number.isSafeInteger(gitlab.number) && gitlab.number > 0) {
       return { provider: 'gitlab', type: gitlab.type, number: gitlab.number, url: value }
+    }
+    const cnb = parseCnbWorkItemUrl(value)
+    if (cnb) {
+      return cnb
     }
     if (jira) {
       return {
@@ -180,6 +185,27 @@ export function getActiveWorkspaceReviewKey(worktree: Worktree | undefined): str
               : false
   )
   return active ? getWorkspaceAttachmentKey(active) : null
+}
+
+function parseCnbWorkItemUrl(value: string): WorkspaceAttachment | null {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    return null
+  }
+  if (url.username || url.password || url.hostname !== 'cnb.cool') {
+    return null
+  }
+  const match = /^\/(.+)\/-\/(issues|pulls)\/(\d+)\/?$/.exec(url.pathname)
+  if (!match) {
+    return null
+  }
+  const number = Number(match[3])
+  if (!Number.isSafeInteger(number) || number <= 0) {
+    return null
+  }
+  return { provider: 'cnb', type: match[2] === 'pulls' ? 'pr' : 'issue', number, url: value }
 }
 
 function parseOtherReviewUrl(value: string): WorkspaceAttachment | null {

@@ -6,6 +6,8 @@ import { captureGitHubImageUpload, type GitHubImageUploadAddress } from './githu
 
 export type GitHubImageIntake = {
   address?: GitHubImageUploadAddress | (() => GitHubImageUploadAddress)
+  /** Overrides the GitHub address path (e.g. CNB) with the same `(file) => url` contract. */
+  uploader?: (file: File, signal?: AbortSignal) => Promise<string>
   onPending?: (pending: boolean) => void
   enabled?: boolean
 }
@@ -39,10 +41,13 @@ export function useGitHubImageUploads(options: GitHubImageIntake) {
     }
     try {
       const address = latest.current.address
-      if (!address) {
+      const customUploader = latest.current.uploader
+      if (!address && !customUploader) {
         throw new Error('Open this GitHub repository before attaching an image.')
       }
-      const upload = captureGitHubImageUpload(typeof address === 'function' ? address() : address)
+      const upload =
+        customUploader ??
+        captureGitHubImageUpload(typeof address === 'function' ? address() : address!)
       for (const file of images) {
         const replace = insert(file)
         pending.current++

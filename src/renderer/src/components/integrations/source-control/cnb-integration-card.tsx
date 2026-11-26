@@ -113,7 +113,7 @@ export function CnbIntegrationCard(): React.JSX.Element | null {
       name="CNB"
       description={t(
         'cnb.integration.description',
-        'Pull requests and build status for CNB repositories.'
+        'Issues, pull requests, and build status for CNB repositories.'
       )}
       checking={source === null}
       statusLabel={statusLabel}
@@ -158,7 +158,7 @@ export function CnbIntegrationCard(): React.JSX.Element | null {
               <p className="text-xs text-muted-foreground">
                 {t(
                   'cnb.integration.scopes',
-                  'Grant read access to account-profile, repo-pr, and repo-notes.'
+                  'Grant read access to account-profile, repo-issue, repo-pr, and repo-notes.'
                 )}
               </p>
               <div className="flex flex-wrap items-center gap-2">

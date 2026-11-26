@@ -23,7 +23,8 @@ import { createClaudeStreamedTextCheckpoints } from './claude-streamed-text-chec
 import {
   claudeFrameParentRef,
   claudeStreamTurnSource,
-  isRootClaudeFrame
+  isRootClaudeFrame,
+  observeClaudeRootTurnFrame
 } from '../turns/claude-turn-opening'
 import { ClaudeOpenTurn, withClaudePromptSuggestions } from '../turns/claude-open-turn'
 import { absorbClaudeCommandFrame, claudeCommandCurrentTurn } from '../turns/claude-command-turn'
@@ -172,21 +173,8 @@ export function createClaudeJournalTranslator(
     turn.observeStartedSend(event.type === 'message' ? (event.startedSend ?? null) : null)
     if (event.type === 'message') {
       context.observe(event.message, event.observedAt ?? Date.now())
-      // Root init starts a cycle; replays after root work fold into it, while task frames do not mark cycle work.
       if (isRootClaudeFrame(event.message)) {
-        if (event.message.type === 'system' && event.message.subtype === 'init') {
-          turn.observeProviderCycleStart()
-        } else if (
-          event.startsTurn === true ||
-          event.message.type === 'assistant' ||
-          event.message.type === 'stream_event'
-        ) {
-          turn.observeProviderCycleWork()
-          turn.inputChoiceWorkObserved ||=
-            event.message.type !== 'assistant' ||
-            event.message.is_api_error_message !== true ||
-            event.startedSend != null
-        }
+        observeClaudeRootTurnFrame(turn, event)
         // Checked on every root frame: an approved plan settles the fallback without a new init.
         journalClaudeFullAccessRefusal(deps, turnScope())
       }

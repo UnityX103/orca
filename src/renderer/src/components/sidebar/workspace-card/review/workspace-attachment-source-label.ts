@@ -71,6 +71,12 @@ export function getWorkspaceAttachmentSourceLabel(item: WorkspaceAttachment): st
       return `${host}${repo.owner}/${repo.repo}`
     }
   }
+  if (item.provider === 'cnb') {
+    const scope = getWorkspaceAttachmentUrlScope(item)
+    if (scope) {
+      return urlLabel(scope) ?? scope
+    }
+  }
   if (item.provider === 'gitlab') {
     const parsed = item.url ? parseGitLabIssueOrMRLink(item.url) : null
     if (parsed) {

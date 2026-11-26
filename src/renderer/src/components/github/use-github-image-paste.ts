@@ -12,11 +12,12 @@ export function useGitHubImagePaste(
   editor: RefObject<Editor | null>,
   address: GitHubImageUploadAddress | (() => GitHubImageUploadAddress) | undefined,
   onPending: ((pending: boolean) => void) | undefined,
-  enabled: boolean
+  enabled: boolean,
+  uploader?: (file: File, signal?: AbortSignal) => Promise<string>
 ) {
   const t = useTranslate()
   const options = useRef({ address, onPending, enabled })
-  const uploads = useGitHubImageUploads({ address, onPending, enabled })
+  const uploads = useGitHubImageUploads({ address, uploader, onPending, enabled })
   const live = useRef(new Set<string>())
   useLayoutEffect(() => {
     options.current = { address, onPending, enabled }

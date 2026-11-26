@@ -98,22 +98,23 @@ export function applyAgentWorkspaceTrustToSpawn(
   })
 }
 
-/** Read-only Codex chats need explicit folder trust to load .codex config. */
-export async function applyStructuredCodexWorkspaceTrust(args: {
-  workspacePath: string
-  launchEnv: Record<string, string | undefined>
-  codexHome: string
-  settings: AgentWorkspaceTrustSetting
-  repoDecision: AgentWorkspaceTrustDecision | undefined
-}): Promise<void> {
+/** A structured launch bypasses the terminal spawn hook that seeds workspace trust. */
+export async function applyStructuredAgentWorkspaceTrust(
+  args: {
+    workspacePath: string
+    launchEnv: NodeJS.ProcessEnv
+    settings: AgentWorkspaceTrustSetting
+    repoDecision: AgentWorkspaceTrustDecision | undefined
+  } & ({ preset: 'codex'; codexHome: string } | { preset: 'bobot' })
+): Promise<void> {
   if (!shouldPreTrustAgentWorkspace(args.settings?.agentWorkspaceTrustEnabled, args.repoDecision)) {
     return
   }
-  await applyAgentWorkspaceTrust('codex', args.workspacePath, {
+  await applyAgentWorkspaceTrust(args.preset, args.workspacePath, {
     env: args.launchEnv,
     claudeAuth: null,
     wslDistro: null,
     connectionId: null,
-    codexHome: args.codexHome
+    ...(args.preset === 'codex' ? { codexHome: args.codexHome } : {})
   })
 }

@@ -127,17 +127,20 @@ export function useTaskPageRepoSelection(model: TaskPageStoreBindingsModel) {
     [settings?.visibleTaskProviders]
   )
   const defaultTaskSource = settings?.defaultTaskSource ?? 'github'
+  const cnbAvailable = Boolean(window.api.cnb?.taskList)
   const visibleTaskProviders = useMemo(
     () =>
       restoreAvailableDefaultTaskProvider(
         preferredVisibleTaskProviders,
         {
           gitlabInstalled: preflightStatusCurrent && preflightStatus?.glab?.installed === true,
-          linearConnected: linearConnected === true
+          linearConnected: linearConnected === true,
+          cnbAvailable
         },
         defaultTaskSource
       ),
     [
+      cnbAvailable,
       defaultTaskSource,
       linearConnected,
       preferredVisibleTaskProviders,

@@ -215,11 +215,12 @@ export function claudeStructuredSessionOptionsFrom(
   session: ClaudeSession,
   catalog: unknown[] | null
 ): StructuredAgentSessionLiveOptions {
+  const agent = session.link.handle.agent
   const discovered = listedModels(catalog ? { models: catalog } : null)
-  const listed = discovered.length > 0 ? discovered : seedModels()
+  const listed = discovered.length === 0 && agent === 'claude' ? seedModels() : discovered
   const current = readClaudeCurrentModel(session)
   const model = current.id === 'default' ? undefined : current.id
-  const models = structuredAgentSessionOptionModels('claude', listed, model, (row) => ({
+  const models = structuredAgentSessionOptionModels(agent, listed, model, (row) => ({
     ...row,
     resolvedModel: null
   }))

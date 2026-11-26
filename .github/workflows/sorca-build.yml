@@ -1,5 +1,5 @@
-name: SOrca 构建与发布
-run-name: SOrca ${{ inputs.platforms || 'both' }} · ${{ github.event_name }}
+name: Orca 构建与发布
+run-name: Orca ${{ inputs.platforms || 'both' }} · ${{ github.event_name }}
 
 on:
   workflow_call:
@@ -110,9 +110,9 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == 'schedule' ]]; then
             published="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '
               select(([.assets[] | select(.state == "uploaded") | .name]
-                | index("SOrca-macos-arm64.dmg")) != null and
+                | index("orca-macos-arm64.dmg")) != null and
                 ([.assets[] | select(.state == "uploaded") | .name]
-                | index("SOrca-windows-x64.exe")) != null)
+                | index("orca-windows-setup.exe")) != null)
               | .target_commitish' 2>/dev/null || true)"
             if [[ "$published" == "$sha" ]]; then
               echo 'build=false' >> "$GITHUB_OUTPUT"
@@ -121,9 +121,9 @@ jobs:
             fi
           fi
 
-          version="$(node -p 'const base = /^\d+\.\d+\.\d+/.exec(require("./package.json").version)?.[0]; if (!base) throw Error("Invalid Orca version"); (base.localeCompare("1.4.274", "en", { numeric: true }) < 0 ? "1.4.274" : base) + "+sorca." + process.env.GITHUB_RUN_ID + "." + process.env.GITHUB_RUN_ATTEMPT')"
-          mac="$(jq -cn --arg runner "${MAC_RUNNER:-xcode-27}" '{platform:"mac",runner:$runner,asset:"SOrca-macos-arm64.dmg"}')"
-          win='{"platform":"windows","runner":"windows-2022","asset":"SOrca-windows-x64.exe"}'
+          version="$(node -p 'const base = /^\d+\.\d+\.\d+/.exec(require("./package.json").version)?.[0]; if (!base) throw Error("Invalid Orca version"); (base.localeCompare("1.4.274", "en", { numeric: true }) < 0 ? "1.4.274" : base) + "+build." + process.env.GITHUB_RUN_ID + "." + process.env.GITHUB_RUN_ATTEMPT')"
+          mac="$(jq -cn --arg runner "${MAC_RUNNER:-xcode-27}" '{platform:"mac",runner:$runner,asset:"orca-macos-arm64.dmg"}')"
+          win='{"platform":"windows","runner":"windows-2022","asset":"orca-windows-setup.exe"}'
           case "$PLATFORMS" in
             mac) matrix="[$mac]" ;;
             windows) matrix="[$win]" ;;
@@ -172,9 +172,9 @@ jobs:
         shell: bash
         run: pnpm install --frozen-lockfile
       - uses: ./.github/actions/install-mobile-dependencies
-      - name: 验证 BoBot 和 CNB
+      - name: 验证 BoBot、CNB 和旧版数据兼容
         shell: bash
-        run: pnpm test src/main/bobot/bobot-environment.test.ts src/main/cnb/repository-ref.test.ts src/main/updater/releases/sorca-release-feed.test.ts --maxWorkers=2
+        run: pnpm test src/main/bobot/bobot-environment.test.ts src/main/cnb/repository-ref.test.ts src/main/updater/releases/sorca-release-feed.test.ts sorca-profile-location.test.ts --maxWorkers=2
       - name: 构建和打包
         shell: bash
         env:
@@ -194,20 +194,23 @@ jobs:
           fi
           pnpm exec electron-builder --config config/electron-builder.sorca.config.cjs "${target[@]}" --publish never
           if [[ "$PLATFORM" == windows-qa ]]; then
-            test -s "dist/$ASSET/SOrcaQA.exe"
-            printf '%s\n' "$ORCA_BUILD_COMMIT" > "dist/$ASSET/sorca-source-commit.txt"
+            test -s "dist/$ASSET/OrcaQA.exe"
+            printf '%s\n' "$ORCA_BUILD_COMMIT" > "dist/$ASSET/orca-source-commit.txt"
           elif [[ ! -s "dist/$ASSET" ]]; then
             echo "::error::Expected installer file dist/$ASSET is missing or empty."
             exit 1
           fi
-      - name: 验证成品沿用原版 Orca 配置
+      - name: 验证 Windows 成品 CLI
+        if: matrix.platform == 'windows' || matrix.platform == 'windows-qa'
+        run: node config/scripts/desktop-distribution/runtime-verification/smoke-packaged-cli.mjs --app-dir=dist/win-unpacked
+      - name: 验证成品默认数据标识
         if: matrix.platform != 'windows-qa'
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
           if [[ "$PLATFORM" == mac ]]; then
-            archive='dist/mac-arm64/SOrca.app/Contents/Resources/app.asar'
+            archive='dist/mac-arm64/Orca.app/Contents/Resources/app.asar'
           else
             archive='dist/win-unpacked/resources/app.asar'
           fi
@@ -217,31 +220,36 @@ jobs:
           const builderRequire = createRequire(require.resolve('app-builder-lib'))
           const { extractFile } = builderRequire('@electron/asar')
           const metadata = JSON.parse(extractFile(process.argv[2], 'package.json'))
-          assert.equal(metadata.productName, 'orca', 'Electron must open the existing Orca profile')
-          assert.equal(metadata.name, 'sorca', 'NSIS must keep its separate program directory')
+          assert.equal(metadata.productName ?? metadata.name, 'orca', 'The packaged default must match the Orca profile')
+          assert.equal(metadata.name, 'orca', 'NSIS must reuse the original Orca program directory')
           NODE
-      - name: 验证 Windows 独立安装目录
+      - name: 验证 Windows 原址安装与旧版数据保留
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
           $programs = Join-Path $env:LOCALAPPDATA 'Programs'
           $stock = Join-Path $programs 'orca'
-          $installed = Join-Path $programs 'sorca/SOrca.exe'
-          New-Item -ItemType Directory -Path $stock | Out-Null
-          $marker = Join-Path $stock 'stock-orca-installation.txt'
-          Set-Content -LiteralPath $marker -Value 'Orca'
-
-          $installer = Start-Process -FilePath 'dist/SOrca-windows-x64.exe' -ArgumentList '/S' -Wait -PassThru
-          if ($installer.ExitCode -ne 0 -or !(Test-Path -LiteralPath $installed -PathType Leaf)) {
-            throw 'SOrca did not install in its own program directory.'
+          $installed = Join-Path $stock 'Orca.exe'
+          $profileMarkers = foreach ($profileName in @('orca', 'SOrca')) {
+            $directory = Join-Path $env:APPDATA $profileName
+            New-Item -ItemType Directory -Force -Path $directory | Out-Null
+            $file = Join-Path $directory "sorca-upgrade-probe-$env:GITHUB_RUN_ID.txt"
+            Set-Content -LiteralPath $file -Value $profileName
+            @{ Path = $file; Content = $profileName }
           }
-          $stockEntries = @(Get-ChildItem -LiteralPath $stock -Force)
-          if ($stockEntries.Count -ne 1 -or $stockEntries[0].FullName -ne $marker -or (Get-Content -LiteralPath $marker) -ne 'Orca') {
-            throw 'SOrca changed the existing Orca program directory.'
+
+          $installer = Start-Process -FilePath 'dist/orca-windows-setup.exe' -ArgumentList '/S' -Wait -PassThru
+          if ($installer.ExitCode -ne 0 -or !(Test-Path -LiteralPath $installed -PathType Leaf)) {
+            throw 'The installer did not use the original Orca program directory.'
+          }
+          foreach ($profileMarker in $profileMarkers) {
+            if (!(Test-Path -LiteralPath $profileMarker.Path) -or (Get-Content -LiteralPath $profileMarker.Path) -cne $profileMarker.Content) {
+              throw "Orca changed existing data at $($profileMarker.Path)."
+            }
           }
       - uses: actions/upload-artifact@v7
         with:
-          name: sorca-${{ matrix.platform }}
+          name: orca-${{ matrix.platform }}
           path: dist/${{ matrix.asset }}
           if-no-files-found: error
           compression-level: 0
@@ -257,7 +265,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          pattern: sorca-*
+          pattern: orca-*
           path: release
           merge-multiple: true
       - name: 上传成品并发布
@@ -289,7 +297,7 @@ jobs:
               printf '[GitHub Actions 构建记录](%s/%s/actions/runs/%s)\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
             } > release-notes.md
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
-              --draft --title "SOrca $VERSION" --notes-file release-notes.md
+              --draft --title "Orca $VERSION" --notes-file release-notes.md
           fi
           gh release upload "$tag" "${assets[@]}" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest

@@ -89,6 +89,9 @@ export type TaskResumeState = {
   }
   jiraPreset?: 'assigned' | 'reported' | 'all' | 'done'
   jiraQuery?: string
+  cnbMode?: 'issues' | 'pull-requests' | 'missions'
+  cnbPreset?: string
+  cnbQuery?: string
 }
 
 export const STATIC_RIGHT_SIDEBAR_TABS = [

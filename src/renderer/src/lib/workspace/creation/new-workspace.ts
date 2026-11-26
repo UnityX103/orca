@@ -31,7 +31,7 @@ export type LinkedWorkItemSummary = Omit<FolderWorkspaceLinkedTask, 'provider'> 
 export function canUseIssueCommandForLinkedItemProvider(
   provider: FolderWorkspaceLinkedTask['provider'] | null
 ): boolean {
-  return provider === 'github' || provider === 'gitlab'
+  return provider === 'github' || provider === 'gitlab' || provider === 'cnb'
 }
 
 // Linked work items without user prompt or issueCommand still need an actionable default task.

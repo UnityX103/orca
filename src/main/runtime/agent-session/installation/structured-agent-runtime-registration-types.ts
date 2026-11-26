@@ -1,6 +1,6 @@
 import type { AgentSessionExecutionLocation } from '../../../../shared/agent-session/lifecycle/agent-session-record'
 import type { AgentSessionAccountHome } from '../../../../shared/agent-session/lifecycle/accounts/agent-session-account-home'
-import type { applyStructuredCodexWorkspaceTrust } from '../../../agent-launch/trust/agent-workspace-trust-spawn'
+import type { applyStructuredAgentWorkspaceTrust } from '../../../agent-launch/trust/agent-workspace-trust-spawn'
 import type { StructuredAgentCliConversations } from '../../../native-chat/conversation-adoption/structured-agent-cli-conversations'
 import type {
   StructuredAgentSessionAdapter,
@@ -61,11 +61,11 @@ export type StructuredAgentAccountHomeServices = {
   /** Codex's home for a launch, prepared for it; and the same answer with no side effects. */
   prepareCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
   readCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
-  workspaceTrustSettings: () => Parameters<typeof applyStructuredCodexWorkspaceTrust>[0]['settings']
+  workspaceTrustSettings: () => Parameters<typeof applyStructuredAgentWorkspaceTrust>[0]['settings']
   /** The launching repo's pre-trust decision; undefined outside a repo or before one is made. */
   workspaceTrustRepoDecision: (
     location: AgentSessionExecutionLocation | null
-  ) => Parameters<typeof applyStructuredCodexWorkspaceTrust>[0]['repoDecision']
+  ) => Parameters<typeof applyStructuredAgentWorkspaceTrust>[0]['repoDecision']
   /** Orca's data folder on this host, where an agent's chats may keep an account of their own. */
   stateDirectory: string
   /** The environment a chat start of `agent` on this host would launch from. */

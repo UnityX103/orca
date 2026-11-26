@@ -63,3 +63,36 @@ it('settles a prompt Claude dropped on Stop as unrun, never under the result fra
   expect(await promise).toBeNull()
   expect(session.dispatchWaiters).toHaveLength(0)
 })
+
+it('joins the first BoBot init and its later replay to a single acknowledged dispatch', async () => {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: replay resolution reads only the dispatch, provider identity and initial launch facts.
+  const session = {
+    providerSessionId: SESSION,
+    link: { handle: { transport: 'bobot-stream-json' } },
+    initialization: { resumesTranscript: false },
+    dispatchSequence: 1,
+    dispatchWaiters: [],
+    retiredDispatchWaiters: []
+  } as unknown as ClaudeSession
+  const { promise } = waitForReplay(session, false, SENT, 'key', 'client-1', null)
+  const settled: ClaudeLateDispatchOutcome[] = []
+  const report = (outcome: ClaudeLateDispatchOutcome): void => {
+    settled.push(outcome)
+  }
+  const init = { type: 'system', subtype: 'init', session_id: SESSION }
+  expect(resolveClaudeReplayTurn(session, { ...init, session_id: 'other' }, report)).toBeNull()
+  expect(resolveClaudeReplayTurn(session, init, report)?.initialTurnId).toBe(SENT)
+  expect(await promise).toBe(SENT)
+  resolveClaudeReplayTurn(
+    session,
+    {
+      type: 'user',
+      message: { role: 'user', content: [{ type: 'text', text: 'Run the task' }] },
+      parent_tool_use_id: null,
+      session_id: SESSION,
+      uuid: SENT
+    },
+    report
+  )
+  expect(settled).toHaveLength(1)
+})

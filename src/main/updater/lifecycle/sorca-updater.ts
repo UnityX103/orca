@@ -1,12 +1,12 @@
 import { app, shell, type BrowserWindow } from 'electron'
 import type { ReleaseBuild, ReleaseChannel } from '../../../shared/updater/release-channel'
 import type { UpdateCheckOptions } from '../../../shared/updater/update-status-types'
-import type { ReleaseBuildListOptions } from '../releases/updater-release-build-cache'
 import {
-  compareSOrcaBuilds,
   isSOrcaVersion,
-  listSOrcaReleaseBuilds
-} from '../releases/sorca-release-feed'
+  SORCA_DEVELOPMENT_VERSION
+} from '../../../shared/app-lifecycle/identity/sorca-build-version'
+import type { ReleaseBuildListOptions } from '../releases/updater-release-build-cache'
+import { compareSOrcaBuilds, listSOrcaReleaseBuilds } from '../releases/sorca-release-feed'
 import { UpdaterSetup, type UpdaterSetupOptions } from './updater-setup'
 
 export class SOrcaUpdater extends UpdaterSetup {
@@ -62,6 +62,12 @@ export class SOrcaUpdater extends UpdaterSetup {
   }
 
   private checkFork(userInitiated: boolean, tag?: string): void {
+    if (!tag && SORCA_DEVELOPMENT_VERSION.test(app.getVersion())) {
+      if (userInitiated) {
+        this.sendStatus({ state: 'not-available', userInitiated })
+      }
+      return
+    }
     if (this.checkingFork) {
       return
     }

@@ -5,6 +5,7 @@ import type {
 import type { AgentStatusIpcPayload } from '../../../../shared/agent-status/contracts/agent-status-ipc-payload'
 import { splitFreebuffScreenUpdates } from '../../../../shared/agent-status/output/freebuff-screen-status'
 import { OrcaRuntimeWithSerializeMainTerminalBuffer } from './terminal-buffer-operations'
+import { observeBobotTerminalStatus } from './bobot-terminal-status'
 import { observeFreebuffTerminalStatus } from './freebuff-terminal-status'
 import {
   observeCodexCapacityTerminalStatus,
@@ -268,6 +269,16 @@ export abstract class OrcaRuntimeWithMaybeHydrateHeadlessFromRenderer extends Or
         }
         if (!pty.connectionId) {
           this.trustDialogStatus.observe(ptyId, state.emulator, chunk)
+          if ((pty.foregroundAgent ?? this.getPaneTerminalAgent(ptyId)) === 'bobot') {
+            const activity = observeBobotTerminalStatus(
+              state.emulator,
+              readStatus,
+              outputObservedAt
+            )
+            if (activity) {
+              this.emitTerminalAgentStatusEvents(ptyId, { payloads: [activity] }, undefined, false)
+            }
+          }
           const payload =
             observeCodexCapacityTerminalStatus(
               state.emulator,

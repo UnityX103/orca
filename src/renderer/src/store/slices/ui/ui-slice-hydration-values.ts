@@ -58,6 +58,19 @@ export function sanitizeTaskResumeState(value: unknown): TaskResumeState | undef
     next.githubItemsQuery = input.githubItemsQuery
   }
   if (
+    input.cnbMode === 'issues' ||
+    input.cnbMode === 'pull-requests' ||
+    input.cnbMode === 'missions'
+  ) {
+    next.cnbMode = input.cnbMode
+  }
+  if (typeof input.cnbPreset === 'string') {
+    next.cnbPreset = input.cnbPreset
+  }
+  if (typeof input.cnbQuery === 'string') {
+    next.cnbQuery = input.cnbQuery
+  }
+  if (
     typeof input.linearPreset === 'string' &&
     VALID_LINEAR_PRESETS.has(input.linearPreset as NonNullable<TaskResumeState['linearPreset']>)
   ) {

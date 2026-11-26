@@ -36,6 +36,7 @@ import type {
   StructuredAgentModelCatalogContext
 } from '../runtime/agent-session/installation/structured-agent-runtime-registration-types'
 import { bobotEnvironment } from './bobot-environment'
+import { listBobotDirectApiModels } from './bobot-model-endpoint'
 
 const controlInput = ['initialize', 'get_settings']
   .map(
@@ -115,16 +116,24 @@ export function bobotModelCatalogDiscovery(
         })
         const replies = readClaudeControlResponses(output)
         const initialization = replies.get('initialize')
-        const models = wireClaudeModels(listedModels(initialization))
+        const settings = replies.get('get_settings')
+        const direct = await listBobotDirectApiModels(listingEnv, settings, signal)
+        assertStructuredAgentResolutionCurrent(runOperation)
+        const models = direct ?? wireClaudeModels(listedModels(initialization))
         if (models.length === 0) {
           throw new Error('BoBot listed no models')
         }
-        const configured = readClaudeSettingsApplied(replies.get('get_settings'))
+        const configured = readClaudeSettingsApplied(settings)
         return {
           models,
           origin: 'probe' as const,
-          complete: isCompleteClaudeModelListing(initialization),
-          ...(configured ? { configured } : {})
+          complete: direct !== null || isCompleteClaudeModelListing(initialization),
+          ...(configured?.model &&
+          models.some(
+            (row) => row.id === configured.model || row.resolvedModel === configured.model
+          )
+            ? { configured }
+            : {})
         }
       }
     }
@@ -147,5 +156,5 @@ export function bobotModelCatalogDiscovery(
       ) => resolve(home, undefined, lookup, operation)
     }
   )
-  return { kind: 'probe', listingNamesConfiguredModel: false, probe }
+  return { kind: 'probe', listingNamesConfiguredModel: true, probe }
 }

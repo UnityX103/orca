@@ -15,6 +15,7 @@ export const AUTO_TUI_AGENT_ARGS: Partial<Record<TuiAgent, string>> = {
 
 export const YOLO_TUI_AGENT_ARGS: Partial<Record<TuiAgent, string>> = {
   claude: '--dangerously-skip-permissions',
+  bobot: '--permission-mode bypassPermissions',
   codebuddy: '--dangerously-skip-permissions',
   'claude-agent-teams': '--dangerously-skip-permissions',
   openclaude: '--dangerously-skip-permissions',

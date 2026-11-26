@@ -49,6 +49,14 @@ pnpm dev:fresh [--keep] [--seed-from[=<profile dir>]]   # temporary profile, rem
 - Before a cross-architecture build (including `pnpm build:mac`, which builds x64 and arm64), run `pnpm install:release`.
 - On Linux, `pnpm build`, `pnpm build:native`, and packaging need a running Docker daemon for the clipboard helper. For native Wayland development, run `pnpm build:native` before `pnpm dev`. See the [clipboard build guide](../native/wayland-clipboard/README.md#building-and-testing).
 
+### 自用版本机更新（Apple Silicon）
+
+从 Orca 仓库根目录运行 `./scripts/update-orca-dev`，打包并更新 `/Applications/Orca.app`。运行中的 Orca 正常退出后，安装器会替换应用。重新打开 Orca 即可使用新版。
+
+运行 `./scripts/update-orca-dev --package-only` 可单独生成 `orca-macos-arm64.dmg`，再通过「设置 → 关于 → 选择更新包」暂存。开发包和安装日志位于 `~/.orca/sorca-development/`。
+
+升级后，Orca 会继续读取原 `orca` 或 `SOrca` 数据目录中的项目、设置、会话和凭据。macOS 的目录位于 `~/Library/Application Support/`，Windows 的目录位于 `%APPDATA%`。如果两个目录都已有数据，首次打开兼容版本时请选择此前使用的目录。Orca 会记住选择并保留两个目录。
+
 ## Troubleshooting
 
 - Slow main-process rebuilds: set `ORCA_DEV_MAIN_SOURCEMAPS=0` before `pnpm dev` when you don't need main-process source maps.

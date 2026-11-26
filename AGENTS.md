@@ -6,6 +6,11 @@
 - Stacked PRs: `ORCA_CODE_QUALITY_BASE=<ref>` or `--base=<ref>`; `--base=HEAD` covers only uncommitted edits.
 - CI: `gh pr checks --watch` or `gh run watch <id> --compact --exit-status` (no polling). Read failures with `gh run view <id> --log-failed`; for long logs, filter with `grep -nE "error|FAIL|✗"` instead of tailing.
 
+# Orca 自用版交付
+
+- Orca 应用源码、提交和安装在本仓库处理。发布使用 `UnityX103/orca` 的 `自用版` 分支。
+- 用户要求更新本机 Apple Silicon 版时，验证后从仓库根目录运行 `./scripts/update-orca-dev`。安装器会等待运行中的 Orca 正常退出。交付时核对开发包版本和实际安装版本。只打包时使用 `./scripts/update-orca-dev --package-only`。
+
 # Repo Rules
 
 - Ensure main is always releasable

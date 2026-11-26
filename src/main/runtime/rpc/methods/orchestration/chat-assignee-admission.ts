@@ -72,14 +72,16 @@ export function refuseChatSelfAssignment(args: {
   }
 }
 
-/** A chat adopted as a worker is given the task, not launched; the decided mode stands. */
+/** The assignee is already a chat, so new-tab settings do not describe how it runs. */
 export function chatWorkerMode(
   mode: WorkerStartModeReceipt,
   chat: OrcaSessionId | null
 ): WorkerStartModeReceipt {
   return chat
     ? {
-        ...mode,
+        mode: 'structured',
+        preferred: 'structured',
+        reason: 'requested',
         detail: `--terminal names the chat ${formatOrcaSessionAddress(chat)}; its task goes to that chat and no agent is launched.`
       }
     : mode

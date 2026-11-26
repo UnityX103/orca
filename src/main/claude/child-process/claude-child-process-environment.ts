@@ -35,7 +35,7 @@ function stripEnvKeys(
 }
 
 export function buildClaudeChildProcessEnv(
-  configuredEnv: Record<string, string> = {},
+  configuredEnv: NodeJS.ProcessEnv = {},
   options: {
     inheritedEnv?: NodeJS.ProcessEnv
     envToDelete?: readonly string[]
@@ -76,7 +76,7 @@ export function buildClaudeChildProcessEnv(
     )
   }
   stripInheritedAgentSessionEnv(env, { platform })
-  const configured = { ...env, ...configuredEnv }
+  const configured = cloneProcessEnv({ ...env, ...configuredEnv })
   for (const key of options.envToDelete ?? []) {
     delete configured[key]
   }

@@ -47,6 +47,8 @@ export type WorkspaceSourceSelectionKind =
   | 'github-issue'
   | 'gitlab-mr'
   | 'gitlab-issue'
+  | 'cnb-pr'
+  | 'cnb-issue'
   | 'branch'
   | 'linear'
   | 'jira'
@@ -204,9 +206,13 @@ export function buildWorkspaceSourceSelection(args: {
           ? linkedWorkItem.type === 'mr'
             ? 'gitlab-mr'
             : 'gitlab-issue'
-          : linkedWorkItem.type === 'pr'
-            ? 'github-pr'
-            : 'github-issue'
+          : provider === 'cnb'
+            ? linkedWorkItem.type === 'pr'
+              ? 'cnb-pr'
+              : 'cnb-issue'
+            : linkedWorkItem.type === 'pr'
+              ? 'github-pr'
+              : 'github-issue'
   return {
     kind,
     label:

@@ -18,7 +18,7 @@ export function bobotConfigHome(env: NodeJS.ProcessEnv): string {
 
 export function bobotEnvironment(
   base: Record<string, string>,
-  overlay: Record<string, string>,
+  overlay: NodeJS.ProcessEnv,
   pinnedHome?: string
 ): Record<string, string> {
   const env = withoutInheritedClaudeConfigDir(

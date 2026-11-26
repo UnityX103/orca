@@ -4,6 +4,7 @@ import {
   requireLegacyAgentSessionAccountHome
 } from '../../shared/agent-session/lifecycle/accounts/agent-session-account-home'
 import { isNativeLocalLocation } from '../../shared/execution-host/execution-host'
+import { applyStructuredAgentWorkspaceTrust } from '../agent-launch/trust/agent-workspace-trust-spawn'
 import { claudeSessionIdForOrcaSession } from '../claude/structured/lifecycle/claude-structured-session-id'
 import {
   agentSessionProviderHandleRoot,
@@ -61,8 +62,20 @@ export const BOBOT_STRUCTURED_RUNTIME_METADATA: Omit<
     rowSessionId: ({ handle }) => handle.nativeId,
     parseResumeArgs: () => null
   },
-  resolveAccountHome: async ({ launchEnv }) =>
-    agentSessionAccountHome(BOBOT_STRUCTURED_AGENT, bobotConfigHome(launchEnv))
+  resolveAccountHome: async ({ launchEnv, location, purpose, workspacePath }, services) => {
+    const env = bobotEnvironment(await services.hostLaunchEnvironment('bobot'), launchEnv)
+    const home = bobotConfigHome(env)
+    if (purpose === 'launch' && workspacePath) {
+      await applyStructuredAgentWorkspaceTrust({
+        preset: 'bobot',
+        workspacePath: await workspacePath(),
+        launchEnv: { ...env, BOBOT_CONFIG_DIR: env.BOBOT_CONFIG_DIR },
+        settings: services.workspaceTrustSettings(),
+        repoDecision: services.workspaceTrustRepoDecision(location)
+      })
+    }
+    return agentSessionAccountHome(BOBOT_STRUCTURED_AGENT, home)
+  }
 }
 
 export function bobotStructuredLaunchPart(deps: {

@@ -53,7 +53,13 @@ export function ChatWorkersActivity(): React.JSX.Element | null {
             {running.map(row)}
           </ActivitySection>
           {ended.length > 0 ? (
-            <ActivitySection title={t('bots.activity.completed', 'Completed')}>
+            <ActivitySection
+              title={
+                ended.every((worker) => worker.state === 'completed')
+                  ? t('bots.activity.completed', 'Completed')
+                  : t('bots.activity.finished', 'Finished')
+              }
+            >
               {ended.map(row)}
             </ActivitySection>
           ) : null}

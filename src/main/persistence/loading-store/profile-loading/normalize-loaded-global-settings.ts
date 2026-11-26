@@ -188,6 +188,7 @@ export function normalizeLoadedGlobalSettings(
     defaultTaskSource: taskProviderSettings.defaultTaskSource,
     visibleTaskProviders: taskProviderSettings.visibleTaskProviders,
     visibleTaskProvidersDefaultedForJira: true,
+    visibleTaskProvidersDefaultedForCnb: true,
     terminalShortcutPolicy: normalizeTerminalShortcutPolicy(
       parsed.settings?.terminalShortcutPolicy
     ),

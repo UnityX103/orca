@@ -51,7 +51,8 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
     // Why: runs the same Claude binary, so Ctrl+Enter must match `claude`.
     ctrlEnterEncoding: 'csi-u'
   },
-  bobot: { detectCmd: 'bobot', promptInjectionMode: 'argv', argvPromptSeparator: '--' },
+  // prettier-ignore
+  bobot: { detectCmd: 'bobot', promptInjectionMode: 'argv', argvPromptSeparator: '--', preflightTrust: 'bobot' },
   codebuddy: {
     detectCmd: 'codebuddy',
     detectCmdAliases: ['cbc'],

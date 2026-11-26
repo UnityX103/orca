@@ -160,6 +160,7 @@ export async function acquireClaudeSession({
             ...(startsTurn ? { startsTurn: true } : {}),
             ...(requestedAt === null || requestedAt === undefined ? {} : { requestedAt }),
             ...(turnOrigin?.clientMessageId ? { clientMessageId: turnOrigin.clientMessageId } : {}),
+            ...(turnOrigin?.initialTurnId ? { initialTurnId: turnOrigin.initialTurnId } : {}),
             ...sendFacts,
             ...observedAt
           })

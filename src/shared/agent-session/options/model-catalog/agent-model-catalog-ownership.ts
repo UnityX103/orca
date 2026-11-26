@@ -1,10 +1,10 @@
 export function independentAgentModelCatalog(agent: string): boolean {
-  return agent === 'claude' || agent === 'codex'
+  return agent === 'claude' || agent === 'codex' || agent === 'bobot'
 }
 
 /** Claude and Codex run at standard speed until Fast is picked; ACP agents keep each model's own default. */
 export function unpickedFastModeIsOff(agent: string): boolean {
-  return independentAgentModelCatalog(agent)
+  return agent === 'claude' || agent === 'codex'
 }
 
 /** Live chats list only the current model's options; the session-free listing knows the rest. */

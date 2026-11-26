@@ -8,6 +8,7 @@ import { TaskPageGitHubList } from './github/listing/List'
 import { TaskPageGitLabTodoList } from './gitlab/TodoList'
 import { TaskPageGitLabItemList } from './gitlab/ItemList'
 import { TaskPageJiraContent } from './jira/Content'
+import { CnbTasks } from './cnb/CnbTasks'
 export function TaskPageContent({
   model
 }: {
@@ -29,6 +30,9 @@ export function TaskPageContent({
     closeTaskDetailPage,
     handleUseWorkItem
   } = model
+  if (taskSource === 'cnb') {
+    return <CnbTasks model={model} />
+  }
   return taskSource === 'github' && dialogWorkItem ? (
     dialogWorkItem.type === 'pr' ? (
       <PullRequestPage

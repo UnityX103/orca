@@ -1,0 +1,35 @@
+#!/bin/bash
+set -euo pipefail
+
+case "${1:-}" in
+  '') action=orca:dev:install ;;
+  --package-only) action=orca:dev:package ;;
+  -h|--help) printf 'Usage: %s [--package-only]\n' "$0"; exit 0 ;;
+  *) printf 'Usage: %s [--package-only]\n' "$0" >&2; exit 2 ;;
+esac
+
+if [[ $(uname -s) != Darwin || $(uname -m) != arm64 ]]; then
+  printf 'Orca development builds require an Apple Silicon Mac.\n' >&2
+  exit 1
+fi
+
+repo_root=$(cd -- "$(dirname -- "$0")/.." && pwd -P)
+toolchain="$HOME/.orca/sorca-development/toolchain"
+(umask 077; mkdir -p "$toolchain/bin")
+if ! node -e 'process.exit(process.versions.node.split(".")[0] === "24" ? 0 : 1)' 2>/dev/null; then
+  if [[ ! -x "$toolchain/node_modules/node/bin/node" ]]; then
+    npm install --prefix "$toolchain" --no-audit --no-fund --no-package-lock --no-save node@24
+  fi
+  export PATH="$toolchain/node_modules/node/bin:$PATH"
+fi
+
+corepack enable --install-directory "$toolchain/bin" pnpm
+export PATH="$toolchain/bin:$PATH"
+cd "$repo_root"
+if [[ ! -x node_modules/.bin/tsx ]]; then
+  pnpm install --frozen-lockfile
+fi
+if [[ ! -x mobile/node_modules/.bin/expo ]]; then
+  pnpm --dir mobile install --frozen-lockfile
+fi
+exec pnpm "$action"

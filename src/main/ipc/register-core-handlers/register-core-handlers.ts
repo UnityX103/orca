@@ -168,7 +168,7 @@ export async function registerCoreHandlers(
     registerJiraHandlers()
     registerJiraIssueSummaryGenerationHandlers(store, commitMessageAgentEnv)
     registerBitbucketHandlers()
-    registerCnbHandlers()
+    registerCnbHandlers(store)
     registerFeedbackHandlers()
     if (crashReports) {
       registerCrashReportingHandlers(crashReports)

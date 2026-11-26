@@ -6,6 +6,8 @@ import {
 } from '../journal/claude-structured-item-translation'
 import { agentJournalSubmissionKey } from '../../../../shared/agent-session/journal/agent-session-journal-item-key'
 import type { ClaudeStartedSend } from '../claude-structured-session-state'
+import type { ClaudeStructuredSessionEvent } from '../lifecycle/claude-structured-session-event'
+import type { ClaudeOpenTurn } from './claude-open-turn'
 import {
   claudeProviderResumedTurnTimingAnchor,
   type ClaudeCurrentTurn
@@ -43,6 +45,37 @@ export function claudeTurnOpenedBySendEcho(
 /** Omitted parent fields still count as root output for compatibility with older builds. */
 export function isRootClaudeFrame(frame: Record<string, unknown>): boolean {
   return typeof frame.parent_tool_use_id !== 'string'
+}
+
+/** Init opens a provider cycle; subsequent work lets replays fold into that same turn. */
+export function observeClaudeRootTurnFrame(
+  turn: ClaudeOpenTurn,
+  event: Extract<ClaudeStructuredSessionEvent, { type: 'message' }>
+): void {
+  const { message, initialTurnId, clientMessageId, requestedAt } = event
+  if (message.type === 'system' && message.subtype === 'init') {
+    turn.observeProviderCycleStart()
+    if (typeof message.session_id === 'string' && initialTurnId && clientMessageId) {
+      const startedAt = event.observedAt ?? Date.now()
+      turn.open(
+        {
+          sessionId: message.session_id,
+          turnId: initialTurnId,
+          startedAt,
+          ...(requestedAt === undefined ? {} : { requestedAt }),
+          userItemId: agentJournalSubmissionKey(clientMessageId)
+        },
+        startedAt
+      )
+      turn.confirmProviderCycle()
+    }
+  } else if (event.startsTurn || message.type === 'assistant' || message.type === 'stream_event') {
+    turn.observeProviderCycleWork()
+    turn.inputChoiceWorkObserved ||=
+      message.type !== 'assistant' ||
+      message.is_api_error_message !== true ||
+      event.startedSend != null
+  }
 }
 
 /** Empty parent strings cannot identify a producer, even though isRootClaudeFrame treats them as children. */

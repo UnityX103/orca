@@ -7,6 +7,9 @@ import type { PreloadApi } from '../../api-types'
 export const updaterApi = {
   getStatus: () => ipcRenderer.invoke('updater:getStatus'),
   getVersion: () => ipcRenderer.invoke('updater:getVersion'),
+  sorcaLocalPackageStatus: () => ipcRenderer.invoke('updater:sorcaLocalPackageStatus'),
+  chooseSorcaLocalPackage: () => ipcRenderer.invoke('updater:chooseSorcaLocalPackage'),
+  clearSorcaLocalPackage: () => ipcRenderer.invoke('updater:clearSorcaLocalPackage'),
   check: (options) => ipcRenderer.invoke('updater:check', options),
   download: () => ipcRenderer.invoke('updater:download'),
   dismissNudge: () => ipcRenderer.invoke('updater:dismissNudge'),

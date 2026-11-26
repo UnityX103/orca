@@ -1,4 +1,4 @@
-name: SOrca 每日同步与发布
+name: Orca 每日同步与发布
 
 on:
   schedule:

@@ -41,6 +41,11 @@ import {
   watchEmergencyUpdateFloor
 } from '../releases/updater-emergency-policy'
 import { applyEmergencyUpdateFloor } from '../releases/updater-release-policy'
+import {
+  chooseSOrcaLocalUpdatePackage,
+  clearSOrcaLocalUpdatePackage,
+  getSOrcaLocalUpdateStatus
+} from '../local-package/sorca-local-update'
 
 const UPDATER_SETUP_FALLBACK_MS = 15_000
 
@@ -225,9 +230,24 @@ export function registerUpdaterHandlers(): void {
   ipcMain.removeHandler('updater:getLinuxPackageInstallInstructions')
   ipcMain.removeHandler('updater:showLinuxPackage')
   ipcMain.removeHandler('updater:listBuilds')
+  ipcMain.removeHandler('updater:sorcaLocalPackageStatus')
+  ipcMain.removeHandler('updater:chooseSorcaLocalPackage')
+  ipcMain.removeHandler('updater:clearSorcaLocalPackage')
 
   ipcMain.handle('updater:getStatus', () => getUpdateStatus())
   ipcMain.handle('updater:getVersion', () => app.getVersion())
+  ipcMain.handle('updater:sorcaLocalPackageStatus', (event) => {
+    assertTrustedUpdaterRecoverySender(event)
+    return getSOrcaLocalUpdateStatus()
+  })
+  ipcMain.handle('updater:chooseSorcaLocalPackage', (event) => {
+    assertTrustedUpdaterRecoverySender(event)
+    return chooseSOrcaLocalUpdatePackage(getTrustedUIRendererWindow())
+  })
+  ipcMain.handle('updater:clearSorcaLocalPackage', (event) => {
+    assertTrustedUpdaterRecoverySender(event)
+    return clearSOrcaLocalUpdatePackage()
+  })
   ipcMain.handle('updater:check', (_event, options?: UpdateCheckOptions) => {
     ensureAutoUpdaterConfigured()
     return checkForUpdatesFromMenu(options)

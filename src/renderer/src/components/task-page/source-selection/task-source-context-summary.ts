@@ -60,7 +60,9 @@ type RepoBackedTaskSourceSummaryArgs = {
 
 export function getTaskSourceContextSummary(
   args:
-    | ({ provider: Extract<TaskProvider, 'github' | 'gitlab'> } & RepoBackedTaskSourceSummaryArgs)
+    | ({
+        provider: Extract<TaskProvider, 'github' | 'gitlab' | 'cnb'>
+      } & RepoBackedTaskSourceSummaryArgs)
     | {
         provider: Extract<TaskProvider, 'linear' | 'jira'>
         providerLabel: string
@@ -73,6 +75,8 @@ export function getTaskSourceContextSummary(
   t?: Translate
 ): TaskSourceContextSummary {
   switch (args.provider) {
+    case 'cnb':
+      return { label: args.providerLabel, title: args.providerLabel }
     case 'github':
     case 'gitlab':
       return getRepoBackedTaskSourceSummary(args, t)

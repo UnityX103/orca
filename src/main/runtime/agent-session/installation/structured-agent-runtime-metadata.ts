@@ -1,7 +1,7 @@
 import { BOBOT_STRUCTURED_RUNTIME_METADATA } from '../../../bobot/bobot-structured-runtime'
 import { bobotModelCatalogDiscovery } from '../../../bobot/bobot-model-catalog'
 import { agentSessionAccountHome } from '../../../../shared/agent-session/lifecycle/accounts/agent-session-account-home'
-import { applyStructuredCodexWorkspaceTrust } from '../../../agent-launch/trust/agent-workspace-trust-spawn'
+import { applyStructuredAgentWorkspaceTrust } from '../../../agent-launch/trust/agent-workspace-trust-spawn'
 import { ACP_LAUNCH_SPECS } from '../../../acp/launch/acp-launch-registry'
 import type { AcpLaunchSpec } from '../../../acp/launch/acp-launch-contract'
 import { acpStructuredAgentDefinition } from '../../../acp/session/acp-structured-agent-definitions'
@@ -156,7 +156,8 @@ async function resolveCodexAccountHomePath(
       purpose === 'launch' ? services.prepareCodexLaunchHome : services.readCodexLaunchHome
   })
   if (purpose === 'launch' && workspacePath) {
-    await applyStructuredCodexWorkspaceTrust({
+    await applyStructuredAgentWorkspaceTrust({
+      preset: 'codex',
       workspacePath: await workspacePath(),
       launchEnv,
       codexHome,

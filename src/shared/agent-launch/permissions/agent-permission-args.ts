@@ -60,6 +60,7 @@ const CLAUDE_SWITCHES = [
 ]
 const EXTRA_CARRIERS: Partial<Record<TuiAgent, readonly string[]>> = {
   claude: CLAUDE_PERMISSION_OPTIONS,
+  bobot: CLAUDE_PERMISSION_OPTIONS,
   'claude-agent-teams': CLAUDE_PERMISSION_OPTIONS,
   codex: ['-a', '--ask-for-approval', '-s', '--sandbox', '--yolo', '--not-so-yolo', '--full-auto'],
   grok: ['--permission-mode', '--always-approve', '--yolo', '--dangerously-skip-permissions'],
@@ -84,6 +85,7 @@ const CODEX_VALUES = [
   '--disable'
 ]
 const MODEL_VALUES = ['--model', '--effort']
+const CLAUDE_PERMISSION_GRAMMAR: readonly TuiAgent[] = ['claude', 'claude-agent-teams', 'bobot']
 const CLAUDE_VARIADIC = [
   '--tools',
   '--allowedTools',
@@ -141,9 +143,7 @@ export function permissionOptionInventory(agent: TuiAgent): PermissionOptionInve
   const values = new Set(
     agent === 'codex' ? CODEX_VALUES : agent === 'antigravity' ? ['-mode'] : []
   )
-  const switches = new Set<string>(
-    agent === 'claude' || agent === 'claude-agent-teams' ? CLAUDE_SWITCHES : []
-  )
+  const switches = new Set<string>(CLAUDE_PERMISSION_GRAMMAR.includes(agent) ? CLAUDE_SWITCHES : [])
   for (const { token, next } of recipes) {
     if (!token.startsWith('-')) {
       continue
@@ -172,7 +172,7 @@ export function analyzeAgentChoiceWords(
   tokens: readonly string[],
   inventory = permissionOptionInventory(agent)
 ) {
-  const claude = agent === 'claude' || agent === 'claude-agent-teams'
+  const claude = CLAUDE_PERMISSION_GRAMMAR.includes(agent)
   const required = agentRequiredValueOptions(agent)
   const roles: string[] = []
   const optionIndices = new Set<number>()
@@ -204,8 +204,7 @@ export function analyzeAgentChoiceWords(
     const knownValue =
       inventory.values.has(name) ||
       required.includes(name) ||
-      (['claude', 'claude-agent-teams', 'grok', 'codex'].includes(agent) &&
-        MODEL_VALUES.includes(name))
+      ((claude || agent === 'grok' || agent === 'codex') && MODEL_VALUES.includes(name))
     const known =
       knownValue ||
       inventory.carriers.has(name) ||

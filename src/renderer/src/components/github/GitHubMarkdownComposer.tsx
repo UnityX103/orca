@@ -3,6 +3,7 @@ import { useEditor, type Editor } from '@tiptap/react'
 
 import Placeholder from '@tiptap/extension-placeholder'
 import { Paperclip } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/class-names'
 import { isScreenSubmitShortcut } from '@/lib/keyboard/screen-submit-shortcut'
 import { createRichMarkdownExtensions } from '@/components/editor/rich-markdown/schema/rich-markdown-extensions'
@@ -41,6 +42,10 @@ import type { GitHubImageUploadAddress } from './github-image-upload'
 
 type GitHubMarkdownComposerProps = {
   imageUploadAddress?: GitHubImageUploadAddress | (() => GitHubImageUploadAddress)
+  /** A provider-specific image uploader that replaces the GitHub upload path (e.g. CNB). */
+  imageUploader?: (file: File, signal?: AbortSignal) => Promise<string>
+  /** When set, an attach-file button uploads any file and inserts the returned Markdown snippet. */
+  onAttachFile?: () => void
   onImageUploadPendingChange?: (pending: boolean) => void
   value: string
   onChange: (value: string) => void
@@ -56,6 +61,8 @@ type GitHubMarkdownComposerProps = {
 
 export function GitHubMarkdownComposer({
   imageUploadAddress,
+  imageUploader,
+  onAttachFile,
   onImageUploadPendingChange,
   value,
   onChange,
@@ -90,7 +97,8 @@ export function GitHubMarkdownComposer({
     editorRef,
     imageUploadAddress,
     onImageUploadPendingChange,
-    !disabled && (!isTabbed || activeTab === 'write')
+    !disabled && (!isTabbed || activeTab === 'write'),
+    imageUploader
   )
 
   const {
@@ -283,7 +291,31 @@ export function GitHubMarkdownComposer({
     }
   }, [codec, editor, value])
 
-  const toolbar = (
+  const toolbar = onAttachFile ? (
+    <div className="github-markdown-composer-tabbar-toolbar gap-2 pl-2">
+      {onAttachFile ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="shrink-0"
+          disabled={disabled}
+          onClick={onAttachFile}
+          aria-label={t(
+            'auto.components.github.GitHubMarkdownComposer.attachFile',
+            'Attach a file'
+          )}
+        >
+          <Paperclip className="size-3.5 shrink-0" />
+        </Button>
+      ) : null}
+      <RichMarkdownToolbar
+        editor={editor}
+        onToggleLink={openLinkEditor}
+        onImagePick={openImagePicker}
+      />
+    </div>
+  ) : (
     <RichMarkdownToolbar
       editor={editor}
       onToggleLink={openLinkEditor}

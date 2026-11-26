@@ -17,6 +17,7 @@ import type {
 import { readClaudeFrameString } from '../startup/claude-structured-init-proof'
 import { claudeDispatchContentKey } from '../dispatch/claude-structured-dispatch-content'
 import type { AgentJournalAnsweredTurnIdentity } from '../../../../shared/agent-session/journal/agent-session-journal-types'
+import { isRootClaudeFrame } from './claude-turn-opening'
 
 /** Settle provider-proven delivery independently of replay-row acceptance reconciliation. */
 export type ClaudeLateDispatchSettlement = (input: ClaudeLateDispatchOutcome) => void
@@ -24,6 +25,7 @@ export type ClaudeLateDispatchSettlement = (input: ClaudeLateDispatchOutcome) =>
 export type ClaudeReplayTurnOrigin = {
   requestedAt: number | null
   clientMessageId: string | null
+  initialTurnId?: string
 }
 
 export function resolveClaudeReplayTurn(
@@ -31,6 +33,10 @@ export function resolveClaudeReplayTurn(
   message: Record<string, unknown>,
   onSettledLate?: ClaudeLateDispatchSettlement
 ): ClaudeReplayTurnOrigin | null {
+  const bobotTurn = acknowledgeBobotInitialTurn(session, message, onSettledLate)
+  if (bobotTurn) {
+    return bobotTurn
+  }
   if (message.type === 'command_lifecycle') {
     observeClaudeCommandLifecycle(session, message, onSettledLate)
     return null
@@ -161,6 +167,37 @@ export function resolveClaudeReplayTurn(
       : null
   }
   return null
+}
+
+/** BoBot emits init while handling the first input, but echoes that input after the first model response. */
+function acknowledgeBobotInitialTurn(
+  session: ClaudeSession,
+  frame: Record<string, unknown>,
+  onSettledLate: ClaudeLateDispatchSettlement | undefined
+): ClaudeReplayTurnOrigin | null {
+  if (
+    frame.type !== 'system' ||
+    frame.subtype !== 'init' ||
+    session.link.handle.transport !== 'bobot-stream-json' ||
+    !isRootClaudeFrame(frame) ||
+    frame.session_id !== session.providerSessionId ||
+    session.initialization.resumesTranscript ||
+    session.dispatchSequence !== 1 ||
+    session.dispatchWaiters.length !== 1 ||
+    session.retiredDispatchWaiters.length !== 0
+  ) {
+    return null
+  }
+  const [waiter] = session.dispatchWaiters
+  if (!waiter?.clientMessageId || waiter.acceptsResult) {
+    return null
+  }
+  settleWaiter(session, waiter, waiter.sentUuid, onSettledLate)
+  return {
+    requestedAt: waiter.requestedAt,
+    clientMessageId: waiter.clientMessageId,
+    initialTurnId: waiter.sentUuid
+  }
 }
 
 /** Safely matched echoes inherit cycle ownership independently of their delivery UUID. */

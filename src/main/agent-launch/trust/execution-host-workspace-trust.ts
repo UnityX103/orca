@@ -1,6 +1,7 @@
 import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { markBobotWorkspaceTrusted } from '../../bobot/bobot-workspace-trust'
 import { markQoderWorkspaceTrusted } from '../../qoder/workspace-trust'
 import { markQwenWorkspaceTrusted } from '../../qwen-code/workspace-trust'
 import {
@@ -49,6 +50,7 @@ export function launchedAgentHome(
 /** Never prewrite home/root trust for agents whose trust lookup includes descendants. */
 export const AGENT_TRUST_INHERITS_FROM_A_HOME: Record<AgentTrustPreset, boolean> = {
   claude: true,
+  bobot: true,
   codex: false,
   cursor: false,
   copilot: true,
@@ -65,6 +67,7 @@ const AGENT_TRUST_UNSAFE_AT_A_HOME: ReadonlySet<AgentTrustPreset> = new Set(['ki
 /** Trust these agents’ starting folders; a workspace ancestor may not be a valid trust key. */
 export const AGENT_TRUST_KEYED_BY_START_FOLDER: Record<AgentTrustPreset, boolean> = {
   claude: false,
+  bobot: false,
   codex: true,
   cursor: false,
   copilot: false,
@@ -103,6 +106,8 @@ async function writePreset(
       }
       return
     }
+    case 'bobot':
+      return markBobotWorkspaceTrusted(storedPath, host.agentHome, host.agentEnv ?? {})
     case 'codex':
       return markCodexProjectTrusted(storedPath, host.codexConfigFiles())
     case 'cursor':

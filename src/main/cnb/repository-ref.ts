@@ -49,6 +49,10 @@ export function getCnbRepoRef(
   return repoRefCache.get(repoPath, 'origin', connectionId, options)
 }
 
+export function cnbRepositoryPath(repository: string): string {
+  return `/${repository.split('/').map(encodeURIComponent).join('/')}/-`
+}
+
 export function parseCnbReviewUrl(value: string): { repository: string; number: number } | null {
   const match = /^https:\/\/cnb\.cool\/(.+)\/-\/pulls\/([1-9]\d*)\/?$/.exec(value)
   if (!match || /[?#]/.test(match[1])) {
