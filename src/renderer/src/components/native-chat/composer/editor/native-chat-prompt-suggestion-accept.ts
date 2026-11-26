@@ -1,27 +1,37 @@
 import type { KeyboardEvent } from 'react'
+import { flushSync } from 'react-dom'
 import type { NativeChatComposerInput } from './native-chat-composer-input'
 import { isImeOwnedKeyboardEvent } from '@/lib/text-input/ime/ime-composition-keyboard-event'
 
-/** Tab or Right Arrow puts the shown suggestion in the empty draft, as typing it would; nothing is sent. */
 export function acceptNativeChatPromptSuggestion(
   event: KeyboardEvent<HTMLElement>,
   suggestion: string | undefined,
   input: NativeChatComposerInput | null,
-  isComposing: () => boolean
+  isComposing: () => boolean,
+  send: () => void
 ): boolean {
   const plain = !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey
+  const submit = event.key === 'Enter'
   if (
     !suggestion ||
     !plain ||
-    (event.key !== 'Tab' && event.key !== 'ArrowRight') ||
+    (!submit && event.key !== 'Tab' && event.key !== 'ArrowRight') ||
     isImeOwnedKeyboardEvent(event) ||
     isComposing() ||
     !input?.insertText ||
+    input.disabled ||
     input.value !== ''
   ) {
     return false
   }
   event.preventDefault()
-  input.insertText(suggestion)
+  if (!submit) {
+    input.insertText(suggestion)
+  } else if (!event.repeat) {
+    const insertText = input.insertText
+    // The existing sender reads the committed draft from the latest render.
+    flushSync(() => insertText(suggestion))
+    send()
+  }
   return true
 }
