@@ -189,6 +189,26 @@ jobs:
             echo "::error::Expected installer file dist/$ASSET is missing or empty."
             exit 1
           fi
+      - name: 验证成品沿用原版 Orca 配置
+        if: matrix.platform != 'windows-qa'
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          if [[ "$PLATFORM" == mac ]]; then
+            archive='dist/mac-arm64/SOrca.app/Contents/Resources/app.asar'
+          else
+            archive='dist/win-unpacked/resources/app.asar'
+          fi
+          node - "$archive" <<'NODE'
+          const assert = require('node:assert/strict')
+          const { createRequire } = require('node:module')
+          const builderRequire = createRequire(require.resolve('app-builder-lib'))
+          const { extractFile } = builderRequire('@electron/asar')
+          const metadata = JSON.parse(extractFile(process.argv[2], 'package.json'))
+          assert.equal(metadata.productName, 'orca', 'Electron must open the existing Orca profile')
+          assert.equal(metadata.name, 'sorca', 'NSIS must keep its separate program directory')
+          NODE
       - name: 验证 Windows 独立安装目录
         if: matrix.platform == 'windows'
         shell: pwsh

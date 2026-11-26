@@ -12,7 +12,8 @@ module.exports = {
     ...base.extraMetadata,
     // Per-user NSIS uses the package name for its default directory and uninstall cleanup.
     name: qa ? 'sorca-qa' : 'sorca',
-    productName
+    // Electron uses the embedded name for userData and the macOS Keychain service.
+    productName: qa ? productName : 'orca'
   },
   mac: {
     ...base.mac,
