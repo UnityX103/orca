@@ -21842,7 +21842,7 @@
         "turnDiffsSearchChangedFiles": "変更されたファイル",
         "turnDiffsSearchEdits": "編集",
         "promptSuggestionsTitle": "プロンプトの提案",
-        "promptSuggestionsCopy": "Claude または Codex が返信すると、次のメッセージの候補が空のメッセージ欄に表示されます。Tab キーで入力できます。候補ごとに追加のリクエストが発生し、その Agent の使用量に含まれます。",
+        "promptSuggestionsCopy": "Claude または Codex が返信すると、次のメッセージの候補が空のメッセージ欄に表示されます。Tab キーで入力し、Enter キーですぐに送信できます。候補ごとに追加のリクエストが発生し、その Agent の使用量に含まれます。",
         "promptSuggestionsSearchNext": "次のプロンプト",
         "promptSuggestionsSearchGhost": "ゴーストテキスト"
       },
@@ -22581,12 +22581,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "{{host}} 上の {{path}} にダウンロードしています",
-        "saveHere": "このコンピュータに保存",
-        "copying": "{{filename}} をこのコンピュータにダウンロードしています…",
-        "copied": "{{path}} に保存しました",
-        "copyFailed": "{{filename}} をこのコンピュータに保存できませんでした。",
-        "showInFolder": "フォルダーで表示"
+        "started": "{{host}} 上の {{path}} にダウンロードしています"
       },
       "print": {
         "failed": "ページを PDF として保存できませんでした"

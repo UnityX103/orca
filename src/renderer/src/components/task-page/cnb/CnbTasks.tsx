@@ -249,6 +249,11 @@ export function CnbTasks({ model }: { model: TaskPageComposerActionsModel }): Re
             createDisabled={mode === 'missions' || repoOptions.length === 0}
             onCreateIssue={() => setCreateOpen(true)}
           />
+          {repositories.status === 'ready' && repositories.incomplete ? (
+            <p role="status" className="px-3 text-xs text-muted-foreground">
+              {t('cnb.tasks.incomplete', 'Some projects could not be checked for a CNB remote.')}
+            </p>
+          ) : null}
           {repositories.status === 'error' ? (
             <CnbTaskListPanel
               kind={kind}

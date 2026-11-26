@@ -30,7 +30,7 @@ export type CnbMissionViewInput = {
 }
 
 export type CnbTaskRepositoriesResult =
-  | { ok: true; repositories: CnbTaskRepository[] }
+  | { ok: true; repositories: CnbTaskRepository[]; incomplete?: boolean }
   | { ok: false; reason: 'not-connected' }
 
 export const cnbApi = {

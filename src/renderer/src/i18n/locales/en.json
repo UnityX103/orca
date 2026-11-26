@@ -395,12 +395,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "Downloading to {{path}} on {{host}}",
-        "saveHere": "Save to this computer",
-        "copying": "Downloading {{filename}} to this computer…",
-        "copied": "Saved to {{path}}",
-        "copyFailed": "Couldn't save {{filename}} to this computer.",
-        "showInFolder": "Show in Folder"
+        "started": "Downloading to {{path}} on {{host}}"
       },
       "print": {
         "failed": "Couldn't save the page as a PDF"
@@ -23637,7 +23632,7 @@
         "turnDiffsSearchChangedFiles": "changed files",
         "turnDiffsSearchEdits": "edits",
         "promptSuggestionsTitle": "Suggested prompts",
-        "promptSuggestionsCopy": "After Claude or Codex replies, its guess at your next message shows in the empty message box. Press Tab to use it. Each guess is an extra request that counts toward that agent's usage.",
+        "promptSuggestionsCopy": "After Claude or Codex replies, its guess at your next message shows in the empty message box. Press Tab to insert it or Enter to send it immediately. Each guess is an extra request that counts toward that agent's usage.",
         "promptSuggestionsSearchNext": "next prompt",
         "promptSuggestionsSearchGhost": "ghost text"
       },
@@ -25352,7 +25347,8 @@
     },
     "tasks": {
       "connect": "Connect CNB in Integrations to browse repository tasks.",
-      "description": "Browse CNB issues and merged pull requests.",
+      "description": "Browse CNB issues, pull requests, and missions.",
+      "incomplete": "Some projects could not be checked for a CNB remote.",
       "issues": "Issues",
       "noIssues": "No issues match these filters.",
       "openIntegrations": "Open Integrations",

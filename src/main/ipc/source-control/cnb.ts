@@ -194,7 +194,11 @@ export function registerCnbHandlers(store: Store, runtime: OrcaRuntimeService): 
         }
       }
     }
-    return { ok: true as const, repositories: [...repositories.values()] }
+    return {
+      ok: true as const,
+      repositories: [...repositories.values()],
+      incomplete: resolved.some((result) => result.status === 'rejected')
+    }
   })
   ipcMain.handle('cnb:task-list', async (_event, request: unknown) => {
     const { repoIds, kind, filters, page } = listRequest.parse(request)

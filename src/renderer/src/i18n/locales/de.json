@@ -360,12 +360,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "Wird nach {{path}} auf {{host}} heruntergeladen",
-        "saveHere": "Auf diesem Computer speichern",
-        "copying": "{{filename}} wird auf diesen Computer heruntergeladen…",
-        "copied": "Unter {{path}} gespeichert",
-        "copyFailed": "{{filename}} konnte nicht auf diesem Computer gespeichert werden.",
-        "showInFolder": "Im Ordner anzeigen"
+        "started": "Wird nach {{path}} auf {{host}} heruntergeladen"
       },
       "print": {
         "failed": "Die Seite konnte nicht als PDF gespeichert werden"
@@ -21743,7 +21738,7 @@
         "turnDiffsSearchChangedFiles": "geänderte Dateien",
         "turnDiffsSearchEdits": "Änderungen",
         "promptSuggestionsTitle": "Vorgeschlagene Prompts",
-        "promptSuggestionsCopy": "Nachdem Claude oder Codex geantwortet hat, erscheint ein Vorschlag für deine nächste Nachricht im leeren Eingabefeld. Drücke Tab, um ihn zu übernehmen. Jeder Vorschlag ist eine zusätzliche Anfrage, die auf die Nutzung dieses Agenten angerechnet wird.",
+        "promptSuggestionsCopy": "Nachdem Claude oder Codex geantwortet hat, erscheint ein Vorschlag für deine nächste Nachricht im leeren Eingabefeld. Drücke Tab, um ihn zu übernehmen, oder die Eingabetaste, um ihn sofort zu senden. Jeder Vorschlag ist eine zusätzliche Anfrage, die auf die Nutzung dieses Agenten angerechnet wird.",
         "promptSuggestionsSearchNext": "nächster Prompt",
         "promptSuggestionsSearchGhost": "Geistertext"
       },

@@ -11,3 +11,4 @@ jobs:
     uses: ./.github/workflows/sorca-build.yml
     with:
       sync_upstream: true
+      publish_after_build: true

@@ -113,8 +113,15 @@ export function NativeChatComposerField({
     onDraftChange(value, input)
   })
   const editorSelect = useLatestHandler(onTextareaSelect)
-  // An open picker takes Tab first, so the suggestion only shows and accepts while none is.
-  const suggestion = autocomplete.mode === 'none' ? promptSuggestion : undefined
+  const send = useLatestHandler(onSend)
+  const suggestion =
+    autocomplete.mode === 'none' &&
+    !launchPrompt &&
+    !editSession &&
+    !goalMode?.active &&
+    placeholderHint === undefined
+      ? promptSuggestion
+      : undefined
   const editorKeyDownCapture = useLatestHandler((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (
       !imeEnterGesture.ownsKeyDown(event) &&
@@ -122,7 +129,8 @@ export function NativeChatComposerField({
         event,
         suggestion,
         textareaRef.current,
-        imeEnterGesture.isComposing
+        imeEnterGesture.isComposing,
+        send
       )
     ) {
       onKeyDown(event)
@@ -158,7 +166,6 @@ export function NativeChatComposerField({
   const dictationToggle = useLatestHandler(onDictationToggle)
   const dictationHoldStart = useLatestHandler(onDictationHoldStart)
   const dictationHoldEnd = useLatestHandler(onDictationHoldEnd)
-  const send = useLatestHandler(onSend)
   const runSteerPreview = useLatestHandler(onSteerPreview ?? noop)
   const stop = useLatestHandler(onStop ?? noop)
   const exitGoalMode = useLatestHandler(goalMode?.exit ?? noop)

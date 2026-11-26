@@ -10,6 +10,9 @@ on:
       sync_upstream:
         type: boolean
         default: false
+      publish_after_build:
+        type: boolean
+        default: false
       mac_runner:
         type: string
         default: xcode-27
@@ -27,7 +30,11 @@ on:
           - windows-qa
         default: both
       sync_upstream:
-        description: 构建前同步上游 main
+        description: 同步上游最新稳定安装包对应的提交，并跳过已有成品的版本
+        type: boolean
+        default: false
+      publish_after_build:
+        description: 发布双平台成品到 GitHub Releases
         type: boolean
         default: false
       mac_runner:
@@ -46,7 +53,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sorca-release-${{ inputs.sync_upstream && 'both' || inputs.platforms || 'both' }}
+  group: orca-distribution-${{ inputs.platforms == 'windows-qa' && 'qa' || 'release' }}
   cancel-in-progress: false
 
 jobs:
@@ -71,73 +78,13 @@ jobs:
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
-          SYNC_UPSTREAM: ${{ github.event_name == 'schedule' || inputs.sync_upstream }}
+          SYNC_UPSTREAM: ${{ inputs.sync_upstream }}
           PLATFORMS: ${{ inputs.platforms || 'both' }}
+          PUBLISH_AFTER_BUILD: ${{ inputs.publish_after_build }}
           MAC_RUNNER: ${{ inputs.mac_runner || 'xcode-27' }}
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
         shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "$SYNC_UPSTREAM" == 'true' ]]; then
-            git fetch --no-tags https://github.com/stablyai/orca.git \
-              refs/heads/main:refs/remotes/sorca-upstream/main
-            if ! git merge-base --is-ancestor refs/remotes/sorca-upstream/main HEAD; then
-              git config user.name 'github-actions[bot]'
-              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-              merge_status=0
-              git merge --no-ff --no-commit refs/remotes/sorca-upstream/main || merge_status=$?
-              if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
-                exit "$((merge_status == 0 ? 1 : merge_status))"
-              fi
-              # Keep the fork's reviewed workflows independent of the source merge.
-              git restore --source=HEAD --staged --worktree -- .github/workflows
-              if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
-                git diff --name-only --diff-filter=U
-                echo '::error::上游源码发生合并冲突，需处理冲突后重新运行。'
-                exit 1
-              fi
-              git diff --cached --check refs/remotes/sorca-upstream/main
-              git commit -m 'chore: 合并上游 Orca main'
-              git push origin HEAD:refs/heads/自用版
-            fi
-          fi
-
-          sha="$(git rev-parse HEAD)"
-          if [[ -n "$EXPECTED_COMMIT" && "$EXPECTED_COMMIT" != "$sha" ]]; then
-            echo '::error::分支提交与已验证的提交不一致。'
-            exit 1
-          fi
-          if [[ "$GITHUB_EVENT_NAME" == 'schedule' ]]; then
-            published="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '
-              select(([.assets[] | select(.state == "uploaded") | .name]
-                | index("orca-macos-arm64.dmg")) != null and
-                ([.assets[] | select(.state == "uploaded") | .name]
-                | index("orca-windows-setup.exe")) != null)
-              | .target_commitish' 2>/dev/null || true)"
-            if [[ "$published" == "$sha" ]]; then
-              echo 'build=false' >> "$GITHUB_OUTPUT"
-              echo '当前提交已有完整的双平台成品。'
-              exit 0
-            fi
-          fi
-
-          version="$(node -p 'const base = /^\d+\.\d+\.\d+/.exec(require("./package.json").version)?.[0]; if (!base) throw Error("Invalid Orca version"); (base.localeCompare("1.4.274", "en", { numeric: true }) < 0 ? "1.4.274" : base) + "+build." + process.env.GITHUB_RUN_ID + "." + process.env.GITHUB_RUN_ATTEMPT')"
-          mac="$(jq -cn --arg runner "${MAC_RUNNER:-xcode-27}" '{platform:"mac",runner:$runner,asset:"orca-macos-arm64.dmg"}')"
-          win='{"platform":"windows","runner":"windows-2022","asset":"orca-windows-setup.exe"}'
-          case "$PLATFORMS" in
-            mac) matrix="[$mac]" ;;
-            windows) matrix="[$win]" ;;
-            windows-qa) matrix='[{"platform":"windows-qa","runner":"windows-2022","asset":"win-unpacked"}]' ;;
-            both) matrix="[$mac,$win]" ;;
-            *) exit 1 ;;
-          esac
-          {
-            echo 'build=true'
-            echo "sha=$sha"
-            echo "version=$version"
-            echo "matrix=$matrix"
-            [[ "$PLATFORMS" == windows-qa ]] && echo publish=false || echo publish=true
-          } >> "$GITHUB_OUTPUT"
+        run: bash config/scripts/release/publication/prepare-orca-distribution.sh
 
   build:
     needs: prepare
@@ -192,7 +139,7 @@ jobs:
           else
             target=(--win nsis --x64)
           fi
-          pnpm exec electron-builder --config config/electron-builder.sorca.config.cjs "${target[@]}" --publish never
+          pnpm exec electron-builder --config config/electron-builder.orca-distribution.config.cjs "${target[@]}" --publish never
           if [[ "$PLATFORM" == windows-qa ]]; then
             test -s "dist/$ASSET/OrcaQA.exe"
             printf '%s\n' "$ORCA_BUILD_COMMIT" > "dist/$ASSET/orca-source-commit.txt"
@@ -220,12 +167,15 @@ jobs:
           const builderRequire = createRequire(require.resolve('app-builder-lib'))
           const { extractFile } = builderRequire('@electron/asar')
           const metadata = JSON.parse(extractFile(process.argv[2], 'package.json'))
+          assert.equal(metadata.version, process.env.ORCA_LOCAL_BUILD_VERSION)
           assert.equal(metadata.productName ?? metadata.name, 'orca', 'The packaged default must match the Orca profile')
           assert.equal(metadata.name, 'orca', 'NSIS must reuse the original Orca program directory')
           NODE
       - name: 验证 Windows 原址安装与旧版数据保留
         if: matrix.platform == 'windows'
         shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
         run: |
           $programs = Join-Path $env:LOCALAPPDATA 'Programs'
           $stock = Join-Path $programs 'orca'
@@ -238,7 +188,7 @@ jobs:
             @{ Path = $file; Content = $profileName }
           }
 
-          $installer = Start-Process -FilePath 'dist/orca-windows-setup.exe' -ArgumentList '/S' -Wait -PassThru
+          $installer = Start-Process -FilePath (Join-Path 'dist' $env:ASSET) -ArgumentList '/S' -Wait -PassThru
           if ($installer.ExitCode -ne 0 -or !(Test-Path -LiteralPath $installed -PathType Leaf)) {
             throw 'The installer did not use the original Orca program directory.'
           }

@@ -6,6 +6,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
+import distribution from '../../../orca-distribution.cjs'
 import {
   readSOrcaDevelopmentPackage,
   sorcaDevelopmentDirectory,
@@ -30,7 +31,7 @@ const appExecutables = new Set([
   '/Applications/SOrca.app/Contents/MacOS/SOrca',
   join(homedir(), 'Applications', 'SOrca.app', 'Contents', 'MacOS', 'SOrca')
 ])
-const artifactName = 'orca-macos-arm64.dmg'
+const { macInstaller: artifactName, buildBaseVersion } = distribution
 const logPath = join(sorcaDevelopmentDirectory, 'install.log')
 
 function isOrcaRunning() {
@@ -45,13 +46,7 @@ function run(program, args, env = process.env) {
 
 async function createDevelopmentPackage(installedVersion) {
   const packageVersion = JSON.parse(await readFile(join(repo, 'package.json'), 'utf8')).version
-  const bases = [packageVersion, installedVersion].map((value) => /^\d+\.\d+\.\d+/.exec(value)?.[0])
-  if (bases.some((base) => !base)) {
-    throw new Error('Could not determine the Orca version')
-  }
-  const { compare } = new Intl.Collator('en', { numeric: true })
-  const [base] = bases.sort((a, b) => compare(b, a))
-  const version = `${base}+local.${Date.now()}`
+  const version = `${buildBaseVersion(packageVersion, installedVersion)}+local.${Date.now()}`
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim()
   const env = {
     ...process.env,
@@ -73,7 +68,7 @@ async function createDevelopmentPackage(installedVersion) {
         'exec',
         'electron-builder',
         '--config',
-        'config/electron-builder.sorca.config.cjs',
+        'config/electron-builder.orca-distribution.config.cjs',
         '--mac',
         'dmg',
         '--arm64',

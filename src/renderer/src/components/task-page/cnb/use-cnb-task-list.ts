@@ -15,7 +15,7 @@ type CnbApi = NonNullable<PreloadApi['cnb']>
 
 export type CnbRepositoriesState =
   | { status: 'loading' }
-  | { status: 'ready'; repositories: CnbTaskRepository[] }
+  | { status: 'ready'; repositories: CnbTaskRepository[]; incomplete: boolean }
   | { status: 'error'; reason: 'not-connected' | 'request-failed' }
 
 export type CnbListState =
@@ -39,7 +39,11 @@ export function useCnbRepositories(api: CnbApi | undefined, refreshNonce: number
         }
         setState(
           result.ok
-            ? { status: 'ready', repositories: result.repositories }
+            ? {
+                status: 'ready',
+                repositories: result.repositories,
+                incomplete: result.incomplete === true
+              }
             : { status: 'error', reason: result.reason }
         )
       },
