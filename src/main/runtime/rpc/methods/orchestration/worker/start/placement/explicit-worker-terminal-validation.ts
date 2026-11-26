@@ -90,11 +90,14 @@ export async function explicitWorkerWorkspace(
 export async function assertExplicitWorkerUsable(args: {
   runtime: OrcaRuntimeService
   db: OrchestrationDb
-  terminal: OrchestrationParty
+  terminal: OrchestrationParty | '' | undefined
   from: string
   coordinator: OrchestrationCallerIdentity | null
   resolvedWorktreeId: string | undefined
 }): Promise<void> {
+  if (!args.terminal) {
+    return
+  }
   const chat = chatAssigneeOf(args.terminal)
   await (chat
     ? assertExplicitWorkerChatUsable({ ...args, chat })

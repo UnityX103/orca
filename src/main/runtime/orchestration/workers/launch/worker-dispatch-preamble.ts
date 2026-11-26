@@ -10,6 +10,7 @@ export type PreambleParams = {
   taskSpec: string
   /** A terminal handle, or a session's `orca_session_id:<id>`; a terminal handle is not printed. */
   coordinatorHandle: string
+  personInitiated?: boolean
   /** The paired Orca's name when it coordinates this worker's Run from another computer. */
   coordinatedFrom?: string
   workerHandle: string
@@ -40,11 +41,13 @@ function isSessionHandle(handle: string): boolean {
 /** A terminal coordinator's handle is not printed: workers splice a second term_ UUID into their own --from (#14570). */
 function dispatchIdentityLines(params: PreambleParams): string {
   return [
-    params.coordinatedFrom
-      ? `You are coordinated from ${params.coordinatedFrom}. Your coordinator's address here is: ${params.coordinatorHandle}`
-      : isSessionHandle(params.coordinatorHandle)
-        ? `Your coordinator's Orca session ID is: ${params.coordinatorHandle}`
-        : 'Your coordinator receives mail you send with no recipient.',
+    params.personInitiated
+      ? 'A person assigned this task from Orca.'
+      : params.coordinatedFrom
+        ? `You are coordinated from ${params.coordinatedFrom}. Your coordinator's address here is: ${params.coordinatorHandle}`
+        : isSessionHandle(params.coordinatorHandle)
+          ? `Your coordinator's Orca session ID is: ${params.coordinatorHandle}`
+          : 'Your coordinator receives mail you send with no recipient.',
     `Your task ID is: ${params.taskId}`,
     ...(isSessionHandle(params.workerHandle)
       ? [`Your Orca session ID is: ${params.workerHandle}`]
@@ -91,21 +94,14 @@ export function buildDispatchPreamble(params: PreambleParams): string {
     workerKind: params.workerKind ?? 'prompt-returning-agent',
     chat
   })
-
-  // Use one-line recipes across POSIX/PowerShell/cmd; fence comments and use plain reasons to avoid misleading Chat rendering (STA-8200).
-  const header = `You are working inside Orca, a multi-agent IDE. You are a dispatched worker.
-${dispatchIdentityLines(params)}
-
-The coordinator cannot see this ${surface}. Reach it with the \`${cli} orchestration\` commands
+  const coordinatorInstructions = params.personInitiated
+    ? 'If you need a decision from the person, explain the question and the work so far in this chat, then end your turn. Wait for their reply before proceeding. Do not use an interactive question tool.'
+    : `The coordinator cannot see this ${surface}. Reach it with the \`${cli} orchestration\` commands
 below, and message it only to ask, report a blocker, or finish; it needs no progress updates
-unless the task asks.
-Do only this task, yourself: no subagents or helper workers unless the task asks.
-Terminals you open with \`${cli} terminal create\` or \`split\` close with this worker; add --keep-open to one the user keeps.
-
-=== CLI COMMANDS ===
-
-\`\`\`sh
-${checkLines({ chat, unreadMail: params.unreadMail, cli, workerHandle: params.workerHandle })}  # Ask the coordinator, then end your turn; Orca wakes you with the answer.
+unless the task asks.`
+  const coordinatorCommands = params.personInitiated
+    ? ''
+    : `  # Ask the coordinator, then end your turn; Orca wakes you with the answer.
   # Never use a local question prompt such as AskUserQuestion; the
   # coordinator cannot see or answer it.
   ${cli} orchestration ask --from ${params.workerHandle} --question "<your question>"
@@ -113,7 +109,20 @@ ${checkLines({ chat, unreadMail: params.unreadMail, cli, workerHandle: params.wo
   # Blocked, and the coordinator must act before you can continue:
   ${cli} orchestration send --from ${params.workerHandle} --type escalation --subject "Blocked: <reason>" --body "<details>" --task-id ${params.taskId} --dispatch-id ${params.dispatchId}
 
-  # Finish: send exactly once. --body is three sentences: what you did, what
+`
+
+  // Use one-line recipes across POSIX/PowerShell/cmd; fence comments and use plain reasons to avoid misleading Chat rendering (STA-8200).
+  const header = `You are working inside Orca, a multi-agent IDE. You are a dispatched worker.
+${dispatchIdentityLines(params)}
+
+${coordinatorInstructions}
+Do only this task, yourself: no subagents or helper workers unless the task asks.
+Terminals you open with \`${cli} terminal create\` or \`split\` close with this worker; add --keep-open to one the user keeps.
+
+=== CLI COMMANDS ===
+
+\`\`\`sh
+${checkLines({ chat, unreadMail: params.unreadMail, cli, workerHandle: params.workerHandle })}${coordinatorCommands}  # Finish: send exactly once. --body is three sentences: what you did, what
   # you found, what is left. Use --outcome failed if the work is not done;
   # never hide failure in prose. Add --files-modified or --report-path only
   # with real values. You are done when it confirms; if it fails, follow the

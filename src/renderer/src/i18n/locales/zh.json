@@ -24849,6 +24849,29 @@
       "filterLabels": "按标签筛选",
       "noLabelsAvailable": "所选项目没有标签。",
       "clearLabels": "清除标签"
+    },
+    "dispatch": {
+      "title": "BoBot 派发",
+      "kindIssue": "Issue",
+      "kindPr": "合并请求",
+      "createWorkspace": "创建工作区",
+      "spec": "任务说明",
+      "specPlaceholder": "填写 BoBot 的任务说明。它将在上方的工作区中启动。",
+      "dispatch": "派发给 BoBot",
+      "retry": "重试",
+      "openSession": "打开 BoBot 会话",
+      "statusStarting": "启动中",
+      "statusWorking": "进行中",
+      "statusWaiting": "等待你确认",
+      "statusIdle": "空闲",
+      "statusCompleted": "已完成",
+      "statusFailed": "失败",
+      "statusUnknown": "状态未知",
+      "limitApi": "BoBot 派发需要本机更新版本的 Orca 桌面端。",
+      "limitNoWorkspace": "请先为这条记录创建工作区，再派发给 BoBot。",
+      "limitHost": "目前支持派发到本机 Orca 的工作区。",
+      "limitCapabilities": "暂时无法确认该主机是否支持 BoBot 会话，请重新连接后重试。",
+      "limitChat": "该主机不提供 BoBot 聊天会话，记录保留在此面板。"
     }
   },
   "common": {

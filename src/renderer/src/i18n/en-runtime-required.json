@@ -2386,6 +2386,22 @@
       "manyOtherSites_other": "Read and change your data on {{hosts}} and {{count}} other sites"
     }
   },
+  "cnb": {
+    "dispatch": {
+      "limitApi": "BoBot dispatch needs a newer Orca desktop build on this machine.",
+      "limitCapabilities": "Orca can't tell yet whether this host runs BoBot chats. Reconnect it and try again.",
+      "limitChat": "This host does not offer BoBot chat sessions, so the record stays here.",
+      "limitHost": "BoBot dispatch is available for workspaces on this Orca host.",
+      "limitNoWorkspace": "Create a workspace for this record first, then dispatch it to BoBot.",
+      "statusCompleted": "Completed",
+      "statusFailed": "Failed",
+      "statusIdle": "Idle",
+      "statusStarting": "Starting",
+      "statusUnknown": "Status unknown",
+      "statusWaiting": "Waiting on you",
+      "statusWorking": "Working"
+    }
+  },
   "codeHost": {
     "bitbucketConnect": {
       "accessTokenRequired": "Enter an access token.",

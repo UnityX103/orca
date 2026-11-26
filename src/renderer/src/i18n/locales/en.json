@@ -25461,6 +25461,29 @@
       "filterLabels": "Filter by label",
       "noLabelsAvailable": "No labels on the selected projects.",
       "clearLabels": "Clear labels"
+    },
+    "dispatch": {
+      "title": "BoBot dispatch",
+      "kindIssue": "Issue",
+      "kindPr": "PR",
+      "createWorkspace": "Create workspace",
+      "spec": "What BoBot should do",
+      "specPlaceholder": "Describe what BoBot should do with this record. It starts in the workspace above.",
+      "dispatch": "Dispatch to BoBot",
+      "retry": "Retry",
+      "openSession": "Open BoBot chat",
+      "statusStarting": "Starting",
+      "statusWorking": "Working",
+      "statusWaiting": "Waiting on you",
+      "statusIdle": "Idle",
+      "statusCompleted": "Completed",
+      "statusFailed": "Failed",
+      "statusUnknown": "Status unknown",
+      "limitApi": "BoBot dispatch needs a newer Orca desktop build on this machine.",
+      "limitNoWorkspace": "Create a workspace for this record first, then dispatch it to BoBot.",
+      "limitHost": "BoBot dispatch is available for workspaces on this Orca host.",
+      "limitCapabilities": "Orca can't tell yet whether this host runs BoBot chats. Reconnect it and try again.",
+      "limitChat": "This host does not offer BoBot chat sessions, so the record stays here."
     }
   },
   "common": {

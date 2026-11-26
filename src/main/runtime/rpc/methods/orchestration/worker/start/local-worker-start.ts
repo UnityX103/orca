@@ -60,6 +60,7 @@ export async function startLocalWorker(args: {
   taskDeps: string[] | undefined
   coordinator: OrchestrationCallerIdentity | null
   callerSession?: OrchestrationEntryCaller
+  personWorktree?: { id: string; repoId: string }
   existingTask?: TaskRow
   orchestrationMutation?: WorkerStartMutation
   /** Settings-driven; the executing host still gets to refuse below. */
@@ -70,7 +71,7 @@ export async function startLocalWorker(args: {
   helperCreator?: DispatchContextRow
   followUp?: WorkerFollowUp
 }): Promise<unknown> {
-  const { runtime, db, coordinator, callerSession, orchestrationMutation } = args
+  const { runtime, db, coordinator, callerSession, orchestrationMutation, personWorktree } = args
   const recordStart = prepareWorkerStartCard(runtime, callerSession)
   // `--terminal` names a party: a chat by its `/clear` root address, as its Dispatch does.
   const terminal = args.params.terminal && resolveDispatchAssigneeParty(args.params.terminal, db)
@@ -89,7 +90,8 @@ export async function startLocalWorker(args: {
     })
   const coordinatorWorktreeId = await refuseUnmatchedWorkerSelector(
     { flag: '--from', value: params.from },
-    () => resolveDispatchCallerWorktreeId(runtime, params.from, callerSession)
+    async () =>
+      personWorktree?.id ?? resolveDispatchCallerWorktreeId(runtime, params.from, callerSession)
   )
   const existingWorktree =
     requestedWorktree === 'current' ? `id:${coordinatorWorktreeId}` : requestedWorktree
@@ -118,23 +120,22 @@ export async function startLocalWorker(args: {
   const creationTarget = createsWorktree
     ? await creationTargetFor(coordinatorWorktreeId)
     : undefined
-  let resolvedWorktree: Awaited<ReturnType<typeof placeWorkerAgent>>['worktree'] | undefined =
-    await refuseUnmatchedWorkerSelector(targetLabel, () =>
-      resolveExistingWorkerWorkspace(runtime, creationTarget, existingWorktree)
-    )
-  if (terminal) {
-    await assertExplicitWorkerUsable({
-      runtime,
-      db,
-      terminal,
-      from: params.from,
-      coordinator,
-      resolvedWorktreeId: resolvedWorktree?.id
-    })
-  }
+  let resolvedWorktree = await refuseUnmatchedWorkerSelector(
+    targetLabel,
+    async () =>
+      personWorktree ?? resolveExistingWorkerWorkspace(runtime, creationTarget, existingWorktree)
+  )
+  await assertExplicitWorkerUsable({
+    runtime,
+    db,
+    terminal,
+    from: params.from,
+    coordinator,
+    resolvedWorktreeId: resolvedWorktree?.id
+  })
   const decided = lineageModeForResolvedAgent(runtime, args.mode, { ...args, params, agent })
   const hostMode = resolveWorkerStartModeOnHost(runtime, decided, resolvedWorktree?.id, agent)
-  let mode = chatWorkerMode(await hostMode, chat)
+  let mode = chatWorkerMode(await hostMode, chat, Boolean(personWorktree))
 
   // Synchronous through the Dispatch insert, so nothing else claims the terminal in between.
   refuseClaimedWorkerTerminal(db, params.terminal, runtime, args.followUp?.of)

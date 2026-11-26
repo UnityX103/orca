@@ -1,14 +1,6 @@
 import { ipcMain } from 'electron'
 import { z } from 'zod'
-import type { CnbTaskRepository } from '../../../shared/cnb/cnb-tasks'
-
-type CnbMissionsResultMission = {
-  org: string
-  path: string
-  name: string
-  description: string
-  visibility: string | null
-}
+import type { CnbMission, CnbTaskRepository } from '../../../shared/cnb/cnb-tasks'
 import { mapSettledWithConcurrency } from '../../../shared/concurrency/map-with-concurrency'
 import { isGitRepoKind } from '../../../shared/repository/repo-kind'
 import type { Repo } from '../../../shared/repository/repo-types'
@@ -33,6 +25,8 @@ import type { Store } from '../../persistence/loading-store/store'
 import { getLocalProjectWorktreeGitOptions } from '../../workspaces/execution-host/project-runtime-git-options'
 import { getStoredRepoExecutionHostId } from '../../workspaces/execution-host/repo-execution-host'
 import { guardWslUncPathAccess } from '../../wsl/filesystem/wsl-unc-access-gate'
+import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
+import { registerCnbTaskDispatchHandlers } from './cnb-task-dispatch'
 
 const filtersSchema = z.object({
   state: z.enum(['open', 'closed', 'all']),
@@ -178,7 +172,8 @@ async function resolveRepoSlug(store: Store, repoId: string): Promise<string | n
   return resolveTaskRepository(store, repo).catch(() => null)
 }
 
-export function registerCnbHandlers(store: Store): void {
+export function registerCnbHandlers(store: Store, runtime: OrcaRuntimeService): void {
+  registerCnbTaskDispatchHandlers(runtime, store, (repoId) => resolveRepoSlug(store, repoId))
   ipcMain.handle('cnb:connect', (_event, token: unknown) => connectCnb(token))
   ipcMain.handle('cnb:disconnect', () => disconnectCnb())
   ipcMain.handle('cnb:status', () => getCnbCredentialStatus())
@@ -244,7 +239,7 @@ export function registerCnbHandlers(store: Store): void {
     const { orgs } = missionListRequest.parse(request)
     // Aggregate across every selected org so a selection spanning orgs isn't truncated to the shortest repo.
     const results = await Promise.all(orgs.map((org) => readCnbMissions(org)))
-    const missions: CnbMissionsResultMission[] = []
+    const missions: CnbMission[] = []
     let canQueryResources = false
     let sawForbidden = false
     let sawRequestFailed = false

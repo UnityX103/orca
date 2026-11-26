@@ -14,6 +14,7 @@ import { CnbCommentComposer } from './CnbCommentComposer'
 import { CnbPullBodyEditor } from './CnbPullBodyEditor'
 import { CnbPullActions } from './CnbPullActions'
 import { cnbReviewerSummary } from '../cnb-task-row-model'
+import { CnbTaskDispatchSection } from '../dispatch/CnbTaskDispatchSection'
 
 type CnbApi = NonNullable<PreloadApi['cnb']>
 
@@ -135,6 +136,7 @@ export function CnbPullDetailPanel({
 
       {detail ? (
         <>
+          <CnbTaskDispatchSection api={api} row={row} onCreateWorkspace={onStartWorkspace} />
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant={detail.state === 'open' ? 'default' : 'secondary'}>
               {stateLabel(detail, t)}

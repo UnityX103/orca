@@ -2,6 +2,11 @@ import { ipcRenderer } from 'electron'
 import type { CnbConnectResult, CnbCredentialStatus } from '../../../shared/cnb/cnb-credentials'
 import type { CnbReviewDetails } from '../../../shared/cnb/cnb-review-details'
 import type {
+  CnbTaskDispatch,
+  CnbTaskDispatchRequest,
+  CnbTaskDispatchTarget
+} from '../../../shared/cnb/cnb-task-dispatch'
+import type {
   CnbAttachmentResult,
   CnbDetailResult,
   CnbIssueDetail,
@@ -48,6 +53,10 @@ export const cnbApi = {
     repoId: string
     number: number
   }): Promise<CnbDetailResult<CnbPullDetail>> => ipcRenderer.invoke('cnb:pull-detail', request),
+  getTaskDispatch: (target: CnbTaskDispatchTarget): Promise<CnbTaskDispatch | null> =>
+    ipcRenderer.invoke('cnb:task-dispatch-get', target),
+  startTaskDispatch: (request: CnbTaskDispatchRequest): Promise<CnbTaskDispatch> =>
+    ipcRenderer.invoke('cnb:task-dispatch-start', request),
   viewer: (): Promise<{ username: string; nickname: string | null } | null> =>
     ipcRenderer.invoke('cnb:viewer'),
   labels: (request: { repoIds: string[] }): Promise<string[]> =>

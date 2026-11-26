@@ -75,8 +75,12 @@ export function refuseChatSelfAssignment(args: {
 /** The assignee is already a chat, so new-tab settings do not describe how it runs. */
 export function chatWorkerMode(
   mode: WorkerStartModeReceipt,
-  chat: OrcaSessionId | null
+  chat: OrcaSessionId | null,
+  requireChat = false
 ): WorkerStartModeReceipt {
+  if (requireChat && !chat && mode.mode !== 'structured') {
+    throw new OrchestrationError('agent_unconfigured', mode.detail, { effectsApplied: false })
+  }
   return chat
     ? {
         mode: 'structured',
