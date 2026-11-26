@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   GLOBAL_AGENT_SKILL_SOURCE_KINDS,
   useInstalledAgentSkillNames
@@ -33,6 +33,29 @@ export function useTaskSourceProviderReadiness(
   const linearStatusContextKey = useAppStore((s) => s.linearStatusContextKey)
   const providerRuntimeContextKey = getProviderRuntimeContextKey(settings)
   const activeSkillRuntime = useActiveProjectSkillRuntime()
+  const cnb = window.api.cnb
+  const [cnbConnected, setCnbConnected] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!cnb) {
+      return
+    }
+    let active = true
+    void cnb.status().then(
+      ({ source }) => {
+        if (active) {
+          setCnbConnected(source !== 'none')
+        }
+      },
+      () => {
+        if (active) {
+          setCnbConnected(false)
+        }
+      }
+    )
+    return () => {
+      active = false
+    }
+  }, [cnb])
 
   const {
     installed: linearSkillInstalled,
@@ -79,6 +102,11 @@ export function useTaskSourceProviderReadiness(
         unavailable: reviewUnavailable,
         visible: visible.has('gitlab')
       },
+      cnb: {
+        connected: cnbConnected === true,
+        checking: Boolean(cnb) && cnbConnected === null,
+        visible: visible.has('cnb')
+      },
       linear: {
         connected: linearConnected,
         checking: linearChecking,
@@ -94,6 +122,8 @@ export function useTaskSourceProviderReadiness(
       }
     }
   }, [
+    cnb,
+    cnbConnected,
     githubConnected,
     gitlabConnected,
     jiraChecking,

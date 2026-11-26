@@ -5,6 +5,7 @@ import {
 import { escapeRegex } from '../../text/regex-escaping'
 import type { JiraIssueKeyCasing } from '../../ui-chrome/ui-chrome-types'
 import { JIRA_ISSUE_KEY_PATTERN } from '../../jira/jira-issue-url'
+import type { TaskProvider } from '../../work-items/task-providers'
 
 function normalizeApostrophes(input: string): string {
   return input.replace(/[\u2018\u2019]/g, "'")
@@ -47,7 +48,7 @@ export type WorkspaceIntentWorkItem = {
   type: 'issue' | 'pr' | 'mr'
   number: number
   title: string
-  provider?: 'github' | 'gitlab' | 'linear' | 'jira'
+  provider?: TaskProvider
   linearIdentifier?: string
   jiraIdentifier?: string
 }

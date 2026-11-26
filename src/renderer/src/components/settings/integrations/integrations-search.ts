@@ -24,7 +24,7 @@ export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
     title: translate('cnb.integration.searchTitle', 'CNB integration'),
     description: translate(
       'cnb.integration.description',
-      'Pull requests and build status for CNB repositories.'
+      'Issues, pull requests, and build status for CNB repositories.'
     ),
     keywords: [
       ...translateSearchKeyword('cnb.integration.keyword', 'CNB'),

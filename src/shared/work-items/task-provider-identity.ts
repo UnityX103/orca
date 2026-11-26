@@ -47,6 +47,8 @@ export function normalizeTaskProviderIdentity(
     return null
   }
   switch (provider) {
+    case 'cnb':
+      return null
     case 'github': {
       const owner = normalizeNonEmptyString(raw.owner)
       const repo = normalizeNonEmptyString(raw.repo)
@@ -94,6 +96,8 @@ export function isStoredTaskProviderIdentity(provider: TaskProvider, identity: u
     return false
   }
   switch (provider) {
+    case 'cnb':
+      return false
     case 'github':
       return (
         typeof raw.owner === 'string' &&
@@ -115,7 +119,7 @@ export function isStoredTaskProviderIdentity(provider: TaskProvider, identity: u
   }
 }
 
-const TASK_PROVIDER_IDENTITY_FIELDS: Record<TaskProvider, readonly string[]> = {
+const TASK_PROVIDER_IDENTITY_FIELDS: Record<TaskProviderIdentity['provider'], readonly string[]> = {
   github: ['owner', 'repo', 'host'],
   gitlab: ['projectId', 'namespace', 'project', 'webUrl'],
   linear: ['workspaceId', 'workspaceName', 'teamId', 'teamKey'],

@@ -26,6 +26,7 @@ export const BOT_HELD_BACK_AGENTS = [] as const
 export const BOT_AGENTS = [
   'claude',
   'codex',
+  'bobot',
   'grok',
   'opencode',
   'omp',

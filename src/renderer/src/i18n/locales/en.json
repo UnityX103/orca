@@ -25287,13 +25287,35 @@
       "scannerStopped": "The session scanner stopped unexpectedly. Refresh to try again."
     }
   },
+  "sorca": {
+    "profile": {
+      "legacy": "Use legacy data",
+      "missing": "Orca could not find the previously selected data directory.",
+      "multiple": "Orca found two existing data directories. Choose the one you used before updating.",
+      "quit": "Quit",
+      "shared": "Use shared Orca data",
+      "title": "Choose existing Orca data"
+    },
+    "localUpdate": {
+      "alreadyInstalled": "Choose a newer Orca build.",
+      "choose": "Choose update package…",
+      "description": "Choose a local Orca disk image. Orca applies it the next time you quit normally.",
+      "discard": "Cancel pending update",
+      "installLocation": "Orca cannot write to its installation folder. Open Orca from a writable Applications folder.",
+      "invalidPackage": "This file does not match the latest development package built on this Mac.",
+      "packageUnavailable": "No local development package is registered. Run ./scripts/update-orca-dev --package-only in the Orca repository.",
+      "prepareFailed": "Could not prepare the update package. Try selecting it again.",
+      "ready": "{{version}} will install when you quit Orca.",
+      "title": "Local update package"
+    }
+  },
   "cnb": {
     "integration": {
       "cancel": "Cancel",
       "connect": "Connect",
       "connectError": "Could not connect to CNB.",
       "connected": "Connected",
-      "description": "Pull requests and build status for CNB repositories.",
+      "description": "Issues, pull requests, and build status for CNB repositories.",
       "disconnect": "Disconnect",
       "disconnectError": "Could not disconnect CNB.",
       "edit": "Edit token",
@@ -25301,7 +25323,7 @@
       "invalidToken": "Enter a valid CNB access token.",
       "notConnected": "Not connected",
       "rejected": "CNB rejected the token. Check its account read permission.",
-      "scopes": "Grant read access to account-profile, repo-pr, and repo-notes.",
+      "scopes": "Grant read access to account-profile, repo-issue, repo-pr, and repo-notes.",
       "searchTitle": "CNB integration",
       "keyword": "CNB",
       "hostname": "cnb.cool",
@@ -25321,6 +25343,31 @@
       "noComments": "No comments.",
       "noFiles": "No changed files.",
       "noPatch": "Open this pull request on CNB to view the full diff."
+    },
+    "tasks": {
+      "connect": "Connect CNB in Integrations to browse repository tasks.",
+      "description": "Browse CNB issues and merged pull requests.",
+      "incomplete": "Some projects could not be checked for a CNB remote.",
+      "issues": "Issues",
+      "loading": "Loading CNB tasks…",
+      "merged": "Merged",
+      "mergedPrs": "Merged PRs",
+      "next": "Next",
+      "noIssues": "No issues on this page.",
+      "noMergedPrs": "No merged pull requests on this page.",
+      "noRepositories": "Add a Git project with a CNB remote to view its tasks.",
+      "openIntegrations": "Open Integrations",
+      "page": "Page {{page}}",
+      "pagination": "CNB task pages",
+      "previous": "Previous",
+      "refresh": "Refresh CNB tasks",
+      "repository": "CNB repository",
+      "repositoryError": "Could not read CNB repository remotes.",
+      "requestError": "Could not load tasks. Check the CNB connection and repository access.",
+      "retry": "Try again",
+      "source": "CNB",
+      "unavailable": "CNB tasks are available in the desktop app.",
+      "view": "CNB task type"
     }
   },
   "common": {

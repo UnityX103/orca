@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Github, Gitlab } from 'lucide-react'
+import { Github, Gitlab, GitPullRequest } from 'lucide-react'
 import type { GlobalSettings } from '../../../../../shared/settings/global-settings-types'
 
 import {
@@ -31,6 +31,7 @@ import { useTaskSourceProviderReadiness } from './use-task-source-provider-readi
 import { translate } from '@/i18n/i18n'
 import { useTranslate } from '@/i18n/use-translate'
 import { SettingsGroup } from '../section-layout/SettingsGroup'
+import { INTEGRATION_SETTING_TARGET_IDS } from '../integrations/integrations-search'
 
 type TasksPaneProps = {
   settings: GlobalSettings
@@ -68,6 +69,15 @@ const PROVIDER_META: Record<
       )
     },
     Icon: ({ className }) => <Gitlab className={className} />
+  },
+  cnb: {
+    get label() {
+      return translate('cnb.tasks.source', 'CNB')
+    },
+    get description() {
+      return translate('cnb.tasks.description', 'Browse CNB issues and merged pull requests.')
+    },
+    Icon: ({ className }) => <GitPullRequest className={className} />
   },
   linear: {
     get label() {
@@ -229,7 +239,19 @@ export function TasksPane({ settings, updateSettings }: TasksPaneProps): React.J
                   visible={visible}
                   canHide={canHide}
                   onToggleVisible={() => toggleProvider(provider)}
-                  onOpenIntegrations={() => openIntegrations()}
+                  connectionDescription={
+                    provider === 'cnb'
+                      ? t(
+                          'cnb.tasks.connect',
+                          'Connect CNB in Integrations to browse repository tasks.'
+                        )
+                      : undefined
+                  }
+                  onOpenIntegrations={() =>
+                    openIntegrations(
+                      provider === 'cnb' ? INTEGRATION_SETTING_TARGET_IDS.cnb : undefined
+                    )
+                  }
                   onRetryConnection={() =>
                     void refreshPreflightStatus({ force: true, wakeWslDistro: true })
                   }

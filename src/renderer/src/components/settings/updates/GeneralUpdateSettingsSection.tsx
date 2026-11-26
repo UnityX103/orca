@@ -17,6 +17,7 @@ import { GeneralRemoteServerUpdates } from './GeneralRemoteServerUpdates'
 import { ReleaseChannelSection } from './ReleaseChannelSection'
 import { UpdateDelaySetting } from './UpdateDelaySetting'
 import { AutomaticUpdatesSetting } from './AutomaticUpdatesSetting'
+import { SOrcaLocalUpdatePackage } from './SOrcaLocalUpdatePackage'
 import { isWebClientLocation } from '@/app-shell/platform/web-client-location'
 import { formatUpdateDelayDate } from './update-delay-copy'
 import { useNow } from '@/lib/window-activity/use-now'
@@ -342,6 +343,7 @@ export function GeneralUpdateSettingsSection({
                     ))}
         </p>
       </SearchableSetting>
+      <SOrcaLocalUpdatePackage />
       {isWebClientLocation() ? null : <AutomaticUpdatesSetting />}
       <UpdateDelaySetting />
       {channelSwitcherRevealed ? <ReleaseChannelSection /> : null}

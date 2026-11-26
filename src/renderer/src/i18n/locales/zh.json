@@ -24675,13 +24675,35 @@
     "sessionAccountUnknown": "未知",
     "antigravityChatToCli": "聊天 → CLI"
   },
+  "sorca": {
+    "profile": {
+      "legacy": "使用早期版本的数据",
+      "missing": "找不到上次选择的 Orca 数据目录。",
+      "multiple": "Orca 找到了两份已有数据。请选择更新前使用的那一份。",
+      "quit": "退出",
+      "shared": "使用共享的 Orca 数据",
+      "title": "选择已有的 Orca 数据"
+    },
+    "localUpdate": {
+      "alreadyInstalled": "请选择较新的 Orca 版本。",
+      "choose": "选择更新包…",
+      "description": "选择在本机生成的 Orca 安装包（DMG）。正常退出 Orca 时将安装更新。",
+      "discard": "取消待安装的更新",
+      "installLocation": "无法写入 Orca 的安装目录。请从有写入权限的应用程序目录打开 Orca。",
+      "invalidPackage": "此文件与这台 Mac 上生成的最新开发包不匹配。",
+      "packageUnavailable": "本机还没有可用的开发包。请在 Orca 仓库中运行 ./scripts/update-orca-dev --package-only。",
+      "prepareFailed": "无法暂存更新包。请重新选择。",
+      "ready": "版本 {{version}} 将在正常退出 Orca 时安装。",
+      "title": "本机更新包"
+    }
+  },
   "cnb": {
     "integration": {
       "cancel": "取消",
       "connect": "连接",
       "connectError": "无法连接 CNB。",
       "connected": "已连接",
-      "description": "查看 CNB 仓库的 PR 和构建状态。",
+      "description": "查看 CNB 仓库的 Issue、PR 和构建状态。",
       "disconnect": "断开连接",
       "disconnectError": "无法断开 CNB 连接。",
       "edit": "编辑令牌",
@@ -24689,7 +24711,7 @@
       "invalidToken": "请输入有效的 CNB 访问令牌。",
       "notConnected": "未连接",
       "rejected": "CNB 拒绝了该令牌。请检查账户读取权限。",
-      "scopes": "请授予 account-profile、repo-pr 和 repo-notes 的读取权限。",
+      "scopes": "请授予 account-profile、repo-issue、repo-pr 和 repo-notes 的读取权限。",
       "searchTitle": "CNB 集成",
       "keyword": "CNB",
       "hostname": "cnb.cool",
@@ -24709,6 +24731,31 @@
       "noComments": "暂无评论。",
       "noFiles": "暂无变更文件。",
       "noPatch": "在 CNB 打开此 PR，查看完整差异。"
+    },
+    "tasks": {
+      "connect": "请先在「设置 → 集成」中连接 CNB。",
+      "description": "查看 CNB 仓库的 Issue 和已合并 PR。",
+      "incomplete": "部分项目的 CNB 远端无法读取。",
+      "issues": "Issue",
+      "loading": "正在加载 CNB 任务…",
+      "merged": "已合并",
+      "mergedPrs": "已合并 PR",
+      "next": "下一页",
+      "noIssues": "此页没有 Issue。",
+      "noMergedPrs": "此页没有已合并的 PR。",
+      "noRepositories": "添加带有 CNB 远端的 Git 项目后，即可在此查看任务。",
+      "openIntegrations": "打开集成设置",
+      "page": "第 {{page}} 页",
+      "pagination": "CNB 任务分页",
+      "previous": "上一页",
+      "refresh": "刷新 CNB 任务",
+      "repository": "CNB 仓库",
+      "repositoryError": "无法读取 CNB 仓库的远端地址。",
+      "requestError": "无法加载任务。请检查 CNB 连接和仓库读取权限。",
+      "retry": "重试",
+      "source": "CNB",
+      "unavailable": "请在桌面版中查看 CNB 任务。",
+      "view": "CNB 任务类型"
     }
   },
   "common": {

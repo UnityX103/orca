@@ -18,3 +18,14 @@ export async function cnbRequest(
     signal: AbortSignal.timeout(8_000)
   })
 }
+
+export function cnbHasNextPage(
+  response: Response,
+  page: number,
+  pageSize: number,
+  rowCount: number
+): boolean {
+  const total = response.headers.get('x-cnb-total')
+  const served = Number(response.headers.get('x-cnb-page-size')) || pageSize
+  return rowCount > 0 && (total === null ? rowCount >= served : page * served < Number(total))
+}

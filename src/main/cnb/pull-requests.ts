@@ -6,8 +6,8 @@ import type {
   ProviderCheckSummary
 } from '../../shared/github/pull-requests/pull-request-types'
 import { getCnbCredentialToken } from './credentials'
-import { cnbRequest } from './request'
-import { parseCnbReviewUrl } from './repository-ref'
+import { cnbHasNextPage, cnbRequest } from './request'
+import { cnbRepositoryPath, parseCnbReviewUrl } from './repository-ref'
 
 const pullRef = z.object({
   ref: z.string(),
@@ -65,12 +65,8 @@ type Pull = z.output<typeof pull>
 const PAGE_SIZE = 100
 const MAX_PAGES = 5
 
-function repoPath(repository: string): string {
-  return repository.split('/').map(encodeURIComponent).join('/')
-}
-
 function pullPath(repository: string): string {
-  return `/${repoPath(repository)}/-/pulls`
+  return `${cnbRepositoryPath(repository)}/pulls`
 }
 
 function branchName(ref: string): string {
@@ -243,12 +239,7 @@ async function findCnbPull(
     if (match) {
       return match
     }
-    const total = response.headers.get('x-cnb-total')
-    const served = Number(response.headers.get('x-cnb-page-size')) || PAGE_SIZE
-    if (
-      rows.length === 0 ||
-      (total === null ? rows.length < served : page * served >= Number(total))
-    ) {
+    if (!cnbHasNextPage(response, page, PAGE_SIZE, rows.length)) {
       return null
     }
   }

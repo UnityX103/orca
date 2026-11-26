@@ -1,10 +1,11 @@
 import { net } from 'electron'
 import type { ReleaseBuild } from '../../../shared/updater/release-channel'
+import { compareAppVersions } from '../../../shared/app-lifecycle/identity/app-version'
+import { SORCA_RELEASE_VERSION } from '../../../shared/app-lifecycle/identity/sorca-build-version'
 
 const REPOSITORY = 'UnityX103/orca'
 const RELEASES_URL = `https://github.com/${REPOSITORY}/releases`
 const RELEASES_API = `https://api.github.com/repos/${REPOSITORY}/releases?per_page=30`
-const CI_BUILD = /^\d+\.\d+\.\d+\+sorca\.(\d{1,15})\.(\d{1,8})$/
 
 type GitHubRelease = {
   tag_name?: unknown
@@ -15,19 +16,15 @@ type GitHubRelease = {
   assets?: { name?: unknown; state?: unknown; size?: unknown }[]
 }
 
-export function isSOrcaVersion(version: string): boolean {
-  return CI_BUILD.test(version) || /^\d+\.\d+\.\d+\+sorca\.native\.\d+$/.test(version)
-}
-
 function buildOrder(version: string): { run: number; attempt: number } {
-  const match = CI_BUILD.exec(version)
+  const match = SORCA_RELEASE_VERSION.exec(version)
   return { run: Number(match?.[1] ?? 0), attempt: Number(match?.[2] ?? 0) }
 }
 
 export function compareSOrcaBuilds(left: string, right: string): number {
   const a = buildOrder(left)
   const b = buildOrder(right)
-  return a.run - b.run || a.attempt - b.attempt
+  return compareAppVersions(left, right) || a.run - b.run || a.attempt - b.attempt
 }
 
 export function sorcaReleaseBuilds(
@@ -35,13 +32,13 @@ export function sorcaReleaseBuilds(
   platform: NodeJS.Platform,
   architecture: string
 ): ReleaseBuild[] {
-  const installer =
+  const installerNames =
     platform === 'darwin' && architecture === 'arm64'
-      ? 'SOrca-macos-arm64.dmg'
+      ? ['orca-macos-arm64.dmg', 'SOrca-macos-arm64.dmg']
       : platform === 'win32' && architecture === 'x64'
-        ? 'SOrca-windows-x64.exe'
-        : null
-  if (!installer) {
+        ? ['orca-windows-setup.exe', 'SOrca-windows-x64.exe']
+        : []
+  if (!installerNames.length) {
     return []
   }
   return releases
@@ -49,18 +46,24 @@ export function sorcaReleaseBuilds(
       const tag = typeof release?.tag_name === 'string' ? release.tag_name : ''
       const version = tag.startsWith('v') ? tag.slice(1) : ''
       if (
-        !CI_BUILD.test(version) ||
+        !SORCA_RELEASE_VERSION.test(version) ||
         release.draft !== false ||
         release.prerelease !== false ||
-        !Array.isArray(release.assets) ||
-        !release.assets.some(
+        !Array.isArray(release.assets)
+      ) {
+        return []
+      }
+      const assets = release.assets
+      const installer = installerNames.find((name) =>
+        assets.some(
           (asset) =>
-            asset?.name === installer &&
+            asset?.name === name &&
             asset.state === 'uploaded' &&
             typeof asset.size === 'number' &&
             asset.size > 0
         )
-      ) {
+      )
+      if (!installer) {
         return []
       }
       return [
@@ -68,7 +71,7 @@ export function sorcaReleaseBuilds(
           tag,
           version,
           channel: 'stable',
-          name: typeof release.name === 'string' ? release.name : null,
+          name: typeof release.name === 'string' ? release.name.replace(/^SOrca\b/, 'Orca') : null,
           publishedAt: typeof release.published_at === 'string' ? release.published_at : null,
           releaseUrl: `${RELEASES_URL}/tag/${encodeURIComponent(tag)}`,
           installerUrl: `${RELEASES_URL}/download/${encodeURIComponent(tag)}/${installer}`
@@ -84,11 +87,11 @@ export async function listSOrcaReleaseBuilds(): Promise<ReleaseBuild[]> {
     signal: AbortSignal.timeout(8_000)
   })
   if (!response.ok) {
-    throw new Error(`SOrca GitHub Releases returned HTTP ${response.status}`)
+    throw new Error(`Orca GitHub Releases returned HTTP ${response.status}`)
   }
   const releases: unknown = await response.json()
   if (!Array.isArray(releases)) {
-    throw new Error('SOrca GitHub Releases returned an invalid response')
+    throw new Error('Orca GitHub Releases returned an invalid response')
   }
   return sorcaReleaseBuilds(releases, process.platform, process.arch)
 }

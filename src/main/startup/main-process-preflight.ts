@@ -7,6 +7,7 @@ import os from 'node:os'
 import { join } from 'node:path'
 import { maybeRedirectCliLaunch } from './cli-launch/cli-launch-redirect'
 import { runProfileStateRecoveryPreflight } from './profile-startup/profile-state-recovery-preflight'
+import { configureSOrcaProfile } from './profile-startup/sorca-profile-preflight'
 import { argvRequestsServeMode, normalizeServeModeArgv } from './serve-launch/serve-mode-argv'
 import {
   configureDevUserDataPath,
@@ -194,6 +195,9 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   // Register before spawning so CLI/relay-shared tree killing can reach main's gate and breadcrumbs.
   installMainProcessTreeKillGate()
   configureDevUserDataPath(isDev)
+  if (!configureSOrcaProfile()) {
+    return false
+  }
   configureOrcaUserDataPathEnv()
   // #16761: install the lazy environment accessor immediately after userData selection or early resolves can throw/memoize the wrong profile.
   setAppEnvironment(new ElectronAppEnvironment())

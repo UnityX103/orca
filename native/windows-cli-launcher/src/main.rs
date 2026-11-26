@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 
 const SERVER_CONFIG_FILENAME: &str = "orca-launcher.cfg";
+const DESKTOP_EXECUTABLES: [&str; 4] = ["Orca.exe", "OrcaQA.exe", "SOrca.exe", "SOrcaQA.exe"];
 
 #[cfg(windows)]
 mod administrator_status;
@@ -40,24 +41,28 @@ fn main() {
 
     let Some(resources_directory) = launcher.parent().and_then(Path::parent) else {
         fail(&format!(
-            "Unable to locate Orca.exe next to \"{}\"",
+            "Unable to locate the desktop executable next to \"{}\"",
             launcher.display()
         ))
     };
     let Some(app_directory) = resources_directory.parent() else {
         fail(&format!(
-            "Unable to locate Orca.exe next to \"{}\"",
+            "Unable to locate the desktop executable next to \"{}\"",
             resources_directory.display()
         ))
     };
 
-    let electron_path = app_directory.join("Orca.exe");
-    if !electron_path.is_file() {
-        fail(&format!(
-            "Unable to locate Orca.exe next to \"{}\"",
-            resources_directory.display()
-        ));
-    }
+    let electron_path = DESKTOP_EXECUTABLES
+        .iter()
+        .map(|name| app_directory.join(name))
+        .find(|path| path.is_file())
+        .unwrap_or_else(|| {
+            fail(&format!(
+                "Unable to locate {} in \"{}\"",
+                DESKTOP_EXECUTABLES.join(", "),
+                app_directory.display()
+            ))
+        });
 
     let cli_path: PathBuf = resources_directory
         .join("app.asar.unpacked")

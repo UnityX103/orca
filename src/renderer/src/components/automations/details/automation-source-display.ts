@@ -48,6 +48,8 @@ export function getAutomationSourceDisplay(
 
 function getProviderLabel(provider: TaskSourceContext['provider']): string {
   switch (provider) {
+    case 'cnb':
+      return 'CNB'
     case 'github':
       return 'GitHub'
     case 'gitlab':

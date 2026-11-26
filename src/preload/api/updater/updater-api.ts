@@ -5,10 +5,17 @@ import type {
   UpdateStatus
 } from '../../../shared/updater/update-status-types'
 import type { ReleaseChannel } from '../../../shared/updater/release-channel'
+import type {
+  SOrcaLocalUpdateSelection,
+  SOrcaLocalUpdateStatus
+} from '../../../shared/updater/sorca-local-update'
 
 export type UpdaterApi = {
   getVersion: () => Promise<string>
   getStatus: () => Promise<UpdateStatus>
+  sorcaLocalPackageStatus?: () => Promise<SOrcaLocalUpdateStatus | null>
+  chooseSorcaLocalPackage?: () => Promise<SOrcaLocalUpdateSelection>
+  clearSorcaLocalPackage?: () => Promise<SOrcaLocalUpdateStatus | null>
   check: (options?: UpdateCheckOptions) => Promise<void>
   download: () => Promise<void>
   quitAndInstall: () => Promise<void>
