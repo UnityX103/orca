@@ -44,9 +44,8 @@ export function SOrcaLocalUpdatePackage(): React.JSX.Element | null {
       }
     } catch {
       setError('prepare-failed')
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
   }
 
   const discardPackage = async (): Promise<void> => {
@@ -56,9 +55,8 @@ export function SOrcaLocalUpdatePackage(): React.JSX.Element | null {
       setStatus(await clearSorcaLocalPackage())
     } catch {
       setError('prepare-failed')
-    } finally {
-      setBusy(false)
     }
+    setBusy(false)
   }
 
   const title = t('sorca.localUpdate.title', 'Local update package')

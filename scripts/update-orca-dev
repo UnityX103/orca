@@ -1,11 +1,26 @@
 #!/bin/bash
 set -euo pipefail
 
+usage() {
+  printf 'Usage: %s [--package-only | --queue-package <version> | --install-package <dmg-path>]\n' "$0"
+}
+
 case "${1:-}" in
   '') action=orca:dev:install ;;
   --package-only) action=orca:dev:package ;;
-  -h|--help) printf 'Usage: %s [--package-only]\n' "$0"; exit 0 ;;
-  *) printf 'Usage: %s [--package-only]\n' "$0" >&2; exit 2 ;;
+  --queue-package|--install-package)
+    if [[ $# != 2 || -z $2 ]]; then
+      usage >&2
+      exit 2
+    fi
+    action=$1
+    package_input=$2
+    if [[ $action == --install-package && $package_input != /* ]]; then
+      package_input="$PWD/$package_input"
+    fi
+    ;;
+  -h|--help) usage; exit 0 ;;
+  *) usage >&2; exit 2 ;;
 esac
 
 if [[ $(uname -s) != Darwin || $(uname -m) != arm64 ]]; then
@@ -29,6 +44,11 @@ cd "$repo_root"
 if [[ ! -x node_modules/.bin/tsx ]]; then
   pnpm install --frozen-lockfile
 fi
+case "$action" in
+  --queue-package|--install-package)
+    exec node --import tsx config/scripts/desktop-distribution/macos/build-sorca-development.mjs "$action" "$package_input"
+    ;;
+esac
 if [[ ! -x mobile/node_modules/.bin/expo ]]; then
   pnpm --dir mobile install --frozen-lockfile
 fi

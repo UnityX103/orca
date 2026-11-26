@@ -31,7 +31,7 @@ export type NativeChatComposerFieldProps = {
   placeholderHint?: string | undefined
   /** A room's hint, shown only while there is no prompt suggestion to show (and take with Tab). */
   idleHint?: string | undefined
-  /** The agent's suggested next prompt, shown in the placeholder's place; Tab takes it. */
+  /** The agent's suggested next prompt, shown in the placeholder's place. */
   promptSuggestion?: string | undefined
   autocomplete: ComposerAutocomplete
   mentionFiles: NativeChatMentionFiles

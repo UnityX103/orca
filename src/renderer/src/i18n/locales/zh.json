@@ -22464,7 +22464,7 @@
         "ciResultLinesSearchChecks": "检查",
         "ciResultLinesSearchPr": "PR",
         "promptSuggestionsTitle": "建议的提示词",
-        "promptSuggestionsCopy": "Claude 或 Codex 回复后，它对你下一条消息的猜测会显示在空的消息框中。按 Tab 填入，或按回车直接发送。每次猜测都是一次额外请求，会计入该智能体的用量。",
+        "promptSuggestionsCopy": "Claude 或 Codex 回复后，它对你下一条消息的猜测会显示在空的消息框中。按 Tab 或回车即可填入。每次猜测都是一次额外请求，会计入该智能体的用量。",
         "promptSuggestionsSearchNext": "下一条提示词",
         "promptSuggestionsSearchGhost": "幽灵文本"
       },

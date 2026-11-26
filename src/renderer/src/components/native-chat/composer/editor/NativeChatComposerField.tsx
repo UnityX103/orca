@@ -113,7 +113,6 @@ export function NativeChatComposerField({
     onDraftChange(value, input)
   })
   const editorSelect = useLatestHandler(onTextareaSelect)
-  const send = useLatestHandler(onSend)
   const suggestion =
     autocomplete.mode === 'none' &&
     !launchPrompt &&
@@ -123,14 +122,27 @@ export function NativeChatComposerField({
       ? promptSuggestion
       : undefined
   const editorKeyDownCapture = useLatestHandler((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (imeEnterGesture.ownsKeyDown(event)) {
+      return
+    }
+    // A held Enter can repeat after filling a suggestion, when the draft is ready to send.
     if (
-      !imeEnterGesture.ownsKeyDown(event) &&
+      event.key === 'Enter' &&
+      event.repeat &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      !event.ctrlKey
+    ) {
+      event.preventDefault()
+      return
+    }
+    if (
       !acceptNativeChatPromptSuggestion(
         event,
         suggestion,
         textareaRef.current,
-        imeEnterGesture.isComposing,
-        send
+        imeEnterGesture.isComposing
       )
     ) {
       onKeyDown(event)
@@ -166,6 +178,7 @@ export function NativeChatComposerField({
   const dictationToggle = useLatestHandler(onDictationToggle)
   const dictationHoldStart = useLatestHandler(onDictationHoldStart)
   const dictationHoldEnd = useLatestHandler(onDictationHoldEnd)
+  const send = useLatestHandler(onSend)
   const runSteerPreview = useLatestHandler(onSteerPreview ?? noop)
   const stop = useLatestHandler(onStop ?? noop)
   const exitGoalMode = useLatestHandler(goalMode?.exit ?? noop)
