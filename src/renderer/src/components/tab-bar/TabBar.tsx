@@ -94,7 +94,8 @@ function TabBarInner(props: TabBarProps): React.JSX.Element {
   // Null on a strip no bot calls home (any Git worktree, bots off), which then skips the walk over its tabs.
   const homeBotFor = useMemo(() => homeBotLookupFor(bots, worktreeId), [bots, worktreeId])
   const pinnedHomeId = useMemo(
-    () => findPinnedHomeTabId(projectedItems.orderedItems, homeBotFor),
+    () =>
+      homeBotFor === null ? null : findPinnedHomeTabId(projectedItems.orderedItems, homeBotFor),
     [projectedItems.orderedItems, homeBotFor]
   )
   // Why memoized: dnd-kit re-renders every tab in a context whose items array changes identity.

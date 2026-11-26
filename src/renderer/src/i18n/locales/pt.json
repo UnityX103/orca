@@ -1282,12 +1282,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "Baixando para {{path}} em {{host}}",
-        "saveHere": "Salvar neste computador",
-        "copying": "Baixando {{filename}} para este computador…",
-        "copied": "Salvo em {{path}}",
-        "copyFailed": "Não foi possível salvar {{filename}} neste computador.",
-        "showInFolder": "Mostrar na pasta"
+        "started": "Baixando para {{path}} em {{host}}"
       },
       "print": {
         "failed": "Não foi possível salvar a página como PDF"

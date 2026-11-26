@@ -22581,12 +22581,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "{{host}} 上の {{path}} にダウンロードしています",
-        "saveHere": "このコンピュータに保存",
-        "copying": "{{filename}} をこのコンピュータにダウンロードしています…",
-        "copied": "{{path}} に保存しました",
-        "copyFailed": "{{filename}} をこのコンピュータに保存できませんでした。",
-        "showInFolder": "フォルダーで表示"
+        "started": "{{host}} 上の {{path}} にダウンロードしています"
       },
       "print": {
         "failed": "ページを PDF として保存できませんでした"

@@ -360,12 +360,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "Wird nach {{path}} auf {{host}} heruntergeladen",
-        "saveHere": "Auf diesem Computer speichern",
-        "copying": "{{filename}} wird auf diesen Computer heruntergeladen…",
-        "copied": "Unter {{path}} gespeichert",
-        "copyFailed": "{{filename}} konnte nicht auf diesem Computer gespeichert werden.",
-        "showInFolder": "Im Ordner anzeigen"
+        "started": "Wird nach {{path}} auf {{host}} heruntergeladen"
       },
       "print": {
         "failed": "Die Seite konnte nicht als PDF gespeichert werden"

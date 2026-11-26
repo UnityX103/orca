@@ -412,12 +412,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "Загрузка в {{path}} на сервере {{host}}",
-        "saveHere": "Сохранить на этом компьютере",
-        "copying": "Загрузка {{filename}} на этот компьютер…",
-        "copied": "Сохранено в {{path}}",
-        "copyFailed": "Не удалось сохранить {{filename}} на этом компьютере.",
-        "showInFolder": "Показать в папке"
+        "started": "Загрузка в {{path}} на сервере {{host}}"
       },
       "print": {
         "failed": "Не удалось сохранить страницу как PDF"

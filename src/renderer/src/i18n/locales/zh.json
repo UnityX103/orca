@@ -23480,12 +23480,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "正在下载到 {{host}} 上的 {{path}}",
-        "saveHere": "保存到这台电脑",
-        "copying": "正在将 {{filename}} 下载到这台电脑…",
-        "copied": "已保存到 {{path}}",
-        "copyFailed": "无法将 {{filename}} 保存到这台电脑",
-        "showInFolder": "在文件夹中显示"
+        "started": "正在下载到 {{host}} 上的 {{path}}"
       },
       "print": {
         "failed": "无法将页面保存为 PDF"

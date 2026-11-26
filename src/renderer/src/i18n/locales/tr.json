@@ -395,12 +395,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "{{host}} üzerinde {{path}} konumuna indiriliyor",
-        "saveHere": "Bu bilgisayara kaydet",
-        "copying": "{{filename}} bu bilgisayara indiriliyor…",
-        "copied": "{{path}} konumuna kaydedildi",
-        "copyFailed": "{{filename}} bu bilgisayara kaydedilemedi.",
-        "showInFolder": "Klasörde Göster"
+        "started": "{{host}} üzerinde {{path}} konumuna indiriliyor"
       },
       "print": {
         "failed": "Sayfa PDF olarak kaydedilemedi"

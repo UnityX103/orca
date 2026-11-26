@@ -334,12 +334,7 @@
     },
     "serverPage": {
       "download": {
-        "started": "正在下載至 {{host}} 上的 {{path}}",
-        "saveHere": "儲存到這台電腦",
-        "copying": "正在將 {{filename}} 下載到這台電腦…",
-        "copied": "已儲存至 {{path}}",
-        "copyFailed": "無法將 {{filename}} 儲存到這台電腦。",
-        "showInFolder": "在資料夾中顯示"
+        "started": "正在下載至 {{host}} 上的 {{path}}"
       },
       "print": {
         "failed": "無法將頁面儲存為 PDF"
