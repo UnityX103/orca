@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, statSync } from 'node:fs'
-import { rename, rm, writeFile } from 'node:fs/promises'
+import { access, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   getOrcaProfileIndexPath,
@@ -20,9 +19,9 @@ function selectionFile(appData: string): string {
   return join(appData, '.sorca-profile-location')
 }
 
-function readSelection(appData: string): ProfileName | null {
+async function readSelection(appData: string): Promise<ProfileName | null> {
   try {
-    const name = readFileSync(selectionFile(appData), 'utf8').trim()
+    const name = (await readFile(selectionFile(appData), 'utf8')).trim()
     return name === 'orca' || name === 'SOrca' ? name : null
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
@@ -32,22 +31,35 @@ function readSelection(appData: string): ProfileName | null {
   }
 }
 
-function hasProfileData(path: string): boolean {
+async function hasProfileData(path: string): Promise<boolean> {
   const index = getOrcaProfileIndexPath(path)
-  return [
+  const candidates = [
     index,
     `${index}.bak`,
     legacyDataFilePath(path),
     legacyBackupPath(path, 1),
     join(path, 'profiles')
-  ].some((candidate) => existsSync(candidate))
+  ]
+  const present = await Promise.all(
+    candidates.map((candidate) =>
+      access(candidate).then(
+        () => true,
+        () => false
+      )
+    )
+  )
+  return present.some(Boolean)
 }
 
-export function resolveSOrcaProfileLocation(appData: string): Selection {
+export async function resolveSOrcaProfileLocation(appData: string): Promise<Selection> {
   const shared = { name: 'orca', path: join(appData, 'orca') } as const
   const legacy = { name: 'SOrca', path: join(appData, 'SOrca') } as const
-  const existing = [legacy, shared].filter(({ path }) => hasProfileData(path))
-  const saved = readSelection(appData)
+  const [hasLegacy, hasShared, saved] = await Promise.all([
+    hasProfileData(legacy.path),
+    hasProfileData(shared.path),
+    readSelection(appData)
+  ])
+  const existing = [legacy, shared].filter(({ name }) => (name === 'SOrca' ? hasLegacy : hasShared))
   if (saved) {
     const profile = saved === 'SOrca' ? legacy : shared
     if (!existing.some(({ name }) => name === saved)) {
@@ -56,8 +68,7 @@ export function resolveSOrcaProfileLocation(appData: string): Selection {
     return { kind: 'use', profile, remember: false }
   }
   if (existing.length > 1) {
-    const a = statSync(legacy.path)
-    const b = statSync(shared.path)
+    const [a, b] = await Promise.all([stat(legacy.path), stat(shared.path)])
     if (a.dev !== b.dev || a.ino !== b.ino) {
       return { kind: 'choose', profiles: existing }
     }

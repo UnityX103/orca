@@ -8,8 +8,17 @@ module.exports = {
   publish: null,
   extraMetadata: {
     ...base.extraMetadata,
+    main: './out/main/sorca-main-entry.mjs',
     ...(qa && { name: 'orca-qa', productName: 'Orca QA' })
   },
+  files: [
+    ...base.files,
+    {
+      from: 'src/main/startup/profile-startup',
+      to: 'out/main',
+      filter: ['sorca-main-entry.mjs']
+    }
+  ],
   mac: {
     ...base.mac,
     identity: '-'

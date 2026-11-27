@@ -46,7 +46,7 @@ async function chooseSOrcaProfile(
   }
 }
 
-export function configureSOrcaProfile(): boolean {
+export function configureSOrcaProfile(): Promise<boolean> | null {
   if (
     !app.isPackaged ||
     app.getName() !== 'orca' ||
@@ -54,11 +54,16 @@ export function configureSOrcaProfile(): boolean {
     process.env.ORCA_E2E_USER_DATA_DIR ||
     app.commandLine.hasSwitch('user-data-dir')
   ) {
-    return true
+    return null
   }
+  return applySOrcaProfile(app.getPath('appData'))
+}
 
-  const appData = app.getPath('appData')
-  const selection = resolveSOrcaProfileLocation(appData)
+async function applySOrcaProfile(appData: string): Promise<boolean> {
+  const selection = await resolveSOrcaProfileLocation(appData)
+  if (app.isReady()) {
+    throw new Error('SOrca profile selection must finish before Electron is ready.')
+  }
   if (selection.kind === 'choose') {
     if (process.argv.includes('--serve')) {
       throw new Error('Launch Orca on the desktop to select its existing data directory.')

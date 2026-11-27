@@ -1,6 +1,7 @@
 // The composer's stash: archive the draft, restore entries, and the pulse the badge replays.
 
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useTranslate } from '@/i18n/use-translate'
 import { useAppStore } from '@/store/index'
@@ -71,15 +72,14 @@ export function useNativeChatPromptStash(args: {
   const [pulseKey, setPulseKey] = useState(0)
   // One stash/restore at a time: a held chord or double click must not archive twice.
   const busy = useRef(false)
-  const workspaceId = useAppStore((s) => s.activeWorktreeId)
-  const scope = useMemo(
-    () =>
+  const scope = useAppStore(
+    useShallow((state) =>
       resolveNativeChatStashScope(
-        useAppStore.getState(),
+        state,
         draftScopeKey,
-        fallbackWorkspaceId ?? workspaceId ?? undefined
-      ),
-    [draftScopeKey, fallbackWorkspaceId, workspaceId]
+        fallbackWorkspaceId ?? state.activeWorktreeId ?? undefined
+      )
+    )
   )
   const subscribe = useCallback(
     (listener: () => void) => (scope ? subscribeToNativeChatStash(scope, listener) : () => {}),
@@ -121,7 +121,7 @@ export function useNativeChatPromptStash(args: {
     }
     busy.current = true
     let releaseLease: (() => void) | null = null
-    try {
+    const archive = async (): Promise<boolean> => {
       // Lease the archived files so clearing the draft below cannot release them mid-write.
       const leasedPaths = [
         ...current.images.map((image) => image.path),
@@ -159,11 +159,12 @@ export function useNativeChatPromptStash(args: {
       setPulseKey((key) => key + 1)
       focusComposer()
       return true
-    } finally {
+    }
+    return archive().finally(() => {
       // A failed or thrown stash must still drop the lease, or the draft's files stay pinned forever.
       releaseLease?.()
       busy.current = false
-    }
+    })
   }, [draftScopeKey, focusComposer, notice, pastedTextSaving, scope, t])
 
   const restore = useCallback(
@@ -179,7 +180,7 @@ export function useNativeChatPromptStash(args: {
       }
       busy.current = true
       setOpen(false)
-      try {
+      const restoreDraft = async (): Promise<void> => {
         // Use the latest stored copy, not the possibly-stale row the caller rendered.
         const entry = claim.entry
         const images = entry.draft.images
@@ -257,10 +258,11 @@ export function useNativeChatPromptStash(args: {
           )
         }
         focusComposer()
-      } finally {
+      }
+      await restoreDraft().finally(() => {
         claim.release()
         busy.current = false
-      }
+      })
     },
     [draftScopeKey, focusComposer, notice, scope, t]
   )

@@ -113,17 +113,23 @@ export type MainProcessPreflightOptions = {
   requestDesktopActivation: (argv?: readonly string[]) => void
 }
 
-export function runMainProcessPreflight(options: MainProcessPreflightOptions): boolean {
-  try {
-    return initializeMainProcessPreflight(options)
-  } catch (error) {
+type PreflightResult = boolean | Promise<boolean>
+
+export function runMainProcessPreflight(options: MainProcessPreflightOptions): PreflightResult {
+  const fail = (error: unknown): false => {
     console.error('[startup] Preflight failed:', error)
     handleMainProcessPreflightFailure(error)
     return false
   }
+  try {
+    const ready = initializeMainProcessPreflight(options)
+    return typeof ready === 'boolean' ? ready : ready.catch(fail)
+  } catch (error) {
+    return fail(error)
+  }
 }
 
-function initializeMainProcessPreflight(options: MainProcessPreflightOptions): boolean {
+function initializeMainProcessPreflight(options: MainProcessPreflightOptions): PreflightResult {
   const isDev = !app.isPackaged
   // Resolve Windows appData before recovery/instance-lock steps can read userData.
   ensureWindowsAppDataPath(app)
@@ -195,138 +201,140 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   // Register before spawning so CLI/relay-shared tree killing can reach main's gate and breadcrumbs.
   installMainProcessTreeKillGate()
   configureDevUserDataPath(isDev)
-  if (!configureSOrcaProfile()) {
-    return false
-  }
-  configureOrcaUserDataPathEnv()
-  // #16761: install the lazy environment accessor immediately after userData selection or early resolves can throw/memoize the wrong profile.
-  setAppEnvironment(new ElectronAppEnvironment())
-  // Capture after overrides, before ready-time app naming can change userData on case-sensitive filesystems.
-  initDataPath()
-  startEventLoopDelayProbe('main', getCanonicalUserDataPath())
-  antigravityHookService.setWindowsRuntimePathProvider(
-    () => getRelocatedDaemonHost()?.execPath ?? process.execPath
-  )
+  const finish = (): boolean => {
+    configureOrcaUserDataPathEnv()
+    // #16761: install the lazy environment accessor immediately after userData selection or early resolves can throw/memoize the wrong profile.
+    setAppEnvironment(new ElectronAppEnvironment())
+    // Capture after overrides, before ready-time app naming can change userData on case-sensitive filesystems.
+    initDataPath()
+    startEventLoopDelayProbe('main', getCanonicalUserDataPath())
+    antigravityHookService.setWindowsRuntimePathProvider(
+      () => getRelocatedDaemonHost()?.execPath ?? process.execPath
+    )
 
-  // Electron fixes the Keychain service name before ready; dev userData is already pinned so renaming cannot shift it.
-  if (state.devInstanceIdentity && shouldApplyPreReadyAppName(state.devInstanceIdentity)) {
-    app.setName(state.devInstanceIdentity.appName)
-  }
-  state.startupDiagnosticsEnabled = isStartupDiagnosticsEnabled()
-  if (state.startupDiagnosticsEnabled) {
-    logStartupDiagnostic('before-single-instance-lock', {
-      version: app.getVersion(),
+    // Electron fixes the Keychain service name before ready; dev userData is already pinned so renaming cannot shift it.
+    if (state.devInstanceIdentity && shouldApplyPreReadyAppName(state.devInstanceIdentity)) {
+      app.setName(state.devInstanceIdentity.appName)
+    }
+    state.startupDiagnosticsEnabled = isStartupDiagnosticsEnabled()
+    if (state.startupDiagnosticsEnabled) {
+      logStartupDiagnostic('before-single-instance-lock', {
+        version: app.getVersion(),
+        packaged: app.isPackaged,
+        platform: process.platform,
+        osRelease: os.release(),
+        userData: app.getPath('userData'),
+        e2eUserData: Boolean(process.env.ORCA_E2E_USER_DATA_DIR)
+      })
+      startEventLoopStallProbe()
+    }
+    // Session-long main-thread diagnostics (#7576) distinguish cold cache from unstable filesystem stamps via hit/miss/unprovable counts.
+    if (isMainThreadDiagnosticsEnabled()) {
+      // Include process-host spawns too; Git-only probe sites miss rg/ps/PTY helpers.
+      setSpawnObserver(recordSubprocessSpawn)
+    }
+    // posix_spawn blocks its caller; under memory/disk pressure a launch on main froze the window for minutes.
+    if (process.platform !== 'win32' && process.env.ORCA_CHILD_PROCESS_WORKER_DISABLED !== '1') {
+      setDefaultProcessLauncher(launchPlainProcessSpecOnPosixWorker)
+    }
+    startMainThreadChurnProbe({ extraStats: () => ({ diffCache: settledDiffCache.stats() }) })
+    // Lock after userData override so dev/packaged namespaces differ; concurrent dev copies also need separate profiles to avoid store corruption (#1326, #1312).
+    const bypass = shouldBypassSingleInstanceLock({ isDev, isServeMode: state.isServeMode })
+    const skip = shouldSkipSingleInstanceLock({ isDev, isServeMode: state.isServeMode })
+    if (bypass) {
+      // Allow diagnosis of false macOS lock loss before ordinary logs exist.
+      logSingleInstanceLockBypass()
+    }
+    const hasLock =
+      skip || bypass || acquireSingleInstanceLock(app, options.requestDesktopActivation)
+    if (state.startupDiagnosticsEnabled) {
+      logStartupDiagnostic('single-instance-lock-result', {
+        acquired: hasLock,
+        bypassed: bypass,
+        skippedForE2E: skip
+      })
+    }
+    if (!hasLock) {
+      // A false lock loss otherwise resembles a silent crash; stderr remains available to packaged macOS and dev callers.
+      logSingleInstanceLockFailure({
+        isDevDesktop: isDev && !state.isServeMode,
+        userDataPath: app.getPath('userData')
+      })
+      // Pre-ready graceful quit is deferred; exit now to avoid display-init SIGSEGV (#11935).
+      app.exit(SINGLE_INSTANCE_ALREADY_RUNNING_EXIT_CODE)
+      return false
+    }
+    // Electron's lock fences desktops; the shared profile lock also fences orcad serve.
+    if (!skip && !bypass && !acquireDesktopProfileLockOrExplain(getCanonicalUserDataPath())) {
+      return false
+    }
+    state.profileStateAdmission = acquireProfileStateRuntimeAdmission(getCanonicalUserDataPath())
+    // Renderer and worker defaults must be fixed before any session exists.
+    initializeBrowserProcessUserAgent(
+      initializeBrowserIdentityModeStore(getCanonicalUserDataPath()).appliedMode
+    )
+    // Select Linux os_crypt before credential reads/config initialization; install lazy secret access before Store without triggering pre-ready Keychain resolution.
+    selectLinuxKeyringBackend()
+    setSecretStore(new ElectronSecretStore())
+    installElectronNativeServices()
+    // Couple only dev desktop lifetime; serve must outlive its CLI shim/background-shell parent.
+    const shouldCoupleToDevParent = isDev && !state.isServeMode
+    installDevParentDisconnectQuit(shouldCoupleToDevParent)
+    installDevParentWatchdog(shouldCoupleToDevParent)
+    installDevParentSignalQuit(shouldCoupleToDevParent)
+    // #16761: supervised launches pin userData and must handle a disconnect before yielding.
+    installServeSupervisorDisconnectQuit(state.isServeMode)
+    // Use captured userData for the next-launch press-and-hold record.
+    applyMacPressAndHoldDefaultAtStartup(getCanonicalUserDataPath())
+    // Late app.getPath may change across restarts; persistence needs canonical userData.
+    configureSessionParseCachePersistence({
+      filePath: join(getCanonicalUserDataPath(), 'ai-vault', 'session-parse-cache.json'),
+      appVersion: app.getVersion()
+    })
+    initOrcaProfilePaths()
+    // Recover cross-profile moves before Store opens either profile so no reader sees half-committed ownership.
+    const profileUserDataPath = getProfileUserDataPath()
+    recoverPendingProfileProjectMoves(
+      profileUserDataPath,
+      getActiveProfileStateLocation(profileUserDataPath)?.profileId
+    )
+    // Capture stats/usage paths before app naming can shift userData.
+    initStatsPath()
+    captureBackendBootstrap()
+    // Register preview privileges before ready freezes the table or webviews lose fetch/secure-origin access.
+    registerDocPreviewSchemePrivileges(PRIVILEGED_CUSTOM_SCHEMES)
+    // Install Crashpad before first renderer; earlier CHECK failures have exit-code evidence only.
+    startCrashpadCapture()
+    state.crashReports = CrashReportStore.fromUserData()
+    state.gpuCrashDiagnostics = createGpuCrashDiagnosticsRecorder()
+    recordCrashBreadcrumb('app_started', {
       packaged: app.isPackaged,
       platform: process.platform,
-      osRelease: os.release(),
-      userData: app.getPath('userData'),
-      e2eUserData: Boolean(process.env.ORCA_E2E_USER_DATA_DIR)
+      ...getMainProcessLifecycleIdentity()
     })
-    startEventLoopStallProbe()
-  }
-  // Session-long main-thread diagnostics (#7576) distinguish cold cache from unstable filesystem stamps via hit/miss/unprovable counts.
-  if (isMainThreadDiagnosticsEnabled()) {
-    // Include process-host spawns too; Git-only probe sites miss rg/ps/PTY helpers.
-    setSpawnObserver(recordSubprocessSpawn)
-  }
-  // posix_spawn blocks its caller; under memory/disk pressure a launch on main froze the window for minutes.
-  if (process.platform !== 'win32' && process.env.ORCA_CHILD_PROCESS_WORKER_DISABLED !== '1') {
-    setDefaultProcessLauncher(launchPlainProcessSpecOnPosixWorker)
-  }
-  startMainThreadChurnProbe({ extraStats: () => ({ diffCache: settledDiffCache.stats() }) })
-  // Lock after userData override so dev/packaged namespaces differ; concurrent dev copies also need separate profiles to avoid store corruption (#1326, #1312).
-  const bypass = shouldBypassSingleInstanceLock({ isDev, isServeMode: state.isServeMode })
-  const skip = shouldSkipSingleInstanceLock({ isDev, isServeMode: state.isServeMode })
-  if (bypass) {
-    // Allow diagnosis of false macOS lock loss before ordinary logs exist.
-    logSingleInstanceLockBypass()
-  }
-  const hasLock = skip || bypass || acquireSingleInstanceLock(app, options.requestDesktopActivation)
-  if (state.startupDiagnosticsEnabled) {
-    logStartupDiagnostic('single-instance-lock-result', {
-      acquired: hasLock,
-      bypassed: bypass,
-      skippedForE2E: skip
+    disableUnsupportedChromiumFeatures()
+    // Keep unconditional because GPU-fallback launches skip feature setup.
+    optOutOfHiddenPageWakeUpThrottling()
+    configureElectronNetworkCompatibility()
+    enableRendererHeapHeadroom()
+    configureLinuxDevShmUsage()
+    maybeApplyGpuFallbackForThisLaunch()
+    if (!state.gpuFallbackActiveThisLaunch) {
+      enableMainProcessGpuFeatures()
+    }
+    // Linux offscreen browser capability requires a usable X display.
+    state.headlessBrowserDisplayAvailable = ensureVirtualDisplayForHeadlessServe({
+      isServeMode: state.isServeMode
     })
+    // Fail serve before displayless Ozone initialization can SIGSEGV (#17615).
+    if (state.isServeMode && !state.headlessBrowserDisplayAvailable) {
+      process.stderr.write(`${missingLinuxDisplayMessage(true)}\n`)
+      app.exit(1)
+    }
+    initializeSyntheticTitleRuntime()
+    registerGpuLifecycleHandlers()
+    return true
   }
-  if (!hasLock) {
-    // A false lock loss otherwise resembles a silent crash; stderr remains available to packaged macOS and dev callers.
-    logSingleInstanceLockFailure({
-      isDevDesktop: isDev && !state.isServeMode,
-      userDataPath: app.getPath('userData')
-    })
-    // Pre-ready graceful quit is deferred; exit now to avoid display-init SIGSEGV (#11935).
-    app.exit(SINGLE_INSTANCE_ALREADY_RUNNING_EXIT_CODE)
-    return false
-  }
-  // Electron's lock fences desktops; the shared profile lock also fences orcad serve.
-  if (!skip && !bypass && !acquireDesktopProfileLockOrExplain(getCanonicalUserDataPath())) {
-    return false
-  }
-  state.profileStateAdmission = acquireProfileStateRuntimeAdmission(getCanonicalUserDataPath())
-  // Renderer and worker defaults must be fixed before any session exists.
-  initializeBrowserProcessUserAgent(
-    initializeBrowserIdentityModeStore(getCanonicalUserDataPath()).appliedMode
-  )
-  // Select Linux os_crypt before credential reads/config initialization; install lazy secret access before Store without triggering pre-ready Keychain resolution.
-  selectLinuxKeyringBackend()
-  setSecretStore(new ElectronSecretStore())
-  installElectronNativeServices()
-  // Couple only dev desktop lifetime; serve must outlive its CLI shim/background-shell parent.
-  const shouldCoupleToDevParent = isDev && !state.isServeMode
-  installDevParentDisconnectQuit(shouldCoupleToDevParent)
-  installDevParentWatchdog(shouldCoupleToDevParent)
-  installDevParentSignalQuit(shouldCoupleToDevParent)
-  // #16761: install supervisor disconnect after canonical path setup but before any await, which would allow orphaning before listener installation.
-  installServeSupervisorDisconnectQuit(state.isServeMode)
-  // Use captured userData for the next-launch press-and-hold record.
-  applyMacPressAndHoldDefaultAtStartup(getCanonicalUserDataPath())
-  // Late app.getPath may change across restarts; persistence needs canonical userData.
-  configureSessionParseCachePersistence({
-    filePath: join(getCanonicalUserDataPath(), 'ai-vault', 'session-parse-cache.json'),
-    appVersion: app.getVersion()
-  })
-  initOrcaProfilePaths()
-  // Recover cross-profile moves before Store opens either profile so no reader sees half-committed ownership.
-  const profileUserDataPath = getProfileUserDataPath()
-  recoverPendingProfileProjectMoves(
-    profileUserDataPath,
-    getActiveProfileStateLocation(profileUserDataPath)?.profileId
-  )
-  // Capture stats/usage paths before app naming can shift userData.
-  initStatsPath()
-  captureBackendBootstrap()
-  // Register preview privileges before ready freezes the table or webviews lose fetch/secure-origin access.
-  registerDocPreviewSchemePrivileges(PRIVILEGED_CUSTOM_SCHEMES)
-  // Install Crashpad before first renderer; earlier CHECK failures have exit-code evidence only.
-  startCrashpadCapture()
-  state.crashReports = CrashReportStore.fromUserData()
-  state.gpuCrashDiagnostics = createGpuCrashDiagnosticsRecorder()
-  recordCrashBreadcrumb('app_started', {
-    packaged: app.isPackaged,
-    platform: process.platform,
-    ...getMainProcessLifecycleIdentity()
-  })
-  disableUnsupportedChromiumFeatures()
-  // Keep unconditional because GPU-fallback launches skip feature setup.
-  optOutOfHiddenPageWakeUpThrottling()
-  configureElectronNetworkCompatibility()
-  enableRendererHeapHeadroom()
-  configureLinuxDevShmUsage()
-  maybeApplyGpuFallbackForThisLaunch()
-  if (!state.gpuFallbackActiveThisLaunch) {
-    enableMainProcessGpuFeatures()
-  }
-  // Linux offscreen browser capability requires a usable X display.
-  state.headlessBrowserDisplayAvailable = ensureVirtualDisplayForHeadlessServe({
-    isServeMode: state.isServeMode
-  })
-  // Fail serve before displayless Ozone initialization can SIGSEGV (#17615).
-  if (state.isServeMode && !state.headlessBrowserDisplayAvailable) {
-    process.stderr.write(`${missingLinuxDisplayMessage(true)}\n`)
-    app.exit(1)
-  }
-  initializeSyntheticTitleRuntime()
-  registerGpuLifecycleHandlers()
-  return true
+  const profileSetup = configureSOrcaProfile()
+  return profileSetup ? profileSetup.then((ready) => ready && finish()) : finish()
 }

@@ -30,7 +30,7 @@ describe('SOrca upgrade profile location', () => {
 
   it('reuses the legacy SOrca root without changing its Electron identity', async () => {
     const path = await seedLegacyProfile()
-    expect(resolveSOrcaProfileLocation(appData)).toEqual({
+    expect(await resolveSOrcaProfileLocation(appData)).toEqual({
       kind: 'use',
       profile: { name: 'SOrca', path },
       remember: true
@@ -39,7 +39,7 @@ describe('SOrca upgrade profile location', () => {
 
   it('reuses an existing shared Orca profile', async () => {
     const path = await seedSharedProfile()
-    expect(resolveSOrcaProfileLocation(appData)).toEqual({
+    expect(await resolveSOrcaProfileLocation(appData)).toEqual({
       kind: 'use',
       profile: { name: 'orca', path },
       remember: true
@@ -49,7 +49,7 @@ describe('SOrca upgrade profile location', () => {
   it('keeps a selected profile across upgrades when both locations contain data', async () => {
     const legacy = await seedLegacyProfile()
     const shared = await seedSharedProfile()
-    expect(resolveSOrcaProfileLocation(appData)).toEqual({
+    expect(await resolveSOrcaProfileLocation(appData)).toEqual({
       kind: 'choose',
       profiles: [
         { name: 'SOrca', path: legacy },
@@ -57,13 +57,13 @@ describe('SOrca upgrade profile location', () => {
       ]
     })
     await rememberSOrcaProfileLocation(appData, 'SOrca')
-    expect(resolveSOrcaProfileLocation(appData)).toEqual({
+    expect(await resolveSOrcaProfileLocation(appData)).toEqual({
       kind: 'use',
       profile: { name: 'SOrca', path: legacy },
       remember: false
     })
     await rename(legacy, join(appData, 'moved'))
-    expect(resolveSOrcaProfileLocation(appData)).toEqual({
+    expect(await resolveSOrcaProfileLocation(appData)).toEqual({
       kind: 'choose',
       profiles: [{ name: 'orca', path: shared }],
       missingPath: legacy
