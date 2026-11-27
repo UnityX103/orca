@@ -41,6 +41,14 @@ export const KEYBINDING_DEFINITION_CORE_4: readonly KeybindingDefinition[] = [
     defaultBindings: platformBindings(['Mod+F'])
   },
   {
+    id: 'chat.stashPrompt',
+    title: 'Stash or restore prompt',
+    group: 'Chat',
+    scope: 'chat',
+    searchKeywords: ['shortcut', 'chat', 'stash', 'save', 'draft', 'prompt', 'restore'],
+    defaultBindings: platformBindings(['Mod+S'])
+  },
+  {
     id: 'terminal.toggleNativeChat',
     title: 'Switch between Chat UI and terminal',
     group: 'Chat',

@@ -29,3 +29,8 @@ export function releaseBrowserAttachmentFiles(paths: readonly string[]): void {
     heldFiles.delete(path)
   }
 }
+
+/** A browser File held only in this run: clearing the composer drops it, so a restore cannot resend it. */
+export function isBrowserAttachmentToken(path: string): boolean {
+  return path.startsWith(TOKEN_PREFIX)
+}

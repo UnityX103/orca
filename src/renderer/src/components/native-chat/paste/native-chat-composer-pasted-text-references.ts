@@ -14,17 +14,33 @@ import {
   nativeChatPasteNotSavedNotice
 } from './native-chat-pasted-text-reference'
 
+/** A paste kept as a named placeholder (missing or over budget) shows the file name to attach again. */
+export const PASTED_TEXT_UNAVAILABLE_PREFIX = '\u0000unavailable:'
+
+export function nativeChatPastedTextUnavailableName(state: string | null): string | null {
+  return state?.startsWith(PASTED_TEXT_UNAVAILABLE_PREFIX)
+    ? state.slice(PASTED_TEXT_UNAVAILABLE_PREFIX.length) || null
+    : null
+}
+
 export function nativeChatPastedTextState(scope: string, token: string): string | null {
   const id = nativeChatPastedTextId(token)
   if (!id) {
     return null
   }
-  return (
-    readNativeChatComposerDraft(scope).pastedTextFiles?.[id] ??
-    (currentDraftScope(operations.get(id)?.scopeKey ?? '') === currentDraftScope(scope)
-      ? 'saving'
-      : 'unsaved')
-  )
+  const draft = readNativeChatComposerDraft(scope)
+  const path = draft.pastedTextFiles?.[id]
+  if (path) {
+    return path
+  }
+  // A namespaced placeholder: unavailable but with the original file name to attach again.
+  const unavailableName = draft.pastedTextUnavailable?.[id]
+  if (unavailableName) {
+    return `${PASTED_TEXT_UNAVAILABLE_PREFIX}${unavailableName}`
+  }
+  return currentDraftScope(operations.get(id)?.scopeKey ?? '') === currentDraftScope(scope)
+    ? 'saving'
+    : 'unsaved'
 }
 
 /** Only completed paths need boundaries; copied source bytes remain literal. */
@@ -74,14 +90,22 @@ function projectPastedText<T>(
       .split(NATIVE_CHAT_PASTED_TEXT_TOKEN)
       .forEach((part, index) => {
         const state = index % 2 === 1 ? stateOf(part) : null
-        const path = state !== null && state !== 'saving' && state !== 'unsaved'
+        // A named unavailable placeholder is still not a path: it never reaches the agent.
+        const unavailable = nativeChatPastedTextUnavailableName(state)
+        const path = state !== null && !unavailable && state !== 'saving' && state !== 'unsaved'
         const piece = path
           ? formatNativeChatFileReference(state)
           : !copy || state === null
             ? part
             : state === 'saving'
               ? (operations.get(nativeChatPastedTextId(part) ?? '')?.text ?? '')
-              : translate('components.native-chat.composer.pasteNotSavedLabel', 'Paste not saved')
+              : unavailable
+                ? translate(
+                    'components.native-chat.composer.pasteNotSavedNamed',
+                    '{{name}} (paste not saved)',
+                    { name: unavailable }
+                  )
+                : translate('components.native-chat.composer.pasteNotSavedLabel', 'Paste not saved')
         if (!piece) {
           return
         }
@@ -117,13 +141,19 @@ function projectPastedText<T>(
 export function nativeChatPastedTextAdmission(
   scope: string,
   candidate = ''
-): 'saving' | 'unsaved' | null {
+): 'saving' | 'unsaved' | 'unavailable' | null {
   const states = [readNativeChatComposerDraft(scope).text, candidate]
     .join('\n')
     .split(NATIVE_CHAT_PASTED_TEXT_TOKEN)
     .filter((_, index) => index % 2 === 1)
     .map((token) => nativeChatPastedTextState(scope, token))
-  return states.includes('saving') ? 'saving' : states.includes('unsaved') ? 'unsaved' : null
+  if (states.includes('saving')) {
+    return 'saving'
+  }
+  if (states.some((state) => nativeChatPastedTextUnavailableName(state) !== null)) {
+    return 'unavailable'
+  }
+  return states.includes('unsaved') ? 'unsaved' : null
 }
 
 export function admitNativeChatPastedText(
@@ -135,6 +165,7 @@ export function admitNativeChatPastedText(
   if (state === 'unsaved') {
     onError(nativeChatPasteNotSavedNotice())
   }
+  // A named placeholder also holds Send: its path must never be sent as if valid.
   return state === null
 }
 

@@ -11,6 +11,7 @@ import type {
   SessionOptionsSurface
 } from '../../../../shared/native-chat/input/native-chat-session-options'
 import type { NativeChatComposerGoalMode } from './composer/submit/use-native-chat-composer-submit'
+import type { NativeChatPromptStash } from './composer/stash/use-native-chat-prompt-stash'
 import type { NativeChatFollowUpBehavior } from '../../../../shared/native-chat/input/composer/native-chat-follow-up-behavior'
 import type { NativeChatSteerChordPreview } from '../../../../shared/native-chat/input/composer/use-native-chat-steer-chord-preview'
 import type { NativeChatComposerImageAttachment } from './attachments/chips/native-chat-image-attachment'
@@ -87,6 +88,14 @@ export type NativeChatComposerFieldProps = {
   goalMode?: NativeChatComposerGoalMode
   agent?: string
   launchPrompt?: { placeholder: string }
+  /** The prompt stash control and list, present when this composer can stash. */
+  stash?: NativeChatPromptStash | null
+  /** Stash wiring the field owns itself, so the pane stays within its line budget. */
+  stashFallbackWorkspaceId?: string
+  stashPastedTextSaving?: boolean
+  stashIsComposing?: () => boolean
+  /** A launch panel or pending workspace owns the input, so the stash stays off. */
+  stashPending?: boolean
   workspaceFooter?: React.ReactNode
   /** Send opens `/btw` and `/side` drafts as side chats here. */
   sideChat?: boolean

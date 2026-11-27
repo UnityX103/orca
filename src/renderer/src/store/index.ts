@@ -259,5 +259,22 @@ if ((import.meta.env.DEV || e2eConfig.exposeStore) && typeof window !== 'undefin
           await import('@/runtime/hosted-terminals/creation/web-runtime-terminal-creation')
         ).createWebRuntimeSessionTerminal(args)
     }
+    // Stash E2E fixture: write a real long-paste file via app IPC, then record it on the composer's
+    // draft through the same store the UI reads. Only the OS clipboard entry is faked; the file and
+    // the draft write are product paths, so restore genuinely re-checks the on-disk file.
+    testWindow.__nativeChatStashE2E = {
+      attachPastedText: async (scopeKey: string, text: string, pasteId: string) => {
+        const path = await window.api.ui.savePastedTextAsFile({ text })
+        const { updateNativeChatComposerDraft } =
+          await import('@/components/native-chat/drafts/native-chat-composer-draft-store')
+        const token = `[Pasted text](orca-paste:${pasteId})`
+        updateNativeChatComposerDraft(
+          scopeKey,
+          { text: `pasted ${token}`, pastedTextFiles: { [pasteId]: path } },
+          'immediate'
+        )
+        return path
+      }
+    }
   }
 }

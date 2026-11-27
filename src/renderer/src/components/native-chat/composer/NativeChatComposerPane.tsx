@@ -409,6 +409,10 @@ export const NativeChatComposerPane = forwardRef<ComposerHandle, C.NativeChatCom
             sessionOptionsPickerRequest={structuredTransport?.optionPickerRequest ?? null}
             agent={agent}
             launchPrompt={launchPrompt}
+            stashPending={pending}
+            stashFallbackWorkspaceId={structuredTransport?.worktreeId}
+            stashPastedTextSaving={attachments.pastedTextSaving}
+            stashIsComposing={imeEnterGesture.isComposing}
             workspaceFooter={workspaceFooter}
             {...fieldOverrides}
           />

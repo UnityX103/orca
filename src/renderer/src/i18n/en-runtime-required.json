@@ -3015,6 +3015,12 @@
         "theirDm": "Also posts to {{name}}'s DM with {{bot}}",
         "thread": "Also posts to the Slack thread"
       },
+      "stash": {
+        "attachmentSnippet_one": "({{count}} attachment)",
+        "attachmentSnippet_other": "({{count}} attachments)",
+        "clearedOnRemoval_one": "{{count}} stashed prompt will also be cleared.",
+        "clearedOnRemoval_other": "{{count}} stashed prompts will also be cleared."
+      },
       "state": {
         "empty": {
           "subtitle": "Ask {{value0}} to inspect code, explain output, or make a change.",

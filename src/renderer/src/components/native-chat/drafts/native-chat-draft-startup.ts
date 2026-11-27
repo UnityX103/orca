@@ -6,6 +6,7 @@ import {
 } from '@/components/native-chat/drafts/native-chat-composer-draft-load'
 import { setNativeChatComposerDraftOwnerResolver } from '@/components/native-chat/drafts/native-chat-composer-draft-memory'
 import { recheckNativeChatComposerDraftImagesIn } from '@/components/native-chat/drafts/native-chat-composer-draft-image-check'
+import { hydrateNativeChatPromptStash } from '@/components/native-chat/drafts/native-chat-prompt-stash-store'
 
 // Bound startup waiting; a late load still fills drafts the user has not edited.
 const DRAFT_LOAD_WAIT_MS = 1_500
@@ -20,6 +21,8 @@ export function startNativeChatDraftLoad(): (() => void) | undefined {
     recheckNativeChatComposerDraftImagesIn
   )
   void hydrateNativeChatComposerDrafts()
+  // Why here too: the stash clears with its workspace, so its load must precede any removal.
+  void hydrateNativeChatPromptStash()
   return stopRechecks
 }
 
