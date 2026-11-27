@@ -39,6 +39,9 @@ export function renderMobileTasksCreateDrawer(model: ConnectionPresentationModel
     showCreateTask,
     taskUiReady
   } = model
+  if (provider === 'cnb') {
+    return null
+  }
   return (
     <BottomDrawer
       visible={taskUiReady && showCreateTask}
@@ -218,6 +221,9 @@ export function renderMobileTasksCreateTargetPicker(model: ConnectionPresentatio
     showCreateTask,
     taskUiReady
   } = model
+  if (provider === 'cnb') {
+    return null
+  }
   return (
     <PickerModal
       visible={taskUiReady && showCreateTask && showCreateTargetPicker}
