@@ -1,6 +1,6 @@
 export { readCnbTaskList, type CnbRepositoryTarget } from './task-list'
 export { readCnbIssueDetail } from './task-detail'
-export { readCnbPullDetail, pullHeadSchema } from './task-pull-detail'
+export { readCnbPullDetail } from './task-pull-detail'
 export { readCnbPullChecks } from './task-pull-checks'
 export {
   encodeMissionPath,

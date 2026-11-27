@@ -131,6 +131,3 @@ export async function readCnbIssueDetail(
     }
   }
 }
-
-// Re-exported at the historic path so existing check callers keep a single import site.
-export { readCnbPullChecks } from './task-pull-checks'
