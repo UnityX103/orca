@@ -20,6 +20,7 @@ import { countOpenRepoTerminalTabs } from '@/store/repos/repo-removal'
 import { worktreeBelongsToHost } from '@/store/repos/repo-host-identity'
 import { getRecipeVmSshTargetForHost } from '@/runtime/ephemeral-vm/recipe-vm-managed-host'
 import { RemovalUnsavedFilesNotice } from './RemovalUnsavedFilesNotice'
+import { RemovalStashNotice } from './RemovalStashNotice'
 import { confirmUnsavedDiscard } from '@/store/slices/worktrees/teardown/removed-workspace-unsaved-files'
 import { projectRemovalTargets } from './removal-unsaved-files'
 import {
@@ -181,6 +182,10 @@ const RemoveFolderDialog = React.memo(function RemoveFolderDialog() {
           ) : null}
         </DialogHeader>
         <RemovalUnsavedFilesNotice targets={unsavedTargets} enabled={isOpen} />
+        <RemovalStashNotice
+          workspaceIds={unsavedTargets.map((target) => target.id)}
+          executionHostId={hostId}
+        />
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             {t('auto.components.sidebar.RemoveFolderDialog.d36883e046', 'Cancel')}

@@ -3977,6 +3977,32 @@ html.native-shell .app-layout {
   animation: feature-wall-meta-pulse 1100ms ease-out 1;
 }
 
+/* One short pulse per stash, on the count beside the chat's stash badge. */
+@keyframes native-chat-stash-count-pulse {
+  0% {
+    opacity: 0;
+    transform: translateY(2px) scale(0.9);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(0) scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.native-chat-stash-count-pulse {
+  animation: native-chat-stash-count-pulse 320ms ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .native-chat-stash-count-pulse {
+    animation: none;
+  }
+}
+
 /* Let users choose a tab before showing the next agent lesson. */
 body:has([data-contextual-tour-target='tab-create-menu'][data-state='open'])
   [data-contextual-tour-overlay='workspace-agent-sessions'] {

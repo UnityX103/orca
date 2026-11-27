@@ -17,8 +17,10 @@ import { useLatestHandler } from '@/lib/use-latest-handler'
 import type { NativeChatComposerFieldProps } from '../../native-chat-composer-field-props'
 import { imeComposedSegment } from '@/lib/text-input/ime/ime-composed-segment'
 import { acceptNativeChatPromptSuggestion } from './native-chat-prompt-suggestion-accept'
+import { useNativeChatComposerStash } from '../stash/use-native-chat-composer-stash'
 
 function noop(): void {}
+const NEVER_COMPOSING = (): boolean => false
 
 export type { NativeChatComposerFieldProps } from '../../native-chat-composer-field-props'
 
@@ -79,6 +81,11 @@ export function NativeChatComposerField({
   goalMode,
   agent,
   launchPrompt,
+  stash,
+  stashFallbackWorkspaceId,
+  stashPastedTextSaving,
+  stashIsComposing,
+  stashPending,
   workspaceFooter,
   sideChat
 }: NativeChatComposerFieldProps): React.JSX.Element {
@@ -190,6 +197,17 @@ export function NativeChatComposerField({
 
   // Stable so the memoized option pickers keep their identity.
   const focusComposer = useCallback(() => textareaRef.current?.focus(), [textareaRef])
+  const ownedStash = useNativeChatComposerStash({
+    enabled: !launchPrompt && !stashPending && !editSession,
+    draftScopeKey,
+    draft,
+    ...(stashFallbackWorkspaceId ? { fallbackWorkspaceId: stashFallbackWorkspaceId } : {}),
+    disabled,
+    pastedTextSaving: stashPastedTextSaving ?? false,
+    focusComposer,
+    isComposing: stashIsComposing ?? NEVER_COMPOSING
+  })
+  const stashControl = stash ?? ownedStash
   // A launch prompt sits in a popover, so it takes the app's surface instead of the chat's.
   const launch = launchPrompt !== undefined
   const card = useRef<HTMLDivElement>(null)
@@ -346,6 +364,8 @@ export function NativeChatComposerField({
                 focusComposer={focusComposer}
                 onExitGoalMode={goalMode?.active ? exitGoalMode : undefined}
                 launchPrompt={launch}
+                stash={stashControl}
+                stashDisabled={disabled}
                 {...(agent ? { agent } : {})}
               />
             </div>

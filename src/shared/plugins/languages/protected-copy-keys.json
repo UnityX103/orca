@@ -1240,6 +1240,7 @@
     "components.native-chat.prompt.collapse",
     "components.native-chat.prompt.expand",
     "components.native-chat.question.openTerminal",
+    "components.native-chat.stash.clearedOnRemoval",
     "components.native-chat.urlRequest.decline",
     "components.native-chat.urlRequest.finished",
     "components.native-chat.urlRequest.finishedWith",

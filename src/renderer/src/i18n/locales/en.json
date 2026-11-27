@@ -21660,7 +21660,10 @@
         "modelAndEffortValue": "{{model}} · {{effort}}",
         "modelAndEffort": "Model and effort",
         "modelsLoading": "Loading models…",
-        "signInForModels": "Sign in to see the models you can use."
+        "signInForModels": "Sign in to see the models you can use.",
+        "pasteAttachAgainName": "{{name}}",
+        "pasteAttachAgainNotice": "Paste not saved. Paste it again to send.",
+        "pasteNotSavedNamed": "{{name}} (paste not saved)"
       },
       "tool": {
         "exitCode": "exit {{value0}}",
@@ -23094,6 +23097,28 @@
         "sampleCall": "Sample call",
         "sampleNote": "Starts a real run",
         "send": "Send"
+      },
+      "stash": {
+        "badgeLabel": "Stashed prompts: {{count}}",
+        "emptySnippet": "(empty)",
+        "attachmentSnippet_one": "({{count}} attachment)",
+        "attachmentSnippet_other": "({{count}} attachments)",
+        "menuLabel": "Stashed prompts",
+        "menuTitle": "Stash",
+        "delete": "Delete stashed prompt",
+        "restoreHint": "Restore appends after what you typed",
+        "pasteStillSaving": "Still saving a paste. Stash again once it finishes.",
+        "attachmentStillSaving": "Still adding an attachment. Stash again once it finishes.",
+        "full": "Stash holds {{max}} prompts. Restore or delete one to make room; your input is kept.",
+        "saveFailed": "Couldn't stash this prompt. Your input was kept.",
+        "restoreNotSaved": "Restored into the composer, but it could not be saved. The stash entry is kept.",
+        "restoreNotRemoved": "Restored into the composer, but the stash entry could not be removed.",
+        "deleteFailed": "Couldn't delete this stashed prompt.",
+        "clearedOnRemoval_one": "{{count}} stashed prompt will also be cleared.",
+        "clearedOnRemoval_other": "{{count}} stashed prompts will also be cleared.",
+        "empty": "Nothing stashed yet.",
+        "unavailable": "Saved prompts couldn't be loaded, so nothing was stashed. Your input was kept.",
+        "restoreMissingAttachments": "Some attachments could not be restored. Attach them again to send."
       }
     },
     "tab": {
@@ -26913,7 +26938,8 @@
       "d286d1ab85": "Clear pane title",
       "botItemBack": "Back to items",
       "botItemPrevious": "Previous item",
-      "botItemNext": "Next item"
+      "botItemNext": "Next item",
+      "chatStashPrompt": "Stash or restore prompt"
     },
     "group": {
       "global": "Global",

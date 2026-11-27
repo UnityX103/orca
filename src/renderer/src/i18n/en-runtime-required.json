@@ -2400,9 +2400,6 @@
       "statusUnknown": "Status unknown",
       "statusWaiting": "Waiting on you",
       "statusWorking": "Working"
-    },
-    "tasks": {
-      "description": "Browse CNB issues, pull requests, and missions."
     }
   },
   "codeHost": {
@@ -3017,6 +3014,12 @@
         "someonesDm": "Also posts to a DM with {{bot}}",
         "theirDm": "Also posts to {{name}}'s DM with {{bot}}",
         "thread": "Also posts to the Slack thread"
+      },
+      "stash": {
+        "attachmentSnippet_one": "({{count}} attachment)",
+        "attachmentSnippet_other": "({{count}} attachments)",
+        "clearedOnRemoval_one": "{{count}} stashed prompt will also be cleared.",
+        "clearedOnRemoval_other": "{{count}} stashed prompts will also be cleared."
       },
       "state": {
         "empty": {

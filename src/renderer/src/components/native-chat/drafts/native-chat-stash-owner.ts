@@ -17,7 +17,7 @@ export function resolveNativeChatStashScope(
     return null
   }
   const route = resolveWorktreeOperationRoute(state, fallbackWorkspaceId)
-  return route
+  return route && route.executionHostId
     ? { workspaceId: fallbackWorkspaceId, executionHostId: route.executionHostId }
     : null
 }

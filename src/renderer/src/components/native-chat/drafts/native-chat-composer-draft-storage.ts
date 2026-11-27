@@ -19,6 +19,8 @@ export type NativeChatComposerDraftImage = {
 export type NativeChatComposerDraft = {
   readonly text: string
   readonly pastedTextFiles?: Readonly<Record<string, string>>
+  /** A paste Orca could not keep: its id maps to the original file name to attach again. */
+  readonly pastedTextUnavailable?: Readonly<Record<string, string>>
   /** The editor's document for exactly `text`; dropped when the text changes without one. */
   readonly document?: JSONContent
   readonly images: readonly NativeChatComposerDraftImage[]
@@ -167,10 +169,26 @@ export function parseStoredNativeChatComposerDraft(
         )
       )
     : undefined
+  const pastedTextUnavailable = isRecord(value.pastedTextUnavailable)
+    ? Object.fromEntries(
+        Object.entries(value.pastedTextUnavailable).flatMap(([id, name]): [string, string][] =>
+          /^[0-9a-f-]{36}$/.test(id) &&
+          typeof name === 'string' &&
+          name !== '' &&
+          text.includes(`[Pasted text](orca-paste:${id})`) &&
+          !pastedTextFiles?.[id]
+            ? [[id, name]]
+            : []
+        )
+      )
+    : undefined
   const owner = parseOwner(value.owner)
   return {
     text,
     ...(pastedTextFiles ? { pastedTextFiles } : {}),
+    ...(pastedTextUnavailable && Object.keys(pastedTextUnavailable).length
+      ? { pastedTextUnavailable }
+      : {}),
     ...(isEditorDocument(document) ? { document } : {}),
     images: images.flatMap((image) => parseImage(image) ?? []),
     savedAt,
@@ -201,6 +219,8 @@ export function removeLegacyLocalStorageNativeChatComposerDrafts(): void {
 export type NativeChatComposerDraftChange = {
   text?: string
   pastedTextFiles?: Readonly<Record<string, string>>
+  /** A paste kept as a named placeholder instead of a path (missing or over budget). */
+  pastedTextUnavailable?: Readonly<Record<string, string>>
   /** Present, even as undefined, to replace the document. */
   document?: JSONContent
   images?: readonly NativeChatComposerDraftImage[]

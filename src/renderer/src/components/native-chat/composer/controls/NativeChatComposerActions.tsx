@@ -24,6 +24,8 @@ import { NativeChatComposerPrimaryButton } from './NativeChatComposerPrimaryButt
 import { NativeChatAttachButton } from './NativeChatAttachButton'
 import { NativeChatDictationButton } from './NativeChatDictationButton'
 import { NativeChatContextUsageRing } from '../../usage/NativeChatContextUsageRing'
+import { NativeChatStashMenu } from '../stash/NativeChatStashMenu'
+import type { NativeChatPromptStash } from '../stash/use-native-chat-prompt-stash'
 import type { NativeChatContextUsageSummary } from '../../../../../../shared/native-chat/native-chat-context-usage-summary'
 import type { NativeChatOptionPickerRequest } from '../../session/options/controls/native-chat-option-picker-request'
 import type { NativeChatSteerChordPreview } from '../../../../../../shared/native-chat/input/composer/use-native-chat-steer-chord-preview'
@@ -67,6 +69,13 @@ export type NativeChatComposerActionsProps = {
   agent?: string
   /** A launch prompt: Attach and dictation are its only controls; launching is the panel's. */
   launchPrompt?: boolean
+  /** The prompt stash badge and menu, when this composer can stash. */
+  stash?: NativeChatPromptStash | null
+  /**
+   * Only a held composer disables the stash: the badge must stay usable while Send waits on a paste,
+   * since restoring is how a stranded draft comes back.
+   */
+  stashDisabled?: boolean
 }
 
 // Memoized: typing re-renders the composer per keystroke, and these controls rarely change with it.
@@ -98,7 +107,9 @@ export const NativeChatComposerActions = memo(function NativeChatComposerActions
   contextUsage,
   focusComposer,
   agent,
-  launchPrompt = false
+  launchPrompt = false,
+  stash,
+  stashDisabled = false
 }: NativeChatComposerActionsProps): React.JSX.Element {
   const t = useTranslate()
   useUiLanguageRevision()
@@ -262,6 +273,25 @@ export const NativeChatComposerActions = memo(function NativeChatComposerActions
         ]
       : []),
     { id: 'dictation', priority: 2, content: dictation },
+    ...(stash
+      ? [
+          {
+            id: 'stash',
+            priority: 3,
+            content: (
+              <NativeChatStashMenu
+                entries={stash.entries}
+                pulseKey={stash.pulseKey}
+                open={stash.isOpen}
+                disabled={stashDisabled}
+                onOpenChange={stash.setOpen}
+                onRestore={(entry) => void stash.restore(entry)}
+                onRemove={(entry) => void stash.remove(entry)}
+              />
+            )
+          }
+        ]
+      : []),
     ...(draftNotSaved
       ? [{ id: 'draft', priority: 1, content: <NativeChatComposerDraftNotSavedIcon shown /> }]
       : []),

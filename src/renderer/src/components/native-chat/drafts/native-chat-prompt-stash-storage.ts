@@ -34,6 +34,8 @@ export type StoredNativeChatStashDraft = {
   readonly text: string
   readonly document?: JSONContent
   readonly pastedTextFiles?: Readonly<Record<string, string>>
+  /** Pastes kept as a named placeholder (over budget or unavailable): id → original file name. */
+  readonly pastedTextUnavailable?: Readonly<Record<string, string>>
   readonly images: readonly NativeChatComposerDraftImage[]
 }
 
@@ -71,9 +73,7 @@ export type NativeChatStashStorage = {
   remove(scopeKeys: readonly string[]): Promise<void>
 }
 
-export function createIndexedDbNativeChatStashStorage(
-  factory: IDBFactory
-): NativeChatStashStorage {
+export function createIndexedDbNativeChatStashStorage(factory: IDBFactory): NativeChatStashStorage {
   const database = indexedDbConnection(factory, DATABASE_NAME, DATABASE_VERSION, (db) => {
     if (!db.objectStoreNames.contains(STASHES)) {
       db.createObjectStore(STASHES)
@@ -190,7 +190,7 @@ function parseEntry(value: unknown): StoredNativeChatStashEntry | null {
   if (typeof id !== 'string' || typeof createdAt !== 'number' || !isRecord(draft)) {
     return null
   }
-  const { text, images, document, pastedTextFiles } = draft
+  const { text, images, document, pastedTextFiles, pastedTextUnavailable } = draft
   if (typeof text !== 'string' || !Array.isArray(images)) {
     return null
   }
@@ -201,12 +201,22 @@ function parseEntry(value: unknown): StoredNativeChatStashEntry | null {
         )
       )
     : undefined
+  const unavailablePastes = isRecord(pastedTextUnavailable)
+    ? Object.fromEntries(
+        Object.entries(pastedTextUnavailable).flatMap(([key, name]): [string, string][] =>
+          typeof name === 'string' && name !== '' && !pasted?.[key] ? [[key, name]] : []
+        )
+      )
+    : undefined
   return {
     id,
     createdAt,
     draft: {
       text,
       ...(pasted ? { pastedTextFiles: pasted } : {}),
+      ...(unavailablePastes && Object.keys(unavailablePastes).length
+        ? { pastedTextUnavailable: unavailablePastes }
+        : {}),
       ...(isEditorDocument(document) ? { document } : {}),
       images: images.flatMap((image) => parseImage(image) ?? [])
     },

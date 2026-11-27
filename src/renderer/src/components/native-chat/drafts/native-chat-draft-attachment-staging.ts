@@ -173,6 +173,31 @@ export function releaseNativeChatStagedFiles(scope: string): void {
   }
 }
 
+/**
+ * Hold paths so a draft prune cannot release them while a stash is being written. The returned
+ * release restores exactly which paths the lease had added, then prunes what nothing else holds.
+ */
+export function leaseNativeChatStagedFiles(scope: string, paths: readonly string[]): () => void {
+  const files = staged.get(scope)
+  if (!files || paths.length === 0) {
+    return () => {}
+  }
+  const lease = new Set(paths.filter((path) => files.paths.has(path)))
+  const addedToDraft = [...lease].filter((path) => !files.draftPaths.has(path))
+  files.leases.add(lease)
+  for (const path of addedToDraft) {
+    files.draftPaths.add(path)
+  }
+  return () => {
+    files.leases.delete(lease)
+    // Only undo what the lease added; a path the draft already held stays referenced.
+    for (const path of addedToDraft) {
+      files.draftPaths.delete(path)
+    }
+    pruneFiles(files)
+  }
+}
+
 /** Keep the submitted files across draft moves, and retain successful uploads after a partial failure. */
 export function captureNativeChatStagedInput(scope: string, input?: NativeChatStagedInput) {
   const files = staged.get(scope)

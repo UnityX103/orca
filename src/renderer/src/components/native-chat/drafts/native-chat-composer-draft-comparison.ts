@@ -60,6 +60,9 @@ export function nativeChatComposerDraftLeftAfterSend(
       ? { document: slicePromptDocument(current.document, left.from, left.to) }
       : {}),
     ...(current.pastedTextFiles ? { pastedTextFiles: current.pastedTextFiles } : {}),
+    ...(current.pastedTextUnavailable
+      ? { pastedTextUnavailable: current.pastedTextUnavailable }
+      : {}),
     images: current.images.filter((image) => !sent.images.some((held) => held.id === image.id))
   }
 }

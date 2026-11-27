@@ -14,6 +14,10 @@ import {
 } from '@/components/native-chat/drafts/native-chat-composer-draft-removal'
 import { structuredAgentSessionDraftScopeKey } from '@/components/native-chat/drafts/native-chat-draft-scope'
 import {
+  deleteNativeChatStashesOwnedBy,
+  tombstoneNativeChatStashesOwnedBy
+} from '@/components/native-chat/drafts/native-chat-prompt-stash-store'
+import {
   clearNativeChatPendingAttachments,
   dropNativeChatPendingAttachmentsForTab,
   dropNativeChatPendingAttachmentsOwnedBy
@@ -63,6 +67,10 @@ export function deleteWorkspaceChatDrafts(keys: WorkspaceChatDraftKeys): void {
   for (const owner of keys.owners) {
     deleteNativeChatComposerDraftsOwnedBy(owner)
     dropNativeChatPendingAttachmentsOwnedBy(owner)
+    // Why tombstone synchronously: a first stash from a tab still open at removal time must not
+    // create the workspace's one stash key after the workspace is gone.
+    tombstoneNativeChatStashesOwnedBy(owner)
+    void deleteNativeChatStashesOwnedBy(owner)
   }
   for (const key of keys.conversations) {
     deleteNativeChatComposerDraft(key)

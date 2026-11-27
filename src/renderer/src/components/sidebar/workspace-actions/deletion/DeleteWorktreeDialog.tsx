@@ -15,6 +15,7 @@ import { DeleteWorktreeDialogFooter } from './DeleteWorktreeDialogFooter'
 import { DeleteWorktreeDialogHeading } from './DeleteWorktreeDialogDescription'
 import { DeleteWorktreeTargetPreview } from './DeleteWorktreeTargetPreview'
 import { DeleteWorktreeChangesSummary } from './DeleteWorktreeChangesSummary'
+import { RemovalStashNotice } from './RemovalStashNotice'
 import { useRemovalUnsavedFiles } from './use-removal-unsaved-files'
 import { persistDeleteWorktreeConfirmSkipPreference } from './delete-worktree-preference-toast'
 import {
@@ -362,6 +363,11 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
             atRiskLocalFilesByIdentity={atRiskLocalFilesByIdentity}
           />
         ) : null}
+
+        <RemovalStashNotice
+          workspaceIds={deleteTargets.map((target) => target.id)}
+          executionHostId={isBatchDelete ? undefined : (worktree?.hostId ?? undefined)}
+        />
 
         {hasLineageReview && error ? (
           <div className="scrollbar-sleek max-h-1/4 shrink-0 space-y-2 overflow-y-auto">

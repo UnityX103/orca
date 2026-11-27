@@ -130,11 +130,17 @@ export function updateNativeChatComposerDraft(
       text.includes(nativeChatPastedTextToken(id))
     )
   )
+  const pastedTextUnavailable = Object.fromEntries(
+    Object.entries(change.pastedTextUnavailable ?? current.pastedTextUnavailable ?? {}).filter(
+      ([id]) => text.includes(nativeChatPastedTextToken(id)) && !pastedTextFiles[id]
+    )
+  )
   const images = change.images ?? current.images
   const unsavedText = change.unsavedText ?? current.unsavedText
   if (
     !position &&
     JSON.stringify(pastedTextFiles) === JSON.stringify(current.pastedTextFiles ?? {}) &&
+    JSON.stringify(pastedTextUnavailable) === JSON.stringify(current.pastedTextUnavailable ?? {}) &&
     text === current.text &&
     sameNativeChatComposerDraftDocument(document, current.document) &&
     unsavedText === current.unsavedText &&
@@ -161,6 +167,7 @@ export function updateNativeChatComposerDraft(
   const record: DraftRecord = {
     text,
     ...(Object.keys(pastedTextFiles).length ? { pastedTextFiles } : {}),
+    ...(Object.keys(pastedTextUnavailable).length ? { pastedTextUnavailable } : {}),
     ...(document ? { document } : {}),
     // Why: an unchanged row keeps its identity, so typing does not re-render every image consumer.
     images: sameNativeChatComposerDraftImages(images, current.images)
