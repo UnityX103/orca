@@ -7,7 +7,7 @@ export type GitProgressRecord = {
   done: boolean
 }
 
-const COUNTERS = /^\s*(\d+)% \((\d+)\/(\d+)\)(, done\.)?/
+const COUNTERS = /^\s*(\d+)% \((\d+)\/(\d+)\)(?=\s*$|, )/
 // Git redraws with CR; separator-free text is not progress, so retain only a bounded tail.
 const MAX_PENDING_CHARS = 256
 
@@ -41,15 +41,20 @@ export function createGitProgressRecordReader(
     if (!match) {
       return false
     }
+    const completed = Number(match[2])
     const total = Number(match[3])
-    if (total <= 0) {
+    if (!Number.isSafeInteger(total) || total <= 0 || completed > total) {
       return false
+    }
+    const done = text.trimEnd().endsWith(', done.')
+    if (done) {
+      titleOnOwnLine = false
     }
     onRecord({
       percent: Math.min(100, Number(match[1])),
-      completed: Number(match[2]),
+      completed,
       total,
-      done: match[4] !== undefined
+      done
     })
     return true
   }

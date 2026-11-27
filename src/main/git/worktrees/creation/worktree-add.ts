@@ -1,4 +1,3 @@
-import { GitCommandTimeoutError } from '../../../../shared/git/commands/git-command-timeout'
 import { resolveWorktreeAddBaseRef } from '../../../../shared/worktree/base-refs/base-ref'
 import type { LocalBaseRefRefreshResult } from '../../../../shared/worktree/base-refs/base-ref-drift-types'
 import { windowsLongPathGitArgs } from '../../../../shared/git/compatibility/windows-long-path-git-args'
@@ -20,14 +19,10 @@ import type {
   AddWorktreeResult,
   GitWorktreeExecOptions
 } from '../worktree-operation-options'
-import {
-  gitExecOptions,
-  resolveWorktreeAddTimeoutMs,
-  worktreeAddTimeoutMessage
-} from '../worktree-operation-options'
+import { gitExecOptions } from '../worktree-operation-options'
 import { bumpWorktreeScanGeneration } from '../catalog/worktree-scan-cache'
 import { assertNoPendingWorktreeRemovalConflict } from '../../../workspaces/removal/worktree-removal-table'
-import { createWorktreeCheckoutProgressReader } from './worktree-checkout-progress'
+import { runWorktreeAddGit } from './worktree-add-git'
 
 export type WorktreeAddBaseContext = Pick<AddWorktreeResult, 'localBaseRefUpdateSuggestion'> & {
   effectiveBase: string
@@ -270,28 +265,18 @@ async function performAddWorktree(
       args.push(effectiveBase)
     }
   }
-  // Read Git's existing stderr meter without requesting extra progress output.
-  const checkoutProgress =
-    options.onCheckoutProgress && !noCheckout
-      ? createWorktreeCheckoutProgressReader(options.onCheckoutProgress)
-      : null
   try {
-    await gitExecFileAsync([...(await checkoutWorkersArgs), ...args], {
-      ...gitExecOptions(repoPath, options),
-      ...(!noCheckout ? { admissionClass: 'checkout' as const } : {}),
-      // Resolve per call so later environment overrides take effect.
-      timeout: resolveWorktreeAddTimeoutMs(),
-      ...(checkoutProgress ? { onStderr: checkoutProgress.read } : {})
-    })
+    await runWorktreeAddGit(
+      repoPath,
+      [...(await checkoutWorkersArgs), ...args],
+      noCheckout,
+      options
+    )
   } catch (error) {
     // Settle the refresh before leaving the caller's maintenance pause on failure.
     await baseContext?.pendingLocalBaseRefRefresh
-    if (error instanceof GitCommandTimeoutError) {
-      error.message = worktreeAddTimeoutMessage(error.timeoutMs)
-    }
     throw error
   } finally {
-    checkoutProgress?.close()
     // Even late failures can rewrite .git; invalidate pre-create routing before follow-up commands.
     invalidateWslLinkedWorktreeGitRouting(worktreePath)
   }

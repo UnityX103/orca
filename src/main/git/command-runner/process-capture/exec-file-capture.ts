@@ -1,4 +1,5 @@
 import { execFile, type ChildProcess, type ExecFileOptions } from 'node:child_process'
+import { startExecFileDeadline } from './exec-file-deadline'
 import { recordSubprocessSpawn } from '../../../diagnostics/main-thread-churn-probe'
 import { endSubprocessStdin } from '../../../../shared/process-streams/subprocess-stdin-write'
 import { createPosixGroupTermination } from '@orca/process-host/posix-group-termination'
@@ -7,7 +8,7 @@ import { spawnNativeProcess } from '@orca/process-host/native-process-spawn'
 import { resolveSelectedLocalCommand } from '../../../ipc/command-path/command-path-resolver'
 import { createAbortError } from './abort-error'
 import { endAbandonedWorkerChild, killSpawnedCommandTree } from './spawned-command-tree-kill'
-import { DEFAULT_GIT_MAX_BUFFER } from '../git-exec-options'
+import { DEFAULT_GIT_MAX_BUFFER, type GitStderrProgressTimeout } from '../git-exec-options'
 import type { GitAdmissionTier } from '../../../../shared/rpc-contract/source-control/git-admission-tier-params'
 
 import {
@@ -34,10 +35,11 @@ export type ExecFileCaptureOptions = Omit<ExecFileOptions, 'timeout'> & {
   /** The caller holds no mutation fence, so a lost worker ends the child's lifetime without proof (implied without onChildTerminated). */
   workerLossEndsLifetime?: boolean
   admissionTier?: GitAdmissionTier
-  createTimeoutError?: () => Error
+  createTimeoutError?: (expiredTimeoutMs?: number) => Error
   /** Called once when the deadline — not an abort — is what ended the process. */
   onDeadlineKill?: () => void
   onStderr?: (chunk: string) => void
+  progressTimeout?: GitStderrProgressTimeout
   /** False keeps a Windows launch on main; true waits for a cold worker instead of spawning on main meanwhile. */
   spawnOnWorkerThread?: boolean
   /** Native Git only: launch an owned group and retain it after abnormal stop until proof. */
@@ -69,9 +71,7 @@ export function execFileCapture(
     let useWorker = false
     // A busy Windows spawn worker must not hold the caller's deadline; decided once the launch picks its host.
     const callerOwnsDeadline = (): boolean => useWorker && process.platform === 'win32'
-    const deadline =
-      options.timeout && options.timeout > 0 ? performance.now() + options.timeout : null
-    let timer: NodeJS.Timeout | null = null
+    let stopObservingStderr: (() => void) | undefined
     let terminationReported = false
     const reportChildTerminated = (): void => {
       if (!terminationReported) {
@@ -80,11 +80,9 @@ export function execFileCapture(
       }
     }
     const cleanup = (): void => {
-      if (timer) {
-        clearTimeout(timer)
-        timer = null
-      }
+      deadline.clear()
       options.signal?.removeEventListener('abort', onAbort)
+      stopObservingStderr?.()
     }
     const finish = (
       error: Error | null,
@@ -144,16 +142,18 @@ export function execFileCapture(
     }
 
     const onAbort = (): void => stop(createAbortError(), true)
-    const onDeadline = (): void => {
-      if (!settled && (!terminating || callerOwnsDeadline())) {
-        options.onDeadlineKill?.()
-        stop(options.createTimeoutError?.() ?? new Error(`${command} timed out.`), true)
-      }
-    }
     // Lookup is part of the deadline; cancellation must settle even before there is a child.
-    if (options.timeout && options.timeout > 0) {
-      timer = setTimeout(onDeadline, options.timeout)
-    }
+    const deadline = startExecFileDeadline(
+      options.timeout,
+      options.progressTimeout,
+      (timeoutMs) => {
+        if (!settled && (!terminating || callerOwnsDeadline())) {
+          options.onDeadlineKill?.()
+          stop(options.createTimeoutError?.(timeoutMs) ?? new Error(`${command} timed out.`), true)
+        }
+      },
+      () => !settled && !terminating
+    )
     options.signal?.addEventListener('abort', onAbort, { once: true })
     if (options.signal?.aborted) {
       onAbort()
@@ -209,9 +209,7 @@ export function execFileCapture(
             cwd: typeof options.cwd === 'string' ? options.cwd : undefined
           })
           const selection = await nativeExecutableResolver.resolveAsync(program, options.env)
-          if (deadline !== null && performance.now() >= deadline) {
-            onDeadline()
-          }
+          deadline.expireIfDue()
           if (settled) {
             return
           }
@@ -300,8 +298,8 @@ export function execFileCapture(
       } else {
         child.once('close', reportChildTerminated)
       }
-      if (options.onStderr) {
-        observeCapturedStderr(child, options.onStderr)
+      if (deadline.onStderr || options.onStderr) {
+        stopObservingStderr = observeCapturedStderr(child, deadline.onStderr, options.onStderr)
       }
 
       // Non-interactive signers must see EOF instead of waiting on an open pipe.

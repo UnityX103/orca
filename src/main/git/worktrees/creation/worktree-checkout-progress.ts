@@ -10,6 +10,26 @@ export type WorktreeCheckoutProgressReader = {
   close: () => void
 }
 
+export function createWorktreeCheckoutProgressDetector(): (chunk: string) => boolean {
+  let advanced = false
+  const readers = ['Updating files', 'Filtering content'].map((title) => {
+    let completed = 0
+    return createGitProgressRecordReader(title, (record) => {
+      if (record.completed > completed) {
+        completed = record.completed
+        advanced = true
+      }
+    })
+  })
+  return (chunk) => {
+    advanced = false
+    for (const read of readers) {
+      read(chunk)
+    }
+    return advanced
+  }
+}
+
 /** Parse Git's existing Updating files meter synchronously; close stops further reports. */
 export function createWorktreeCheckoutProgressReader(
   onProgress: WorktreeCheckoutProgressListener

@@ -3,6 +3,11 @@ export const DEFAULT_GIT_MAX_BUFFER = 10 * 1024 * 1024
 
 import type { GitAdmissionTier } from '../../../shared/rpc-contract/source-control/git-admission-tier-params'
 
+export type GitStderrProgressTimeout = {
+  maxDurationMs: number
+  createProgressDetector: () => (chunk: string) => boolean
+}
+
 export type GitExecOptions = {
   cwd: string
   encoding?: BufferEncoding | 'buffer'
@@ -36,6 +41,8 @@ export type GitExecOptions = {
   spawnOnWorkerThread?: boolean
   /** Observe stderr without changing capture/errors; incompatible with terminationBarrier. */
   onStderr?: (chunk: string) => void
+  /** Treat timeout as an idle deadline, bounded by maxDurationMs; incompatible with terminationBarrier. */
+  progressTimeout?: GitStderrProgressTimeout
 }
 
 export type GitBufferExecOptions = {

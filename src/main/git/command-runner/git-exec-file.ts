@@ -46,8 +46,8 @@ async function gitExecFileAsyncUnlocked(
   return withGitSpan(
     { args, cwd: options.cwd, admissionTier: options.admissionTier },
     async (span) => {
-      if (options.onStderr && options.terminationBarrier) {
-        throw new Error('onStderr is not supported with terminationBarrier.')
+      if ((options.onStderr || options.progressTimeout) && options.terminationBarrier) {
+        throw new Error('Stderr observation is not supported with terminationBarrier.')
       }
       const checkoutRoutingReady = pendingWslDriveCheckoutGitRouting(args, options)
       if (checkoutRoutingReady) {
@@ -122,19 +122,17 @@ async function gitExecFileAsyncUnlocked(
             }
           },
           workerLossEndsLifetime: holdsNoFence,
-          ...(options.onStderr ? { onStderr: options.onStderr } : {}),
-          ...(timeoutMs === undefined
-            ? {}
-            : { createTimeoutError: () => new GitCommandTimeoutError(timeoutMs) })
+          onStderr: options.onStderr,
+          progressTimeout: options.progressTimeout,
+          createTimeoutError:
+            timeoutMs === undefined
+              ? undefined
+              : (expiredTimeoutMs = timeoutMs) => new GitCommandTimeoutError(expiredTimeoutMs)
         }
+        const { binary, args: resolvedArgs, termination } = command
         const captured = options.terminationBarrier
-          ? execFileCaptureToTermination(
-              command.binary,
-              command.args,
-              captureOptions,
-              command.termination
-            )
-          : execFileCapture(command.binary, command.args, captureOptions)
+          ? execFileCaptureToTermination(binary, resolvedArgs, captureOptions, termination)
+          : execFileCapture(binary, resolvedArgs, captureOptions)
         // Add a cause when a dead WSL distro returns empty stderr.
         return captured.catch((error: unknown) => {
           throw withCapturedErrorStdout(annotateWslHostFailure(error, command), command)

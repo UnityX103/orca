@@ -13,8 +13,10 @@ const GIT_TERMINATION_BARRIER_FALLBACK_TIMEOUT_MS = 2_147_000_000
 export async function execFileCaptureToTermination(
   command: string,
   args: string[],
-  // Why: runProcess owns this child's streams; git-exec-file refuses onStderr with a barrier.
-  options: Omit<ExecFileCaptureOptions, 'onStderr' | 'stdin'> & { stdin?: string | Uint8Array },
+  // Why: runProcess owns this child's streams; git-exec-file refuses observers with a barrier.
+  options: Omit<ExecFileCaptureOptions, 'onStderr' | 'progressTimeout' | 'stdin'> & {
+    stdin?: string | Uint8Array
+  },
   termination?: WslProcessGroupTermination
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   // runProcess already reports spawn cost through spawnProcess.

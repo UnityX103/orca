@@ -46,18 +46,33 @@ export async function capturesOnWorker(
 /** A second, passive stderr listener: execFile still captures every byte. */
 export function observeCapturedStderr(
   child: ChildProcess | WorkerThreadChildProcess,
-  observer: (chunk: string) => void
-): void {
-  const onData = (chunk: string | Buffer): void => {
-    try {
-      observer(typeof chunk === 'string' ? chunk : chunk.toString('utf8'))
-    } catch (error) {
-      // Detach throwing observers so stream callbacks cannot crash main.
+  ...observers: (((chunk: string) => void) | undefined)[]
+): () => void {
+  const detachments: (() => void)[] = []
+  for (const observer of observers) {
+    if (!observer) {
+      continue
+    }
+    const onData = (chunk: string | Buffer): void => {
+      try {
+        observer(typeof chunk === 'string' ? chunk : chunk.toString('utf8'))
+      } catch (error) {
+        // Detach throwing observers so stream callbacks cannot crash main.
+        detach()
+        console.warn('git stderr observer failed; detaching it', error)
+      }
+    }
+    function detach(): void {
       child.stderr?.off('data', onData)
-      console.warn('git stderr observer failed; detaching it', error)
+    }
+    child.stderr?.on('data', onData)
+    detachments.push(detach)
+  }
+  return () => {
+    for (const detach of detachments) {
+      detach()
     }
   }
-  child.stderr?.on('data', onData)
 }
 
 /** Capture a worker-owned child; the caller still owns deadlines and aborts. */
