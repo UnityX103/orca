@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
 import { cn } from '@/lib/class-names'
 import { Button } from '@/components/ui/button'
@@ -12,10 +12,6 @@ import { useCnbMembers } from './use-cnb-members'
 
 type CnbApi = NonNullable<PreloadApi['cnb']>
 
-/**
- * Shared assignee (issue) / reviewer (PR) editor. CNB replaces the whole set on write, so a toggle
- * always sends the full local selection; a failed write reverts it and leaves the row untouched.
- */
 export function CnbPeopleCell({
   api,
   row,
@@ -35,27 +31,10 @@ export function CnbPeopleCell({
 }): React.JSX.Element {
   const t = useTranslate()
   const [open, setOpen] = useState(false)
-  const [selected, setSelected] = useState<string[]>(current)
-  const selectedRef = useRef<string[]>(current)
   const [manual, setManual] = useState('')
   const isIssue = kind === 'issues'
   // Fetch candidates only while the picker is open; cache is per repo in the hook.
   const memberState = useCnbMembers(api, row, open)
-
-  // Re-seed the editor when the row refreshes from a completed write.
-  const currentKey = current.join(',')
-  const [seededKey, setSeededKey] = useState(currentKey)
-  if (seededKey !== currentKey) {
-    setSeededKey(currentKey)
-    setSelected(current)
-    selectedRef.current = current
-  }
-
-  // Every toggle derives from the latest ref, so two quick clicks can't send a stale full set.
-  const applySelection = useCallback((next: string[]): void => {
-    selectedRef.current = next
-    setSelected(next)
-  }, [])
 
   const candidates = useMemo(() => {
     const byLogin = new Map<string, string>()
@@ -81,54 +60,40 @@ export function CnbPeopleCell({
         : t('cnb.tasks.noReviewers', 'No reviewers')
       : current.slice(0, 2).join(', ') + (current.length > 2 ? ` +${current.length - 2}` : ''))
 
-  const commit = useCallback(
-    async (next: string[]): Promise<void> => {
-      const unique = [...new Set(next.map((login) => login.trim()).filter(Boolean))]
-      const previous = selectedRef.current
-      applySelection(unique)
-      const failure = isIssue
-        ? t('cnb.tasks.assigneesUpdateFailed', 'Failed to update assignees.')
-        : t('cnb.tasks.reviewersUpdateFailed', 'Failed to update reviewers.')
-      const result = isIssue
-        ? await writer.runIssue(row, { action: 'assignees', assignees: unique }, failure)
-        : await writer.runPull(row, { action: 'reviewers', reviewers: unique }, failure)
-      if (!result.ok) {
-        // Keep the row's original values so a failed write never looks applied.
-        applySelection(previous)
-      }
-    },
-    [applySelection, isIssue, row, t, writer]
-  )
+  const commit = (next: string[]): void => {
+    if (isIssue) {
+      void writer.runIssue(
+        row,
+        { action: 'assignees', assignees: next },
+        t('cnb.tasks.assigneesUpdateFailed', 'Failed to update assignees.')
+      )
+    } else {
+      void writer.runPull(
+        row,
+        { action: 'reviewers', reviewers: next },
+        t('cnb.tasks.reviewersUpdateFailed', 'Failed to update reviewers.')
+      )
+    }
+  }
 
   const toggle = (login: string): void => {
-    const latest = selectedRef.current
-    const has = latest.some((entry) => entry.toLowerCase() === login.toLowerCase())
-    void commit(
+    const has = current.some((entry) => entry.toLowerCase() === login.toLowerCase())
+    commit(
       has
-        ? latest.filter((entry) => entry.toLowerCase() !== login.toLowerCase())
-        : [...latest, login]
+        ? current.filter((entry) => entry.toLowerCase() !== login.toLowerCase())
+        : [...current, login]
     )
   }
 
   const addManual = (): void => {
     const login = manual.trim()
-    if (!login) {
-      return
+    if (login && !current.some((entry) => entry.toLowerCase() === login.toLowerCase())) {
+      commit([...current, login])
     }
-    setManual('')
-    void commit([...selectedRef.current, login])
   }
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next)
-        if (next) {
-          applySelection(current)
-        }
-      }}
-    >
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -180,7 +145,7 @@ export function CnbPeopleCell({
         ) : null}
         <div className="popover-scroll-content scrollbar-sleek -mx-1 px-1">
           {candidates.map((candidate) => {
-            const isOn = selected.some(
+            const isOn = current.some(
               (entry) => entry.toLowerCase() === candidate.login.toLowerCase()
             )
             return (

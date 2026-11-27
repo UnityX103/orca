@@ -36,7 +36,9 @@ export function CnbMergeCell({
   const blockedReason =
     row.state !== 'open'
       ? t('cnb.tasks.mergeClosed', 'This pull request is not open.')
-      : t('cnb.tasks.mergeBlocked', 'CNB reports this pull request cannot be merged yet.')
+      : row.mergeable === 'CONFLICTING'
+        ? t('cnb.review.mergeConflicts', 'CNB reports merge conflicts.')
+        : t('cnb.tasks.mergeBlocked', 'CNB reports this pull request cannot be merged yet.')
 
   const styleLabel = (style: MergeStyle): string =>
     style === 'squash'

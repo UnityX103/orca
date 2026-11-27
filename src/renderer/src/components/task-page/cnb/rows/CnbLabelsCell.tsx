@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
 import { cn } from '@/lib/class-names'
 import { Button } from '@/components/ui/button'
@@ -58,21 +58,9 @@ export function CnbLabelsCell({
 }): React.JSX.Element {
   const t = useTranslate()
   const [open, setOpen] = useState(false)
-  const [selected, setSelected] = useState<string[]>(() => row.labels.map((label) => label.name))
-  const selectedRef = useRef<string[]>(row.labels.map((label) => label.name))
   const [manual, setManual] = useState('')
   const vocabulary = useRepoLabelNames(api, row, open)
-
-  const rowKey = row.labels.map((label) => label.name).join(',')
-  const [seededKey, setSeededKey] = useState(rowKey)
-  const applySelection = (next: string[]): void => {
-    selectedRef.current = next
-    setSelected(next)
-  }
-  if (seededKey !== rowKey) {
-    setSeededKey(rowKey)
-    applySelection(row.labels.map((label) => label.name))
-  }
+  const selected = row.labels.map((label) => label.name)
 
   const options = useMemo(() => {
     const names = new Set(vocabulary)
@@ -80,42 +68,30 @@ export function CnbLabelsCell({
     for (const label of row.labels) {
       names.add(label.name)
     }
-    for (const name of selected) {
-      names.add(name)
-    }
     return [...names].sort((a, b) => a.localeCompare(b))
-  }, [row.labels, selected, vocabulary])
+  }, [row.labels, vocabulary])
 
-  const commit = async (next: string[]): Promise<void> => {
-    const unique = [...new Set(next.map((name) => name.trim()).filter(Boolean))]
-    const previous = selectedRef.current
-    applySelection(unique)
+  const commit = (next: string[]): void => {
     const failure = t('cnb.tasks.labelsUpdateFailed', 'Failed to update labels.')
-    const payload = { action: 'labels' as const, labels: unique }
-    const result =
-      kind === 'issues'
-        ? await writer.runIssue(row, payload, failure)
-        : await writer.runPull(row, payload, failure)
-    if (!result.ok) {
-      applySelection(previous)
+    const payload = { action: 'labels' as const, labels: next }
+    if (kind === 'issues') {
+      void writer.runIssue(row, payload, failure)
+    } else {
+      void writer.runPull(row, payload, failure)
     }
   }
 
   const toggle = (name: string): void => {
-    const latest = selectedRef.current
-    const has = latest.some((entry) => entry.toLowerCase() === name.toLowerCase())
-    void commit(
-      has ? latest.filter((entry) => entry.toLowerCase() !== name.toLowerCase()) : [...latest, name]
+    commit(
+      selected.includes(name) ? selected.filter((entry) => entry !== name) : [...selected, name]
     )
   }
 
   const addManual = (): void => {
     const name = manual.trim()
-    if (!name) {
-      return
+    if (name && !selected.includes(name)) {
+      commit([...selected, name])
     }
-    setManual('')
-    void commit([...selectedRef.current, name])
   }
 
   return (
@@ -169,7 +145,7 @@ export function CnbLabelsCell({
               </div>
             ) : (
               options.map((name) => {
-                const isOn = selected.some((entry) => entry.toLowerCase() === name.toLowerCase())
+                const isOn = selected.includes(name)
                 return (
                   <button
                     key={name}

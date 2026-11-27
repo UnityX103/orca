@@ -185,7 +185,7 @@ export function summarizeChecks(
 export function mapMergeable(
   value: string | null | undefined
 ): 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN' {
-  if (value === 'mergeable' || value === 'merging' || value === 'merged') {
+  if (value === 'mergeable') {
     return 'MERGEABLE'
   }
   if (value === 'conflict' || value === 'no-merge-base') {

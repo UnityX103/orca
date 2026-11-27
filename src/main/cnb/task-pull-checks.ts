@@ -59,9 +59,7 @@ export async function readCnbPullChecks(
       await discardCnbBody(statusResponse)
       return { ok: false, reason: 'request-failed' }
     }
-    const parsedStatuses = commitStatusMap.safeParse(
-      await statusResponse.json().catch(() => undefined)
-    )
+    const parsedStatuses = commitStatusMap.safeParse(await statusResponse.json())
     if (!parsedStatuses.success) {
       return { ok: false, reason: 'request-failed' }
     }

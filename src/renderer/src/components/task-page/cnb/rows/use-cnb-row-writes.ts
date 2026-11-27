@@ -12,46 +12,39 @@ type CnbApi = NonNullable<PreloadApi['cnb']>
 const UNAVAILABLE: CnbWriteResult = { ok: false, reason: 'unavailable' }
 const REQUEST_FAILED: CnbWriteResult = { ok: false, reason: 'request-failed' }
 
-/**
- * Serialize writes per row so two fast clicks can't race and overwrite each other with a
- * stale snapshot of labels/assignees. A failed write keeps the previous row (no optimistic value)
- * and surfaces a toast; a successful write refreshes the list.
- */
 export function useCnbRowWrites(args: { api: CnbApi | undefined; onChanged: () => void }) {
   const { api, onChanged } = args
   const [pending, setPending] = useState(false)
-  const chainRef = useRef<Promise<unknown>>(Promise.resolve())
+  const writing = useRef(false)
 
   const run = useCallback(
-    (
+    async (
       send: (api: CnbApi) => Promise<CnbWriteResult>,
       failureMessage: string
-    ): Promise<CnbWriteResult> => {
-      const execute = async (): Promise<CnbWriteResult> => {
-        if (!api) {
-          toast.error(failureMessage)
-          return UNAVAILABLE
-        }
-        setPending(true)
-        let result: CnbWriteResult
-        try {
-          result = await send(api)
-        } catch {
-          result = REQUEST_FAILED
-        } finally {
-          setPending(false)
-        }
-        if (result.ok) {
-          onChanged()
-        } else {
-          // Keep the row's current values; only tell the user the write failed and why.
-          toast.error(failureMessage, { description: result.reason })
-        }
-        return result
+    ): Promise<void> => {
+      if (writing.current) {
+        return
       }
-      const next = chainRef.current.then(execute, execute)
-      chainRef.current = next.catch(() => {})
-      return next
+      if (!api) {
+        toast.error(failureMessage, { description: UNAVAILABLE.reason })
+        return
+      }
+      writing.current = true
+      setPending(true)
+      let result: CnbWriteResult
+      try {
+        result = await send(api)
+      } catch {
+        result = REQUEST_FAILED
+      }
+      if (result.ok) {
+        // The list replaces this row on refresh. Keep stale full-set edits disabled until then.
+        onChanged()
+        return
+      }
+      writing.current = false
+      setPending(false)
+      toast.error(failureMessage, { description: result.reason })
     },
     [api, onChanged]
   )
