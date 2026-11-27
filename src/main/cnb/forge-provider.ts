@@ -16,17 +16,32 @@ function resolveRepository(context: ForgeProviderRepositoryContext): Promise<str
   )
 }
 
+function conflictContext(context: ForgeProviderRepositoryContext) {
+  return hostedReviewSshConnectionId(context.executionHostId)
+    ? undefined
+    : { repoPath: context.repoPath, localGitOptions: getHostedReviewLocalGitOptions(context) }
+}
+
 export const cnbForgeProvider = {
   id: 'cnb',
   supportsReviewCreation: true,
   resolveRepository,
   async getReviewForBranch(input) {
     const repository = await resolveRepository(input)
-    return repository ? getCnbReviewForBranch(repository, input.branch, input.currentHeadOid) : null
+    return repository
+      ? getCnbReviewForBranch(
+          repository,
+          input.branch,
+          input.currentHeadOid,
+          conflictContext(input)
+        )
+      : null
   },
   async getReviewByNumber(input) {
     const repository = await resolveRepository(input)
-    return repository ? getCnbReviewByNumber(repository, input.number) : null
+    return repository
+      ? getCnbReviewByNumber(repository, input.number, conflictContext(input))
+      : null
   },
   async createReview(repoPath, input, executionHostId, options) {
     const repository = await resolveRepository({ ...options, repoPath, executionHostId })

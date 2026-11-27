@@ -13,6 +13,50 @@ function writeFailure(error: unknown): CnbWriteResult {
   return { ok: false, reason: error instanceof Error ? error.message : 'Request failed.' }
 }
 
+export async function mergeCnbPull(
+  path: string,
+  token: string,
+  style: Extract<CnbPullWrite, { action: 'merge' }>['style'],
+  title?: string,
+  message?: string
+): Promise<CnbWriteResult> {
+  try {
+    const response = await cnbRequest(`${path}/merge`, token, undefined, {
+      method: 'PUT',
+      body: {
+        merge_style: style,
+        ...(title ? { commit_title: title } : {}),
+        ...(message ? { commit_message: message } : {})
+      },
+      timeoutMs: 25_000
+    })
+    const result = z
+      .object({
+        merged: z.boolean().optional(),
+        message: z.string().optional(),
+        errmsg: z.string().optional()
+      })
+      .safeParse(await response.json().catch(() => null))
+    if (response.ok && result.success && result.data.merged === true) {
+      return { ok: true }
+    }
+    return {
+      ok: false,
+      reason:
+        (result.success && (result.data.errmsg || result.data.message)?.slice(0, 500)) ||
+        (response.ok
+          ? 'CNB did not confirm the merge. Refresh the pull request.'
+          : `CNB rejected the merge (HTTP ${response.status}).`)
+    }
+  } catch {
+    return {
+      ok: false,
+      reason:
+        'The CNB merge result could not be confirmed. Refresh the pull request before retrying.'
+    }
+  }
+}
+
 async function write(
   path: string,
   token: string,
@@ -223,13 +267,6 @@ export async function writeCnbPull(
         body: { event: payload.event, body: payload.body }
       })
     case 'merge':
-      return write(`${base}/merge`, token, {
-        method: 'PUT',
-        body: {
-          merge_style: payload.style,
-          ...(payload.title ? { commit_title: payload.title } : {}),
-          ...(payload.message ? { commit_message: payload.message } : {})
-        }
-      })
+      return mergeCnbPull(base, token, payload.style, payload.title, payload.message)
   }
 }

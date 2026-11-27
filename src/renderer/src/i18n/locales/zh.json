@@ -24930,6 +24930,15 @@
       "unreachable": "无法访问 CNB 以验证令牌。"
     },
     "review": {
+      "checkingMerge": "CNB 正在检查此拉取请求能否合并。",
+      "mergeConflicts": "CNB 检测到合并冲突。",
+      "waitingForApproval": "此拉取请求需要通过 CNB 评审才能合并。",
+      "waitingForChecks": "此拉取请求需要通过 CNB 状态检查才能合并。",
+      "unverifiedHead": "刷新拉取请求以确认源分支的最新提交。",
+      "deleteSourceBranch": "删除源分支",
+      "deleteSourceBranchConfirm": "删除 CNB 上已合并的分支 {{branch}}？",
+      "deleteSourceBranchFailed": "无法删除 CNB 源分支。",
+      "sourceBranchDeleted": "已删除源分支",
       "checks": "{{passed}} 项通过 · {{failed}} 项失败 · {{pending}} 项待处理",
       "description": "描述",
       "discussion": "讨论",

@@ -52,6 +52,8 @@ export type HostedReviewInfo = {
   /** Target branch name for review-created worktree compare-base repair. */
   baseRefName?: string
   conflictSummary?: PRConflictSummary
+  /** An unchanged, deletable source branch from a merged CNB pull request. */
+  cnbSourceBranch?: string
 }
 
 export type HostedReviewForBranchArgs = {

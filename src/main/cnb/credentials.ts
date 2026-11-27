@@ -20,6 +20,14 @@ export async function getCnbCredentialToken(): Promise<string | null> {
   return environmentToken() ?? storedToken.read(id)
 }
 
+export async function requireCnbCredentialToken(): Promise<string> {
+  const token = await getCnbCredentialToken()
+  if (!token) {
+    throw new Error('Connect CNB in Settings > Integrations.')
+  }
+  return token
+}
+
 export async function getCnbCredentialStatus(): Promise<CnbCredentialStatus> {
   if (environmentToken()) {
     return { source: 'environment' }

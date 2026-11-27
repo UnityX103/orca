@@ -1,5 +1,11 @@
 import React, { useCallback, useMemo } from 'react'
-import { LoaderCircle, GitMerge, ChevronDown, GitPullRequestClosed } from 'lucide-react'
+import {
+  LoaderCircle,
+  GitBranchMinus,
+  GitMerge,
+  ChevronDown,
+  GitPullRequestClosed
+} from 'lucide-react'
 import { useAppStore } from '@/store/index'
 import { cn } from '@/lib/class-names'
 import { Button } from '@/components/ui/button'
@@ -40,6 +46,7 @@ import { useTranslate } from '@/i18n/use-translate'
 import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
 import { localizedHostedReviewCopy } from '@/i18n/hosted-review-localized-copy'
 import { getGitHubPRStackMergeBlocker, getGitHubPRStackMergeScope } from './github-pr-stack-merge'
+import { presentCnbPRMergeState } from './hosted-review-cnb-actions'
 
 export default function HostedReviewActions({
   review,
@@ -60,7 +67,11 @@ export default function HostedReviewActions({
     (s) => getDeleteStateForWorktreeHost(worktree, s.deleteStateByWorktreeId)?.isDeleting ?? false
   )
   const isGitLab = review.provider === 'gitlab'
-  const { shortLabel, reviewLabel } = localizedHostedReviewCopy(isGitLab ? 'gitlab' : 'github', t)
+  const isCnb = review.provider === 'cnb'
+  const { shortLabel, reviewLabel } = localizedHostedReviewCopy(
+    isGitLab ? 'gitlab' : isCnb ? 'cnb' : 'github',
+    t
+  )
   const stackMergeScope = useMemo(
     () => (githubPR?.stack ? getGitHubPRStackMergeScope(githubPR.stack, review.number) : null),
     [githubPR?.stack, review.number]
@@ -86,6 +97,9 @@ export default function HostedReviewActions({
   const mergePresentation = useMemo(() => {
     if (isGitLab) {
       return { ...presentGitLabMRMergeState(review, t), autoMergeAction: null }
+    }
+    if (isCnb) {
+      return presentCnbPRMergeState(review, t)
     }
     const presentation = presentGitHubPRMergeState(
       {
@@ -131,6 +145,7 @@ export default function HostedReviewActions({
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- translate() reads the UI language implicitly.
   }, [
     githubPR,
+    isCnb,
     isGitLab,
     review,
     stackMergeLabel,
@@ -147,12 +162,14 @@ export default function HostedReviewActions({
     merging,
     readying,
     stateUpdating,
+    deletingSourceBranch,
     actionError,
     handleMerge,
     handleAutoMerge,
     handleMarkReadyForReview,
     handleCloseReview,
-    handleReopenReview
+    handleReopenReview,
+    handleDeleteSourceBranch
   } = useHostedReviewActions({
     review,
     githubPR,
@@ -193,7 +210,7 @@ export default function HostedReviewActions({
     )
   }
 
-  if (review.state === 'open') {
+  if (review.state === 'open' || (isCnb && review.state === 'draft')) {
     return (
       <div className="space-y-1.5">
         <TooltipProvider>
@@ -346,11 +363,32 @@ export default function HostedReviewActions({
     // Why: a merge can report failure yet land; the reread then shows merged and the write's error must stay visible.
     return (
       <div className="flex flex-col items-start gap-1.5">
-        <MergedReviewActions
-          isMainWorktree={worktree.isMainWorktree}
-          isDeletingWorktree={isDeletingWorktree}
-          onDeleteWorktree={handleDeleteWorktree}
-        />
+        <div className="flex flex-wrap gap-1.5">
+          {isCnb && review.cnbSourceBranch && review.headSha && (
+            <Button
+              type="button"
+              variant="destructive-chip"
+              size="xs"
+              disabled={deletingSourceBranch || isDeletingWorktree}
+              onClick={() => void handleDeleteSourceBranch()}
+            >
+              {deletingSourceBranch ? (
+                <LoaderCircle className="size-3.5 animate-spin" />
+              ) : (
+                <GitBranchMinus className="size-3.5" />
+              )}
+              {deletingSourceBranch
+                ? t('auto.components.right.sidebar.HostedReviewActions.eefd50457e', 'Deleting...')
+                : t('cnb.review.deleteSourceBranch', 'Delete Source Branch')}
+            </Button>
+          )}
+          <MergedReviewActions
+            isMainWorktree={worktree.isMainWorktree}
+            isDeletingWorktree={isDeletingWorktree}
+            disabled={deletingSourceBranch}
+            onDeleteWorktree={handleDeleteWorktree}
+          />
+        </div>
         <HostedReviewActionError message={actionError} />
       </div>
     )

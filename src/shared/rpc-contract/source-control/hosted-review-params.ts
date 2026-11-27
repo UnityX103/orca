@@ -52,3 +52,25 @@ export const HostedReviewCreate = z.object({
   draft: z.boolean().optional(),
   useTemplate: z.boolean().optional()
 })
+
+const cnbHeadSha = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i)
+
+export const CnbHostedReviewMutation = z.object({
+  repo: requiredString('Missing repo selector'),
+  reviewUrl: z.string().max(2048),
+  action: z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('merge'),
+      method: z.enum(['merge', 'squash', 'rebase']),
+      expectedHeadSha: cnbHeadSha
+    }),
+    z.object({ kind: z.literal('state'), state: z.enum(['open', 'closed']) }),
+    z.object({
+      kind: z.literal('delete-source-branch'),
+      branch: z.string().min(1).max(1024),
+      expectedHeadSha: cnbHeadSha
+    })
+  ])
+})
+
+export type CnbHostedReviewMutationInput = z.infer<typeof CnbHostedReviewMutation>

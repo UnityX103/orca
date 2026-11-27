@@ -907,6 +907,7 @@ import {
   WorkItemsList as WorkItemsListOfGitlabParams
 } from './source-control/gitlab-params'
 import {
+  CnbHostedReviewMutation,
   HostedReviewCreate,
   HostedReviewCreationEligibility,
   HostedReviewForBranch
@@ -1820,6 +1821,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'hostedReview.mutateCnb': CnbHostedReviewMutation,
   'jira.addIssueComment': IssueCommentOfJiraParams,
   'jira.attachmentImage': AttachmentImage,
   'jira.cancelGenerateIssueSummary': CancelGenerateIssueSummary,

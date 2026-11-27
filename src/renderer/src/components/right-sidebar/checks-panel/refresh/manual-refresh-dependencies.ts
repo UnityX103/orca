@@ -7,6 +7,7 @@ import type { ChecksPanelReviewState } from '../review-state/use-checks-panel-re
 export type ChecksPanelManualRefreshInput = Pick<
   ChecksPanelControllerState,
   | 'activeConnectionId'
+  | 'activeWorktree'
   | 'activeWorktreeId'
   | 'activeWorktreePath'
   | 'activeWorktreePushTarget'

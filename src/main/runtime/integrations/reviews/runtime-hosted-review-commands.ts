@@ -8,6 +8,9 @@ import type {
   PRSnapshotReply
 } from '../../../../shared/github/pull-requests/refresh/pull-request-refresh-types'
 import type { Repo } from '../../../../shared/repository/repo-types'
+import type { CnbWriteResult } from '../../../../shared/cnb/cnb-tasks'
+import type { CnbHostedReviewMutationInput } from '../../../../shared/rpc-contract/source-control/hosted-review-params'
+import { mutateCnbHostedReview } from '../../../cnb/hosted-review-mutation'
 import type { DeviceScope } from '../../../../shared/remote-runtime/session-graph/runtime-session-contracts'
 import { getRepoSlug, getRepoUpstream } from '../../../github/client/fetch/repo-slug-upstream'
 import {
@@ -204,6 +207,11 @@ export class RuntimeHostedReviewCommands {
       this.deps.recordCreated(repo.id, review.number, review.url)
     }
     return hostedReviewForBranchReply(read, args.reportReadOutcome)
+  }
+
+  async mutateCnbHostedReview(input: CnbHostedReviewMutationInput): Promise<CnbWriteResult> {
+    const repo = await this.deps.resolveRepo(input.repo)
+    return mutateCnbHostedReview(repo, input, this.deps.getExecutionOptions(repo, 'interactive'))
   }
 
   async getHostedReviewCreationEligibility(

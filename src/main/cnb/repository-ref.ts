@@ -53,6 +53,10 @@ export function cnbRepositoryPath(repository: string): string {
   return `/${repository.split('/').map(encodeURIComponent).join('/')}/-`
 }
 
+export function cnbRepositoryUrl(repository: string): string {
+  return `https://cnb.cool${cnbRepositoryPath(repository).slice(0, -2)}`
+}
+
 export function parseCnbReviewUrl(value: string): { repository: string; number: number } | null {
   const match = /^https:\/\/cnb\.cool\/(.+)\/-\/pulls\/([1-9]\d*)\/?$/.exec(value)
   if (!match || /[?#]/.test(match[1])) {

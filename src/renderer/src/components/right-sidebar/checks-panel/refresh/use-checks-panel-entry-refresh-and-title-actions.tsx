@@ -102,20 +102,22 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     titleInputFocusTimerRef,
     titleInputRef
   } = model
+  const reviewProvider = activeReview?.provider
+  const worktreeHead = activeWorktree?.head ?? null
   const handleEntryRefresh = useCallback(
     (options: { refreshChecks: boolean; refreshComments: boolean }) => {
       if (!repo || !branch || !activeWorktreeId) {
         return
       }
       // Tab entry is automatic: preserve rate-limit guards and force only panes already known stale.
-      if (isGitLabReviewContext) {
+      if (isGitLabReviewContext || reviewProvider === 'cnb') {
         void fetchHostedReviewForBranch(repo.path, branch, {
           force: true,
           repoId: repo.id,
           repoOwnerExecutionHostId: getRepoExecutionHostId(repo),
           linkedGitHubPR: linkedPR,
           fallbackGitHubPR: fallbackGitHubPRNumber,
-          currentHeadOid: activeWorktree?.head ?? null,
+          currentHeadOid: worktreeHead,
           linkedGitLabMR,
           linkedBitbucketPR,
           linkedAzureDevOpsPR,
@@ -137,7 +139,6 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     },
     [
       activeGitLabReview,
-      activeWorktree?.head,
       activeWorktreeId,
       branch,
       enqueueGitHubPRRefresh,
@@ -152,7 +153,9 @@ export function useChecksPanelEntryRefreshAndTitleActions(
       linkedGiteaPR,
       linkedGitLabMR,
       linkedPR,
-      repo
+      repo,
+      reviewProvider,
+      worktreeHead
     ]
   )
 
@@ -214,12 +217,14 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     // Details read the panel's live model, so a write that settles after a repo/link switch must not reuse its MR number.
     const requestContextKey = panelContextKey
     const isRequestCurrent = (): boolean => panelContextKeyRef.current === requestContextKey
-    if (activeReview?.provider === 'gitlab') {
+    if (reviewProvider === 'gitlab' || reviewProvider === 'cnb') {
       const refreshedReview = await refreshHostedReviewCard(fetchHostedReviewForBranch, {
         repoPath: repo.path,
         repoId: repo.id,
         repoOwnerExecutionHostId: getRepoExecutionHostId(repo),
         branch,
+        ...(reviewProvider === 'cnb' ? { currentHeadOid: worktreeHead } : {}),
+        admissionTier: 'interactive',
         userRefresh: true,
         linkedGitHubPR: linkedPR,
         fallbackGitHubPR: fallbackGitHubPRNumber,
@@ -228,6 +233,9 @@ export function useChecksPanelEntryRefreshAndTitleActions(
         linkedAzureDevOpsPR,
         linkedGiteaPR
       }).catch(() => null)
+      if (reviewProvider === 'cnb') {
+        return
+      }
       const refreshedGitLabReview =
         refreshedReview?.provider === 'gitlab' ? refreshedReview : activeGitLabReview
       if (refreshedGitLabReview) {
@@ -265,7 +273,6 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     }).catch(() => null)
   }, [
     activeGitLabReview,
-    activeReview?.provider,
     activeWorktreeId,
     branch,
     fallbackGitHubPRNumber,
@@ -279,7 +286,9 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     linkedPR,
     panelContextKey,
     panelContextKeyRef,
-    repo
+    repo,
+    reviewProvider,
+    worktreeHead
   ])
 
   const handleStartEdit = useCallback(() => {

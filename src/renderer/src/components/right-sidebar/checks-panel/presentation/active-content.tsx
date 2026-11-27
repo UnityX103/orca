@@ -111,12 +111,14 @@ export function ChecksPanelActiveContent({
   if (!activeReview) {
     return null
   }
+  const isCnb = activeReview.provider === 'cnb'
   const reviewShortLabel = activeReview.provider === 'gitlab' ? 'MR' : 'PR'
   // A failed GitLab parent leads even when its partial job list passes; failed jobs keep their Fix.
   const shouldShowReviewTriageStrip =
     activeConflictReview !== null ||
-    (gitLabPipelineCheck !== null && isBrokenCheck(gitLabPipelineCheck)) ||
-    getBrokenChecks(checks).length > 0
+    (!isCnb &&
+      ((gitLabPipelineCheck !== null && isBrokenCheck(gitLabPipelineCheck)) ||
+        getBrokenChecks(checks).length > 0))
   const hostedReviewModifierHintDestination = resolveChecksPanelHostedReviewModifierDestination(
     settings,
     Boolean(activeWorktreeId)
@@ -133,32 +135,6 @@ export function ChecksPanelActiveContent({
       onLinkAnotherReview={handleLinkAnotherReview}
     />
   )
-  if (activeReview.provider === 'cnb') {
-    return (
-      <div ref={setChecksPanelContentRef} className="flex-1 overflow-auto scrollbar-sleek">
-        {refreshError && (
-          <p role="alert" className="px-3 py-2 text-xs text-destructive">
-            {refreshError}
-          </p>
-        )}
-        <div className="space-y-2 border-b border-border px-3 py-3">
-          {header}
-          <p className="text-xs text-foreground">{activeReview.title}</p>
-          {activeReview.updatedAt && (
-            <ChecksPanelUpdatedAtMetadata
-              reviewShortLabel="PR"
-              updatedAt={activeReview.updatedAt}
-            />
-          )}
-        </div>
-        <CnbReviewDetailsContent
-          key={activeReview.url}
-          review={activeReview}
-          refreshing={isRefreshing}
-        />
-      </div>
-    )
-  }
   return (
     <div ref={setChecksPanelContentRef} className="flex-1 overflow-auto scrollbar-sleek">
       {refreshError ? (
@@ -182,7 +158,9 @@ export function ChecksPanelActiveContent({
           />
         ) : null}
 
-        {editingTitle ? (
+        {isCnb ? (
+          <p className="text-xs text-foreground">{activeReview.title}</p>
+        ) : editingTitle ? (
           <div className="flex items-center gap-1">
             <ImeInput
               ref={titleInputRef}
@@ -231,10 +209,11 @@ export function ChecksPanelActiveContent({
             updatedAt={activeReview.updatedAt}
           />
         )}
-        {activeReview && activeWorktree && repo && (
+        {activeWorktree && repo && (
           <HostedReviewActions
+            key={`${activeWorktree.hostId ?? ''}:${activeWorktree.id}:${activeReview.url}`}
             review={activeReview}
-            githubPR={pr}
+            githubPR={activeReview.provider === 'github' ? pr : null}
             repo={repo}
             worktree={activeWorktree}
             onRefreshReview={refreshHostedReviewAfterMutation}
@@ -246,8 +225,8 @@ export function ChecksPanelActiveContent({
         <PRTriageStrip
           review={activeConflictReview ?? activeReview}
           reviewKind={reviewShortLabel}
-          checks={checks}
-          pipelineCheck={gitLabPipelineCheck}
+          checks={isCnb ? [] : checks}
+          pipelineCheck={isCnb ? null : gitLabPipelineCheck}
           isResolvingConflictsWithAI={isResolvingConflictsWithAI}
           onResolveConflictsWithAI={() => void handleResolveConflictsWithAI()}
           resolveConflictsDisabled={Boolean(aiActionDisabledReason)}
@@ -269,89 +248,98 @@ export function ChecksPanelActiveContent({
         </>
       )}
       {/* Conflicts can prevent checks running; do not claim no checks are configured before resolving them. */}
-      {(!activeConflictReview ||
-        checks.length > 0 ||
-        gitLabPipelineCheck ||
-        coldChecks ||
-        (checksError && !manualRefreshError)) && (
-        <ChecksList
-          checks={checks}
-          pipelineCheck={gitLabPipelineCheck}
-          checksError={manualRefreshError ? null : checksError}
-          checksLoading={checksLoading}
-          loadingSkeleton={coldChecks}
-          checksRead={checksLoaded}
-          checkDetailsContextKey={stateRequestKey}
-          onLoadCheckDetails={handleLoadCheckDetails}
-          githubRepository={pr?.prRepo ?? null}
-          getGitLabProjectRef={getGitLabProjectRef}
+      {!isCnb &&
+        (!activeConflictReview ||
+          checks.length > 0 ||
+          gitLabPipelineCheck ||
+          coldChecks ||
+          (checksError && !manualRefreshError)) && (
+          <ChecksList
+            checks={checks}
+            pipelineCheck={gitLabPipelineCheck}
+            checksError={manualRefreshError ? null : checksError}
+            checksLoading={checksLoading}
+            loadingSkeleton={coldChecks}
+            checksRead={checksLoaded}
+            checkDetailsContextKey={stateRequestKey}
+            onLoadCheckDetails={handleLoadCheckDetails}
+            githubRepository={pr?.prRepo ?? null}
+            getGitLabProjectRef={getGitLabProjectRef}
+          />
+        )}
+      {isCnb ? (
+        <CnbReviewDetailsContent
+          key={activeReview.url}
+          review={activeReview}
+          refreshing={isRefreshing}
+        />
+      ) : (
+        <PRCommentsList
+          imageUploadAddress={
+            pr && model.repo
+              ? () => ({
+                  runtime: forgeCredentialTarget({
+                    repoOwnerExecutionHostId: forgeOwnerHostIdForWorkspace(
+                      model.repo!,
+                      activeWorktree
+                    )
+                  }),
+                  target: {
+                    kind: 'repo',
+                    repo: model.repo!.id,
+                    source: 'origin',
+                    ownerRepo: pr.prRepo ?? undefined
+                  }
+                })
+              : undefined
+          }
+          editImageUploadAddress={
+            pr?.prRepo && model.repo
+              ? () => ({
+                  runtime: forgeCredentialTarget({
+                    repoOwnerExecutionHostId: forgeOwnerHostIdForWorkspace(
+                      model.repo!,
+                      activeWorktree
+                    )
+                  }),
+                  target: { kind: 'slug', ...pr.prRepo!, wakeWslDistro: true }
+                })
+              : undefined
+          }
+          comments={comments}
+          commentsError={manualRefreshError ? null : commentsError}
+          commentsLoading={commentsLoading}
+          loadingSkeleton={coldComments}
+          commentsRead={commentsLoaded}
+          reviewKind={reviewShortLabel}
+          commentsDisabled={!canTargetPRComments}
+          commentsDisabledReason={commentsDisabledReason}
+          selectionContextKey={stateRequestKey}
+          selectionClearRequest={commentsSelectionClearRequest}
+          resolveCommentsWithAIDisabled={Boolean(resolveCommentsWithAIDisabledReason)}
+          resolveCommentsWithAIDisabledReason={resolveCommentsWithAIDisabledReason}
+          onAddComment={pr ? handleAddPRComment : undefined}
+          onResolveSelectedCommentsWithAI={
+            sourceControlAiActionsVisible ? handleResolveCommentsWithAI : undefined
+          }
+          onReply={pr ? handleReplyToComment : undefined}
+          onResolve={pr || activeGitLabReview ? handleResolve : undefined}
+          onEditComment={pr ? handleEditComment : undefined}
+          onDeleteComment={pr ? handleDeleteComment : undefined}
+          onSetReaction={canTargetPRComments ? handleSetReaction : undefined}
+          onOpenLocation={
+            activeWorktree
+              ? (path, line) =>
+                  openAnnotationLocation({
+                    worktreeId: activeWorktree.id,
+                    executionHostId: activeWorktree.hostId,
+                    path,
+                    line
+                  })
+              : undefined
+          }
         />
       )}
-      <PRCommentsList
-        imageUploadAddress={
-          pr && model.repo
-            ? () => ({
-                runtime: forgeCredentialTarget({
-                  repoOwnerExecutionHostId: forgeOwnerHostIdForWorkspace(
-                    model.repo!,
-                    activeWorktree
-                  )
-                }),
-                target: {
-                  kind: 'repo',
-                  repo: model.repo!.id,
-                  source: 'origin',
-                  ownerRepo: pr.prRepo ?? undefined
-                }
-              })
-            : undefined
-        }
-        editImageUploadAddress={
-          pr?.prRepo && model.repo
-            ? () => ({
-                runtime: forgeCredentialTarget({
-                  repoOwnerExecutionHostId: forgeOwnerHostIdForWorkspace(
-                    model.repo!,
-                    activeWorktree
-                  )
-                }),
-                target: { kind: 'slug', ...pr.prRepo!, wakeWslDistro: true }
-              })
-            : undefined
-        }
-        comments={comments}
-        commentsError={manualRefreshError ? null : commentsError}
-        commentsLoading={commentsLoading}
-        loadingSkeleton={coldComments}
-        commentsRead={commentsLoaded}
-        reviewKind={reviewShortLabel}
-        commentsDisabled={!canTargetPRComments}
-        commentsDisabledReason={commentsDisabledReason}
-        selectionContextKey={stateRequestKey}
-        selectionClearRequest={commentsSelectionClearRequest}
-        resolveCommentsWithAIDisabled={Boolean(resolveCommentsWithAIDisabledReason)}
-        resolveCommentsWithAIDisabledReason={resolveCommentsWithAIDisabledReason}
-        onAddComment={pr ? handleAddPRComment : undefined}
-        onResolveSelectedCommentsWithAI={
-          sourceControlAiActionsVisible ? handleResolveCommentsWithAI : undefined
-        }
-        onReply={pr ? handleReplyToComment : undefined}
-        onResolve={pr || activeGitLabReview ? handleResolve : undefined}
-        onEditComment={pr ? handleEditComment : undefined}
-        onDeleteComment={pr ? handleDeleteComment : undefined}
-        onSetReaction={canTargetPRComments ? handleSetReaction : undefined}
-        onOpenLocation={
-          activeWorktree
-            ? (path, line) =>
-                openAnnotationLocation({
-                  worktreeId: activeWorktree.id,
-                  executionHostId: activeWorktree.hostId,
-                  path,
-                  line
-                })
-            : undefined
-        }
-      />
       <SourceControlAgentActionDialog
         open={sourceControlAiActionsVisible && agentComposerState !== null}
         onOpenChange={(open) => {

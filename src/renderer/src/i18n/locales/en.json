@@ -25379,6 +25379,15 @@
       "unreachable": "Could not reach CNB to verify the token."
     },
     "review": {
+      "checkingMerge": "CNB is checking whether this pull request can merge.",
+      "mergeConflicts": "CNB reports merge conflicts.",
+      "waitingForApproval": "CNB requires review approval before merging.",
+      "waitingForChecks": "CNB requires status checks to pass before merging.",
+      "unverifiedHead": "Refresh the pull request to verify its source commit.",
+      "deleteSourceBranch": "Delete Source Branch",
+      "deleteSourceBranchConfirm": "Delete the merged branch {{branch}} on CNB?",
+      "deleteSourceBranchFailed": "Could not delete the CNB source branch.",
+      "sourceBranchDeleted": "Source branch deleted",
       "checks": "{{passed}} passed · {{failed}} failed · {{pending}} pending",
       "description": "Description",
       "discussion": "Discussion",

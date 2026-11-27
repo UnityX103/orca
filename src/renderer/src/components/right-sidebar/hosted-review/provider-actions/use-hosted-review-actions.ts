@@ -20,10 +20,12 @@ import { getHostedReviewStateChangeCopy } from './hosted-review-state-change-cop
 import { buildGitHubPRStackMergeConfirmation } from './github-pr-stack-confirmation'
 import { useReadyHostedReviewAction } from './use-ready-hosted-review-action'
 import { codeHostErrorText } from '@/lib/source-control/remote/code-host-error-copy'
+import { runCnbHostedReviewAction } from './hosted-review-cnb-actions'
+import { useCnbSourceBranchAction } from './use-cnb-source-branch-action'
 
 export type HostedReviewActionInfo = Pick<
   HostedReviewInfo,
-  'provider' | 'number' | 'state' | 'status' | 'mergeable'
+  'provider' | 'number' | 'url' | 'state' | 'status' | 'mergeable' | 'headSha' | 'cnbSourceBranch'
 > &
   Partial<
     Pick<
@@ -57,21 +59,18 @@ export function useHostedReviewActions({
   defaultMergeMethod: GitHubPRMergeMethod
   autoMergeAction: GitHubPRAutoMergeAction | null
   onRefreshReview: () => Promise<void>
-}): {
-  merging: boolean
-  readying: boolean
-  stateUpdating: 'open' | 'closed' | null
-  actionError: string | null
-  handleMerge: (method?: GitHubPRMergeMethod) => Promise<void>
-  handleAutoMerge: () => Promise<void>
-  handleMarkReadyForReview: () => Promise<void>
-  handleCloseReview: () => Promise<void>
-  handleReopenReview: () => Promise<void>
-} {
+}) {
   const confirm = useConfirmationDialog()
   const [merging, setMerging] = useState(false)
   const [stateUpdating, setStateUpdating] = useState<'open' | 'closed' | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const isCnb = review.provider === 'cnb'
+  const sourceBranchAction = useCnbSourceBranchAction({
+    review,
+    repo,
+    onRefreshReview,
+    setActionError
+  })
   const { readying, handleMarkReadyForReview } = useReadyHostedReviewAction({
     reviewNumber: review.number,
     githubPR,
@@ -85,7 +84,11 @@ export function useHostedReviewActions({
 
   const handleMerge = useCallback(
     async (method: GitHubPRMergeMethod = defaultMergeMethod) => {
-      if (!isGitLab && githubPR?.stack) {
+      const expectedHeadSha = review.headSha
+      if (isCnb && !expectedHeadSha) {
+        return
+      }
+      if (!isGitLab && !isCnb && githubPR?.stack) {
         const usesMergeQueue =
           review.mergeQueueRequired === true || githubPR.mergeQueueRequired === true
         const confirmed = await confirm(
@@ -103,31 +106,38 @@ export function useHostedReviewActions({
       setMerging(true)
       setActionError(null)
       try {
-        const result = isGitLab
-          ? await gitLabApiFor({
-              repoPath: repo.path,
-              repoOwnerExecutionHostId: getRepoExecutionHostId(repo)
-            }).mergeMR({
-              repoPath: repo.path,
-              repoId: repo.id,
-              iid: review.number,
-              method
-            })
-          : await mergeGitHubHostedReview({
-              repo,
-              prNumber: review.number,
-              method,
-              prRepo: githubPR?.prRepo ?? null,
-              expectedHeadSha: githubPR?.headSha ?? null
-            })
+        const result =
+          isCnb && expectedHeadSha
+            ? await runCnbHostedReviewAction(repo, review.url, {
+                kind: 'merge',
+                method,
+                expectedHeadSha
+              })
+            : isGitLab
+              ? await gitLabApiFor({
+                  repoPath: repo.path,
+                  repoOwnerExecutionHostId: getRepoExecutionHostId(repo)
+                }).mergeMR({
+                  repoPath: repo.path,
+                  repoId: repo.id,
+                  iid: review.number,
+                  method
+                })
+              : await mergeGitHubHostedReview({
+                  repo,
+                  prNumber: review.number,
+                  method,
+                  prRepo: githubPR?.prRepo ?? null,
+                  expectedHeadSha: githubPR?.headSha ?? null
+                })
         if (!result.ok) {
           setActionError(codeHostErrorText(result))
         }
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'Merge failed')
       } finally {
-        setMerging(false)
         await onRefreshReview().catch(() => {})
+        setMerging(false)
       }
     },
     [
@@ -136,17 +146,20 @@ export function useHostedReviewActions({
       githubPR?.prRepo,
       githubPR?.mergeQueueRequired,
       githubPR?.stack,
+      isCnb,
       isGitLab,
       defaultMergeMethod,
       onRefreshReview,
       repo,
+      review.headSha,
       review.mergeQueueRequired,
-      review.number
+      review.number,
+      review.url
     ]
   )
 
   const handleAutoMerge = useCallback(async () => {
-    if (isGitLab || !autoMergeAction) {
+    if (isGitLab || isCnb || !autoMergeAction) {
       return
     }
     const enabled = autoMergeAction.kind === 'enable'
@@ -171,6 +184,7 @@ export function useHostedReviewActions({
     }
   }, [
     githubPR?.prRepo,
+    isCnb,
     isGitLab,
     autoMergeAction,
     defaultMergeMethod,
@@ -217,12 +231,17 @@ export function useHostedReviewActions({
                 repoId: repo.id,
                 iid: review.number
               })
-          : await updateGitHubHostedReviewState({
-              repo,
-              prNumber: review.number,
-              prRepo: githubPR?.prRepo ?? null,
-              nextState
-            })
+          : isCnb
+            ? await runCnbHostedReviewAction(repo, review.url, {
+                kind: 'state',
+                state: nextState
+              })
+            : await updateGitHubHostedReviewState({
+                repo,
+                prNumber: review.number,
+                prRepo: githubPR?.prRepo ?? null,
+                nextState
+              })
         if (!result.ok) {
           const message = codeHostErrorText(result)
           setActionError(message)
@@ -247,17 +266,19 @@ export function useHostedReviewActions({
         setActionError(message)
         toast.error(message)
       } finally {
-        setStateUpdating(null)
         await onRefreshReview().catch(() => {})
+        setStateUpdating(null)
       }
     },
     [
       confirm,
       githubPR?.prRepo,
+      isCnb,
       isGitLab,
       onRefreshReview,
       repo,
       review.number,
+      review.url,
       reviewLabel,
       shortLabel,
       stateUpdating
@@ -276,6 +297,7 @@ export function useHostedReviewActions({
     merging,
     readying,
     stateUpdating,
+    ...sourceBranchAction,
     actionError,
     handleMerge,
     handleAutoMerge,

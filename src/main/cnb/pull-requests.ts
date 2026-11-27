@@ -1,13 +1,16 @@
 import { z } from 'zod'
-import type { CnbReviewDetails } from '../../shared/cnb/cnb-review-details'
 import type { HostedReviewInfo } from '../../shared/source-control/hosted-review/hosted-review-contracts'
 import type {
   CheckStatus,
   ProviderCheckSummary
 } from '../../shared/github/pull-requests/pull-request-types'
-import { getCnbCredentialToken } from './credentials'
-import { cnbHasNextPage, cnbRequest } from './request'
-import { cnbRepositoryPath, parseCnbReviewUrl } from './repository-ref'
+import { requireCnbCredentialToken } from './credentials'
+import { getPRConflictSummary } from '../github/pull-requests/conflicts/conflict-summary'
+import { isFullGitObjectId } from '../git/refs/resolution/commit-object-ref'
+import type { HostedReviewLocalGitOptions } from '../source-control/hosted-review-git-options'
+import { readCnbSourceBranch } from './pull-source-branch'
+import { cnbHasNextPage, cnbRequest, discardCnbBody } from './request'
+import { cnbRepositoryPath } from './repository-ref'
 
 const pullRef = z.object({
   ref: z.string(),
@@ -27,7 +30,8 @@ const pull = z.object({
   base: pullRef,
   is_wip: z.boolean().optional(),
   is_merged: z.boolean().optional(),
-  mergeable_state: z.string().optional(),
+  mergeable_state: z.string().nullish(),
+  blocked_on: z.string().nullish(),
   updated_at: z.string().nullish(),
   last_acted_at: z.string().nullish(),
   created_at: z.string().nullish()
@@ -38,34 +42,13 @@ const checks = z.object({
   state: z.string().optional(),
   statuses: z.array(z.object({ state: z.string() })).nullish()
 })
-const comments = z
-  .array(
-    z.object({
-      id: z.string(),
-      author: z
-        .object({ username: z.string().nullish(), nickname: z.string().nullish() })
-        .nullish(),
-      body: z.string().nullish()
-    })
-  )
-  .nullable()
-const files = z
-  .array(
-    z.object({
-      filename: z.string(),
-      additions: z.number().nullish(),
-      deletions: z.number().nullish(),
-      patch: z.string().nullish()
-    })
-  )
-  .nullable()
-
 type Pull = z.output<typeof pull>
+type ConflictContext = { repoPath: string; localGitOptions: HostedReviewLocalGitOptions }
 
 const PAGE_SIZE = 100
 const MAX_PAGES = 5
 
-function pullPath(repository: string): string {
+export function pullPath(repository: string): string {
   return `${cnbRepositoryPath(repository)}/pulls`
 }
 
@@ -73,11 +56,41 @@ function branchName(ref: string): string {
   return ref.replace(/^refs\/heads\//, '')
 }
 
-function reviewState(pr: Pull): HostedReviewInfo['state'] {
+export function cnbReviewState(pr: Pull): HostedReviewInfo['state'] {
   if (pr.is_merged || pr.state === 'merged') {
     return 'merged'
   }
   return pr.state === 'open' && pr.is_wip ? 'draft' : pr.state
+}
+
+export function cnbPullMergeability(pr: Pull): HostedReviewInfo['mergeable'] {
+  if (pr.mergeable_state === 'conflict' || pr.blocked_on === 'code_conflict') {
+    return 'CONFLICTING'
+  }
+  return pr.mergeable_state === 'mergeable' ? 'MERGEABLE' : 'UNKNOWN'
+}
+
+export function cnbPullMergeBlocker(pr: Pull): string | null {
+  return pr.blocked_on && pr.blocked_on !== 'unblocked' ? pr.blocked_on : null
+}
+
+export function cnbMergedSourceBranch(
+  repository: string,
+  pr: Pull
+): { name: string; sha: string } | null {
+  const name = branchName(pr.head.ref)
+  const sha = pr.head.sha
+  if (
+    cnbReviewState(pr) !== 'merged' ||
+    pr.head.repo?.path?.toLowerCase() !== repository.toLowerCase() ||
+    !name ||
+    name === branchName(pr.base.ref) ||
+    !sha ||
+    !isFullGitObjectId(sha)
+  ) {
+    return null
+  }
+  return { name, sha }
 }
 
 function checkState(state: string | undefined): CheckStatus {
@@ -102,14 +115,6 @@ function requireOk(response: Response): void {
     void response.body?.cancel().catch(() => {})
     throw new Error(`CNB PR lookup failed (HTTP ${response.status}).`)
   }
-}
-
-async function credential(): Promise<string> {
-  const token = await getCnbCredentialToken()
-  if (!token) {
-    throw new Error('Connect CNB in Settings > Integrations.')
-  }
-  return token
 }
 
 async function readChecks(
@@ -154,50 +159,94 @@ async function readChecks(
 async function hostedReview(
   repository: string,
   pr: Pull,
-  token: string
+  token: string,
+  conflictContext?: ConflictContext
 ): Promise<HostedReviewInfo> {
+  const state = cnbReviewState(pr)
+  const mergeable = state === 'open' || state === 'draft' ? cnbPullMergeability(pr) : 'UNKNOWN'
+  const baseRefName = branchName(pr.base.ref)
+  const [checkState, conflictSummary, sourceBranch] = await Promise.all([
+    readChecks(repository, pr, token),
+    state === 'open' &&
+    mergeable === 'CONFLICTING' &&
+    conflictContext &&
+    baseRefName &&
+    pr.base.sha &&
+    isFullGitObjectId(pr.base.sha) &&
+    pr.head.sha &&
+    isFullGitObjectId(pr.head.sha)
+      ? getPRConflictSummary(
+          conflictContext.repoPath,
+          baseRefName,
+          pr.base.sha,
+          pr.head.sha,
+          conflictContext.localGitOptions
+        ).catch(() => undefined)
+      : undefined,
+    getDeletableSourceBranch(repository, pr, token)
+  ])
   return {
     provider: 'cnb',
     number: pr.number,
     title: pr.title,
-    state: reviewState(pr),
+    state,
     url: `https://cnb.cool${pullPath(repository)}/${pr.number}`,
     updatedAt: pr.updated_at ?? pr.last_acted_at ?? pr.created_at ?? '',
-    mergeable:
-      pr.mergeable_state === 'mergeable'
-        ? 'MERGEABLE'
-        : pr.mergeable_state === 'conflict'
-          ? 'CONFLICTING'
-          : 'UNKNOWN',
-    ...(pr.head.sha ? { headSha: pr.head.sha } : {}),
-    baseRefName: branchName(pr.base.ref),
-    ...(await readChecks(repository, pr, token))
+    mergeable,
+    mergeStateStatus: cnbPullMergeBlocker(pr) ?? pr.mergeable_state,
+    ...(pr.head.sha && isFullGitObjectId(pr.head.sha) ? { headSha: pr.head.sha } : {}),
+    baseRefName,
+    ...(conflictSummary ? { conflictSummary } : {}),
+    ...(sourceBranch ? { cnbSourceBranch: sourceBranch } : {}),
+    ...checkState
   }
+}
+
+async function getDeletableSourceBranch(repository: string, pr: Pull, token: string) {
+  const head = cnbMergedSourceBranch(repository, pr)
+  if (!head) {
+    return undefined
+  }
+  const source = await readCnbSourceBranch(repository, head.name, token).catch(() => null)
+  return source && !source.protected && !source.locked && source.commit.sha === head.sha
+    ? head.name
+    : undefined
+}
+
+export async function readCnbPull(
+  repository: string,
+  number: number,
+  token: string
+): Promise<Pull | null> {
+  if (!Number.isSafeInteger(number) || number <= 0) {
+    return null
+  }
+  const response = await cnbRequest(`${pullPath(repository)}/${number}`, token)
+  if (response.status === 404) {
+    await discardCnbBody(response)
+    return null
+  }
+  requireOk(response)
+  return pull.parse(await response.json())
 }
 
 export async function getCnbReviewByNumber(
   repository: string,
-  number: number
+  number: number,
+  conflictContext?: ConflictContext
 ): Promise<HostedReviewInfo | null> {
-  if (!Number.isSafeInteger(number) || number <= 0) {
-    return null
-  }
-  const token = await credential()
-  const response = await cnbRequest(`${pullPath(repository)}/${number}`, token)
-  if (response.status === 404) {
-    await response.body?.cancel()
-    return null
-  }
-  requireOk(response)
-  return hostedReview(repository, pull.parse(await response.json()), token)
+  const token = await requireCnbCredentialToken()
+  const pr = await readCnbPull(repository, number, token)
+  return pr ? hostedReview(repository, pr, token, conflictContext) : null
 }
 
 export async function getCnbReviewForBranch(
   repository: string,
   branch: string,
-  currentHeadOid: string | null | undefined
+  currentHeadOid: string | null | undefined,
+  conflictContext?: ConflictContext
 ): Promise<HostedReviewInfo | null> {
-  const token = await credential()
+  const token = await requireCnbCredentialToken()
   const desiredBranch = branchName(branch)
   const matches = (pr: Pull): boolean => {
     const from = pr.head.repo?.path
@@ -217,7 +266,7 @@ export async function getCnbReviewForBranch(
           (candidate) => matches(candidate) && candidate.head.sha === currentHeadOid
         )
       : null)
-  return pr ? hostedReview(repository, pr, token) : null
+  return pr ? hostedReview(repository, pr, token, conflictContext) : null
 }
 
 async function findCnbPull(
@@ -244,46 +293,4 @@ async function findCnbPull(
     }
   }
   throw new Error('CNB PR lookup exceeded its page limit.')
-}
-
-export async function readCnbReviewDetails(value: unknown): Promise<CnbReviewDetails> {
-  const target = typeof value === 'string' && value.length < 2048 ? parseCnbReviewUrl(value) : null
-  if (!target) {
-    throw new Error('Invalid CNB pull request URL.')
-  }
-  const token = await credential()
-  const path = `${pullPath(target.repository)}/${target.number}`
-  async function read(suffix: string, query?: Record<string, string>): Promise<unknown> {
-    const response = await cnbRequest(path + suffix, token, query)
-    requireOk(response)
-    return response.json()
-  }
-  const [info, discussion, changes] = await Promise.all([
-    read('').then((payload) => pull.parse(payload)),
-    read('/comments', { page: '1', page_size: '20' }).then(
-      (payload) => comments.parse(payload) ?? []
-    ),
-    read('/files').then((payload) => files.parse(payload) ?? [])
-  ])
-  let remainingPatchBudget = 240_000
-  return {
-    description: info.body?.slice(0, 32_000) ?? '',
-    comments: discussion.slice(0, 20).map((comment) => ({
-      id: comment.id,
-      author: comment.author?.nickname || comment.author?.username || '',
-      body: comment.body?.slice(0, 8_000) ?? ''
-    })),
-    files: changes.slice(0, 100).map((file) => {
-      const patch = file.patch?.slice(0, Math.min(24_000, remainingPatchBudget)) || null
-      remainingPatchBudget -= patch?.length ?? 0
-      return {
-        path: file.filename,
-        additions: file.additions ?? 0,
-        deletions: file.deletions ?? 0,
-        patch,
-        patchTruncated: typeof file.patch === 'string' && file.patch.length > (patch?.length ?? 0)
-      }
-    }),
-    filesTruncated: changes.length > 100
-  }
 }

@@ -18,6 +18,7 @@ type HostedReviewCommandName =
   | 'getRepoUpstream'
   | 'getRepoPRForBranch'
   | 'getHostedReviewForBranch'
+  | 'mutateCnbHostedReview'
   | 'getHostedReviewCreationEligibility'
   | 'createHostedReview'
   | 'createStackedHostedReview'
@@ -182,6 +183,7 @@ export function installRuntimeRepositoryCommandSurface(
     getRepoUpstream: reviews.getRepoUpstream.bind(reviews),
     getRepoPRForBranch: reviews.getRepoPRForBranch.bind(reviews),
     getHostedReviewForBranch: reviews.getHostedReviewForBranch.bind(reviews),
+    mutateCnbHostedReview: reviews.mutateCnbHostedReview.bind(reviews),
     getHostedReviewCreationEligibility: reviews.getHostedReviewCreationEligibility.bind(reviews),
     createHostedReview: reviews.createHostedReview.bind(reviews),
     createStackedHostedReview: reviews.createStackedHostedReview.bind(reviews),

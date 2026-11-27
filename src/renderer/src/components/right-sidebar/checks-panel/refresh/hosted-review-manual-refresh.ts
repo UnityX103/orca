@@ -75,6 +75,9 @@ export function refreshHostedReviewForClick(
     repoId: repo.id,
     repoOwnerExecutionHostId: getRepoExecutionHostId(repo),
     branch,
+    ...(checksPanelManualRefreshProvider(model) === 'cnb'
+      ? { currentHeadOid: model.activeWorktree?.head ?? null }
+      : {}),
     admissionTier: 'interactive',
     userRefresh: true,
     linkedGitHubPR: model.linkedPR,

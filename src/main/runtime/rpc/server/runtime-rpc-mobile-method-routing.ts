@@ -205,6 +205,7 @@ export const EXECUTION_HOST_METHODS = [
   'hostedReview.createStacked',
   'hostedReview.forBranch',
   'hostedReview.getCreationEligibility',
+  'hostedReview.mutateCnb',
   'linear.resolveCurrentIssue',
   'markdown.readTab',
   'markdown.saveTab',

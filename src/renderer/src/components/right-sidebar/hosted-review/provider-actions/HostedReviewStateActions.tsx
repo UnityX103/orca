@@ -155,10 +155,12 @@ export function ClosedReviewActions({
 export function MergedReviewActions({
   isMainWorktree,
   isDeletingWorktree,
+  disabled,
   onDeleteWorktree
 }: {
   isMainWorktree: boolean
   isDeletingWorktree: boolean
+  disabled?: boolean
   onDeleteWorktree: () => void
 }): React.JSX.Element {
   const t = useTranslate()
@@ -172,7 +174,7 @@ export function MergedReviewActions({
       size="xs"
       className="cursor-pointer border-destructive/30 text-[11px] text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
       onClick={onDeleteWorktree}
-      disabled={isDeletingWorktree}
+      disabled={isDeletingWorktree || disabled}
     >
       {isDeletingWorktree ? (
         <LoaderCircle className="size-3.5 animate-spin" />

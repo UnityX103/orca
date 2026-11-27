@@ -1,6 +1,7 @@
 import { ipcRenderer } from 'electron'
 import type { CnbConnectResult, CnbCredentialStatus } from '../../../shared/cnb/cnb-credentials'
 import type { CnbReviewDetails } from '../../../shared/cnb/cnb-review-details'
+import type { CnbHostedReviewMutationInput } from '../../../shared/rpc-contract/source-control/hosted-review-params'
 import type {
   CnbTaskDispatch,
   CnbTaskDispatchRequest,
@@ -90,6 +91,9 @@ export const cnbApi = {
     number: number
     payload: CnbPullWrite
   }): Promise<CnbWriteResult> => ipcRenderer.invoke('cnb:pull-write', request),
+  reviewAction: (
+    request: CnbHostedReviewMutationInput & { repoOwnerExecutionHostId: string }
+  ): Promise<CnbWriteResult> => ipcRenderer.invoke('cnb:review-action', request),
   reviewDetails: (url: string): Promise<CnbReviewDetails> =>
     ipcRenderer.invoke('cnb:review-details', url)
 }

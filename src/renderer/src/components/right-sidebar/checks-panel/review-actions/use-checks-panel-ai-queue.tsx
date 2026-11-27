@@ -148,7 +148,7 @@ export function useChecksPanelAiQueue(model: ChecksPanelAiQueueInput) {
       ),
       prompt: buildResolvePullRequestConflictsPrompt({
         reviewKind: activeConflictReview.provider === 'gitlab' ? 'MR' : 'PR',
-        baseRef: activeConflictReview.conflictSummary?.baseRef,
+        baseRef: activeConflictReview.conflictSummary?.baseRef ?? activeConflictReview.baseRefName,
         entries: conflictFiles.map((path) => ({ path })),
         worktreePath: activeWorktreePath ?? null
       }),

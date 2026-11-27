@@ -7,7 +7,6 @@ import type { Repo } from '../../../shared/repository/repo-types'
 import { getTaskEligibleRepos } from '../../../shared/work-items/task-repo-selection'
 import { connectCnb, disconnectCnb, getCnbCredentialStatus } from '../../cnb/credentials'
 import { cnbForgeProvider } from '../../cnb/forge-provider'
-import { readCnbReviewDetails } from '../../cnb/pull-requests'
 import {
   readCnbIssueDetail,
   readCnbLabels,
@@ -26,6 +25,7 @@ import { getLocalProjectWorktreeGitOptions } from '../../workspaces/execution-ho
 import { getStoredRepoExecutionHostId } from '../../workspaces/execution-host/repo-execution-host'
 import { guardWslUncPathAccess } from '../../wsl/filesystem/wsl-unc-access-gate'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
+import { registerCnbReviewHandlers } from './cnb-review'
 import { registerCnbTaskDispatchHandlers } from './cnb-task-dispatch'
 
 const filtersSchema = z.object({
@@ -174,10 +174,10 @@ async function resolveRepoSlug(store: Store, repoId: string): Promise<string | n
 
 export function registerCnbHandlers(store: Store, runtime: OrcaRuntimeService): void {
   registerCnbTaskDispatchHandlers(runtime, store, (repoId) => resolveRepoSlug(store, repoId))
+  registerCnbReviewHandlers(store, runtime)
   ipcMain.handle('cnb:connect', (_event, token: unknown) => connectCnb(token))
   ipcMain.handle('cnb:disconnect', () => disconnectCnb())
   ipcMain.handle('cnb:status', () => getCnbCredentialStatus())
-  ipcMain.handle('cnb:review-details', (_event, url: unknown) => readCnbReviewDetails(url))
   ipcMain.handle('cnb:task-repositories', async () => {
     const candidates = getTaskEligibleRepos(store.getRepos())
     const resolved = await mapSettledWithConcurrency(candidates, 4, (repo) =>

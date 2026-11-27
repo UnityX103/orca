@@ -2,6 +2,7 @@ import { defineMethod } from '../../../core'
 import { supportsHostedReviewCreation } from '../../../../../../shared/source-control/hosted-review/hosted-review-creation-providers'
 import { UNSUPPORTED_HOSTED_REVIEW_PROVIDER } from '../../../../../source-control/hosted-review-creation'
 import {
+  CnbHostedReviewMutation,
   HostedReviewCreate,
   HostedReviewCreationEligibility,
   HostedReviewForBranch
@@ -32,6 +33,12 @@ export const HOSTED_REVIEW_METHODS = [
         linkedGiteaPR: params.linkedGiteaPR ?? null
       })
     }
+  }),
+  defineMethod({
+    name: 'hostedReview.mutateCnb',
+    permission: 'workspace',
+    params: CnbHostedReviewMutation,
+    handler: async (params, { runtime }) => runtime.mutateCnbHostedReview(params)
   }),
   defineMethod({
     name: 'hostedReview.getCreationEligibility',
