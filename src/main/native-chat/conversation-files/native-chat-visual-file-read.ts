@@ -1,12 +1,15 @@
 // Enforce visual containment on the host: direct regular files, no symlinks, bounded UTF-8 text.
+// Reads a bare scratch-folder name, or an absolute path a Codex reference named, confined to the session's
+// workspace or scratch folder. Codex emits a fragment, which the frame shell accepts beside a full document.
 
 import { createHash } from 'node:crypto'
 import { constants, type Stats } from 'node:fs'
 import { lstat, open, realpath, type FileHandle } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, relative, isAbsolute, sep } from 'node:path'
 import {
   NATIVE_CHAT_VISUAL_MAX_BYTES,
-  isNativeChatVisualFileName
+  isNativeChatVisualFileName,
+  isNativeChatVisualPath
 } from '../../../shared/native-chat/visuals/native-chat-visual-directive'
 import type {
   AgentSessionReadVisualResult,
@@ -134,6 +137,7 @@ async function assertStillContained(
   }
 }
 
+/** Return the file's UTF-8 text as-is: the frame injects either a fragment or a full document into its shell. */
 function decodeVisualText(buffer: Buffer): string {
   if (buffer.includes(0)) {
     refuse('not_text')
@@ -149,16 +153,78 @@ export function nativeChatVisualRevision(buffer: Buffer): string {
   return createHash('sha256').update(buffer).digest('hex').slice(0, REVISION_HEX_LENGTH)
 }
 
-async function readContained(
-  folder: string,
-  file: string,
-  knownRevision: string | undefined
-): Promise<AgentSessionReadVisualResult> {
-  if (!isNativeChatVisualFileName(file)) {
+/** Where a read may look: the chat's scratch folder, and the session's workspace for an absolute path. */
+export type NativeChatVisualReadRoots = {
+  scratchFolder: string
+  workspaceRoot?: string
+}
+
+/** Resolve a requested read to the folder that owns the file, refusing paths outside every owned root. */
+function resolveCandidate(
+  roots: NativeChatVisualReadRoots,
+  file: string | undefined,
+  path: string | undefined
+): { folder: string; file: string } {
+  if (path !== undefined) {
+    if (!isNativeChatVisualPath(path) || !isAbsolute(path)) {
+      refuse('outside_folder')
+    }
+    const ownedRoots = [roots.workspaceRoot, roots.scratchFolder].filter(
+      (root): root is string => root !== undefined
+    )
+    const inRoot = ownedRoots.find((root) => {
+      const rel = relative(root, path)
+      return rel !== '' && !rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel)
+    })
+    if (!inRoot) {
+      refuse('outside_folder')
+    }
+    return { folder: dirname(path), file: basename(path) }
+  }
+  if (file === undefined || !isNativeChatVisualFileName(file)) {
     refuse('outside_folder')
   }
-  const folderReal = await canonicalFolder(folder)
-  const candidate = join(folderReal, file)
+  return { folder: roots.scratchFolder, file }
+}
+
+/** An owned root's canonical path, or null when it does not resolve. */
+async function canonicalRoot(root: string | undefined): Promise<string | null> {
+  if (root === undefined) {
+    return null
+  }
+  try {
+    return await realpath(root)
+  } catch {
+    return null
+  }
+}
+
+async function readContained(
+  roots: NativeChatVisualReadRoots,
+  file: string | undefined,
+  path: string | undefined,
+  knownRevision: string | undefined
+): Promise<AgentSessionReadVisualResult> {
+  const target = resolveCandidate(roots, file, path)
+  const folderReal = await canonicalFolder(target.folder)
+  // A Codex absolute path may sit under a subdirectory; prove its real location stays inside an owned root.
+  if (path !== undefined) {
+    const [workspaceReal, scratchReal] = await Promise.all([
+      canonicalRoot(roots.workspaceRoot),
+      canonicalRoot(roots.scratchFolder)
+    ])
+    const insideOwnedRoot = [workspaceReal, scratchReal].some(
+      (root) =>
+        root !== null &&
+        (folderReal === root ||
+          folderReal.startsWith(`${root}${sep}`) ||
+          folderReal.toLowerCase().startsWith(`${root.toLowerCase()}${sep}`))
+    )
+    if (!insideOwnedRoot) {
+      refuse('outside_folder')
+    }
+  }
+  const candidate = join(folderReal, target.file)
   if (dirname(candidate) !== folderReal) {
     refuse('outside_folder')
   }
@@ -171,7 +237,7 @@ async function readContained(
     if (stats.size > NATIVE_CHAT_VISUAL_MAX_BYTES) {
       refuse('too_large')
     }
-    await assertStillContained(folder, candidate, folderReal, file, stats)
+    await assertStillContained(target.folder, candidate, folderReal, target.file, stats)
     let buffer: Buffer
     try {
       buffer = await readLocalFileBounded(handle, NATIVE_CHAT_VISUAL_MAX_BYTES, stats.size)
@@ -185,23 +251,29 @@ async function readContained(
     const revision = nativeChatVisualRevision(buffer)
     const sizeBytes = buffer.length
     // Keep the named folder path so the file-root selector matches exactly.
-    const path = join(folder, file)
+    const resolvedPath = join(target.folder, target.file)
     return knownRevision === revision
-      ? { ok: true, revision, sizeBytes, path, unchanged: true }
-      : { ok: true, revision, sizeBytes, path, html }
+      ? { ok: true, revision, sizeBytes, path: resolvedPath, unchanged: true }
+      : { ok: true, revision, sizeBytes, path: resolvedPath, html }
   } finally {
     await handle.close()
   }
 }
 
 /** Unexpected faults throw code-only errors; clients show unavailable without exposing host paths. */
-export async function readNativeChatVisualFile(
-  folder: string,
-  file: string,
+export async function readNativeChatVisualFile(input: {
+  scratchFolder: string
+  file?: string
+  path?: string
+  workspaceRoot?: string
   knownRevision?: string
-): Promise<AgentSessionReadVisualResult> {
+}): Promise<AgentSessionReadVisualResult> {
+  const roots: NativeChatVisualReadRoots = {
+    scratchFolder: input.scratchFolder,
+    ...(input.workspaceRoot ? { workspaceRoot: input.workspaceRoot } : {})
+  }
   try {
-    return await readContained(folder, file, knownRevision)
+    return await readContained(roots, input.file, input.path, input.knownRevision)
   } catch (error) {
     if (error instanceof VisualReadRefusal) {
       return { ok: false, error: error.refusal }

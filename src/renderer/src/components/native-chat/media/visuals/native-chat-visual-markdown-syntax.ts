@@ -12,6 +12,7 @@ import type {
 } from 'micromark-util-types'
 import type { Processor, PluggableList } from 'unified'
 import {
+  NATIVE_CHAT_CODEX_VISUAL_MAX_LINE_LENGTH,
   NATIVE_CHAT_VISUAL_DIRECTIVE_MAX_LINE_LENGTH,
   NATIVE_CHAT_VISUAL_MAX_PER_MESSAGE,
   parseNativeChatVisualDirectiveLine
@@ -20,6 +21,8 @@ import { nativeChatBotDirectiveCardOf } from '../../../../../../shared/native-ch
 
 const TOKEN_TYPE = 'nativeChatVisual'
 const COLON = 58
+// Codex's reference opens with U+E200, a private-use character no real prose line starts with.
+const CODEX_REFERENCE_OPEN = 0xe200
 const HORIZONTAL_TAB = -2
 const VIRTUAL_SPACE = -1
 
@@ -28,16 +31,22 @@ const NONCE_PROPERTY = 'dataOrcaVisual'
 const FILE_PROPERTY = 'dataOrcaVisualFile'
 const TITLE_PROPERTY = 'dataOrcaVisualTitle'
 const HOOK_PROPERTY = 'dataOrcaVisualHook'
+const PATH_PROPERTY = 'dataOrcaVisualPath'
+const WIDE_PROPERTY = 'dataOrcaVisualWide'
 export const NATIVE_CHAT_VISUAL_PLACEHOLDER_PROPERTIES = [
   NONCE_PROPERTY,
   FILE_PROPERTY,
   TITLE_PROPERTY,
-  HOOK_PROPERTY
+  HOOK_PROPERTY,
+  PATH_PROPERTY,
+  WIDE_PROPERTY
 ] as const
 
-function parseDirectiveLine(
-  line: string
-): { file: string; title: string | null; hookId: null } | { hookId: string } | null {
+type ParsedDirectiveLine =
+  | { file: string; title: string | null; path: string | null; wide: boolean; hookId: null }
+  | { hookId: string }
+
+function parseDirectiveLine(line: string): ParsedDirectiveLine | null {
   const visual = parseNativeChatVisualDirectiveLine(line)
   if (visual) {
     return { ...visual, hookId: null }
@@ -56,6 +65,10 @@ export type NativeChatVisualNode = Node & {
   type: 'nativeChatVisual'
   file: string
   title: string | null
+  /** Set for a Codex reference, whose file is a label and path the real target. */
+  path: string | null
+  /** The reference asked for the wide surface. */
+  wide: boolean
   /** Set for a webhook card line, whose file and title stay empty. */
   hookId: string | null
   /** The line as written, for a directive shown as text instead. */
@@ -77,38 +90,57 @@ declare module 'micromark-util-types' {
   }
 }
 
-function tokenizeVisualLine(this: TokenizeContext, effects: Effects, ok: State, nok: State): State {
-  let line = ''
-  const inside: State = (code: Code) => {
-    // EOF, or a line ending (the negative codes below the tab/virtual-space codes).
-    if (code === null || code < HORIZONTAL_TAB) {
-      effects.exit(TOKEN_TYPE)
-      return parseDirectiveLine(line) ? ok(code) : nok(code)
+function tokenizeVisualLine(maxLength: number): Construct['tokenize'] {
+  return function tokenize(this: TokenizeContext, effects: Effects, ok: State, nok: State): State {
+    let line = ''
+    const inside: State = (code: Code) => {
+      // EOF, or a line ending (the negative codes below the tab/virtual-space codes).
+      if (code === null || code < HORIZONTAL_TAB) {
+        effects.exit(TOKEN_TYPE)
+        return parseDirectiveLine(line) ? ok(code) : nok(code)
+      }
+      if (line.length >= maxLength) {
+        return nok(code)
+      }
+      if (code !== VIRTUAL_SPACE) {
+        line += code === HORIZONTAL_TAB ? '\t' : String.fromCharCode(code)
+      }
+      effects.consume(code)
+      return inside
     }
-    if (line.length >= NATIVE_CHAT_VISUAL_DIRECTIVE_MAX_LINE_LENGTH) {
-      return nok(code)
+    return (code) => {
+      effects.enter(TOKEN_TYPE)
+      return inside(code)
     }
-    if (code !== VIRTUAL_SPACE) {
-      line += code === HORIZONTAL_TAB ? '\t' : String.fromCharCode(code)
-    }
-    effects.consume(code)
-    return inside
-  }
-  return (code) => {
-    effects.enter(TOKEN_TYPE)
-    return inside(code)
   }
 }
 
-const visualLineConstruct: Construct = { name: TOKEN_TYPE, tokenize: tokenizeVisualLine }
+const visualLineConstruct: Construct = {
+  name: TOKEN_TYPE,
+  tokenize: tokenizeVisualLine(NATIVE_CHAT_VISUAL_DIRECTIVE_MAX_LINE_LENGTH)
+}
+const codexVisualLineConstruct: Construct = {
+  name: TOKEN_TYPE,
+  tokenize: tokenizeVisualLine(NATIVE_CHAT_CODEX_VISUAL_MAX_LINE_LENGTH)
+}
 
-const visualMicromarkExtension: MicromarkExtension = { flow: { [COLON]: visualLineConstruct } }
+const visualMicromarkExtension: MicromarkExtension = {
+  flow: { [COLON]: visualLineConstruct, [CODEX_REFERENCE_OPEN]: codexVisualLineConstruct }
+}
 
 const visualFromMarkdown: FromMarkdownExtension = {
   enter: {
     [TOKEN_TYPE](token) {
       this.enter(
-        { type: 'nativeChatVisual', file: '', title: null, hookId: null, source: '' },
+        {
+          type: 'nativeChatVisual',
+          file: '',
+          title: null,
+          path: null,
+          wide: false,
+          hookId: null,
+          source: ''
+        },
         token
       )
     }
@@ -122,6 +154,8 @@ const visualFromMarkdown: FromMarkdownExtension = {
         if (directive.hookId === null) {
           node.file = directive.file
           node.title = directive.title
+          node.path = directive.path
+          node.wide = directive.wide
         } else {
           node.hookId = directive.hookId
         }
@@ -163,7 +197,9 @@ function placeVisuals(
             ? { [HOOK_PROPERTY]: child.hookId }
             : {
                 [FILE_PROPERTY]: child.file,
-                ...(child.title ? { [TITLE_PROPERTY]: child.title } : {})
+                ...(child.title ? { [TITLE_PROPERTY]: child.title } : {}),
+                ...(child.path ? { [PATH_PROPERTY]: child.path } : {}),
+                ...(child.wide ? { [WIDE_PROPERTY]: 'true' } : {})
               })
         }
       }

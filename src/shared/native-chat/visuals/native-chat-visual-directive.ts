@@ -1,21 +1,32 @@
-// Shared desktop/web/mobile visual grammar: ::orca-visual{file="chart.html" title="Usage"}. Must occupy a whole case-sensitive line,
-// with up to three leading spaces/trailing horizontal whitespace or CR. Attributes use lowercase keys and unescaped quoted values
-// (no quote/backslash/control characters). file is required; title optional; reject duplicate keys, ignore unknown keys for newer agents.
+// Shared desktop/web/mobile visual grammar. Two spellings, one internal directive:
+//   ::orca-visual{file="chart.html" title="Usage"}                    Orca's own, a scratch-folder file
+//   <U+E200>visualize<U+E202>{"path":"/abs/x.html","mode":"wide"}<U+E201>   Codex's, an absolute host path
+// Each must occupy a whole case-sensitive line, with up to three leading spaces/trailing horizontal whitespace or CR.
+// Orca attributes use lowercase keys and unescaped quoted values (no quote/backslash/control characters); file is required,
+// title optional, duplicate keys rejected. Codex's body is JSON. Unknown keys are ignored for newer agents.
 
 import { WEBHOOK_HOOK_ID_PATTERN } from '../../connector-webhook-contract'
 
 export const NATIVE_CHAT_VISUAL_DIRECTIVE_MARKER = '::orca-visual{'
 // ::orca-webhook{hook="wh_…"}: the webhook card. Only the hook id is in the line; the card reads the rest from the host.
 export const NATIVE_CHAT_WEBHOOK_DIRECTIVE_MARKER = '::orca-webhook{'
+// Codex `visualize` reference: a private-use-delimited JSON body on its own line. The delimiters are invisible, so the
+// line would otherwise render as its raw text and path.
+export const NATIVE_CHAT_CODEX_VISUAL_PREFIX = '\uE200visualize\uE202'
+export const NATIVE_CHAT_CODEX_VISUAL_SUFFIX = '\uE201'
 const DIRECTIVE_MARKERS = [
   NATIVE_CHAT_VISUAL_DIRECTIVE_MARKER,
-  NATIVE_CHAT_WEBHOOK_DIRECTIVE_MARKER
+  NATIVE_CHAT_WEBHOOK_DIRECTIVE_MARKER,
+  NATIVE_CHAT_CODEX_VISUAL_PREFIX
 ]
 
-/** Longest line the grammar considers. Bounds parsing and the streaming-tail check. */
+/** Longest line the Orca grammar considers. Bounds parsing and the streaming-tail check. */
 export const NATIVE_CHAT_VISUAL_DIRECTIVE_MAX_LINE_LENGTH = 512
+/** Codex's JSON carries an absolute path, so its line may run longer than Orca's attribute form. */
+export const NATIVE_CHAT_CODEX_VISUAL_MAX_LINE_LENGTH = 2048
 export const NATIVE_CHAT_VISUAL_FILE_MAX_LENGTH = 128
 export const NATIVE_CHAT_VISUAL_TITLE_MAX_LENGTH = 120
+export const NATIVE_CHAT_VISUAL_PATH_MAX_LENGTH = 1024
 
 /** Cap reply-mounted visuals: each author-script frame can hold 512 KiB, so bound live frames/memory while allowing a few comparisons. */
 export const NATIVE_CHAT_VISUAL_MAX_PER_MESSAGE = 8
@@ -24,8 +35,13 @@ export const NATIVE_CHAT_VISUAL_MAX_PER_MESSAGE = 8
 export const NATIVE_CHAT_VISUAL_MAX_BYTES = 512 * 1024
 
 export type NativeChatVisualDirective = {
+  /** Bare scratch-folder filename; for a Codex reference, the basename of its path (used as a label). */
   file: string
   title: string | null
+  /** Absolute path on the execution host a Codex reference names; null for a scratch-folder file. */
+  path: string | null
+  /** The reference asked for the wide surface (Codex `mode: "wide"`). */
+  wide: boolean
 }
 
 export type NativeChatWebhookDirective = { hookId: string }
@@ -49,6 +65,21 @@ export function isNativeChatVisualFileName(name: string): boolean {
   }
   const baseName = name.slice(0, name.indexOf('.'))
   return !WINDOWS_DEVICE_BASE_NAME.test(baseName)
+}
+
+/** An absolute .html path a Codex reference may name. Host containment is enforced on read, not here. */
+export function isNativeChatVisualPath(path: string): boolean {
+  if (path.length === 0 || path.length > NATIVE_CHAT_VISUAL_PATH_MAX_LENGTH) {
+    return false
+  }
+  for (let index = 0; index < path.length; index += 1) {
+    const code = path.charCodeAt(index)
+    if (code < 0x20 || code === 0x7f) {
+      return false
+    }
+  }
+  const name = path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1)
+  return isNativeChatVisualFileName(name)
 }
 
 function isPlainAttributeValue(value: string): boolean {
@@ -116,10 +147,8 @@ function directiveAttributes(rawLine: string, marker: string): Map<string, strin
   return parseAttributes(trimmedEnd.slice(indent + marker.length, -1))
 }
 
-/** The directive a whole line spells, or null when the line is anything else. */
-export function parseNativeChatVisualDirectiveLine(
-  rawLine: string
-): NativeChatVisualDirective | null {
+/** Orca's own ::orca-visual{...} line as a directive, or null. */
+function parseOrcaVisualDirective(rawLine: string): NativeChatVisualDirective | null {
   const attributes = directiveAttributes(rawLine, NATIVE_CHAT_VISUAL_DIRECTIVE_MARKER)
   const file = attributes?.get('file')
   if (!attributes || file === undefined || !isNativeChatVisualFileName(file)) {
@@ -129,7 +158,56 @@ export function parseNativeChatVisualDirectiveLine(
   if (title.length > NATIVE_CHAT_VISUAL_TITLE_MAX_LENGTH) {
     return null
   }
-  return { file, title: title.length > 0 ? title : null }
+  return { file, title: title.length > 0 ? title : null, path: null, wide: false }
+}
+
+/** Codex's <U+E200>visualize<U+E202>{json}<U+E201> line as a directive, or null. */
+function parseCodexVisualDirective(rawLine: string): NativeChatVisualDirective | null {
+  const line = stripLineEnding(rawLine)
+  if (line.length > NATIVE_CHAT_CODEX_VISUAL_MAX_LINE_LENGTH || /[\r\n]/.test(line)) {
+    return null
+  }
+  const indent = leadingSpaceCount(line)
+  if (indent > 3 || !line.startsWith(NATIVE_CHAT_CODEX_VISUAL_PREFIX, indent)) {
+    return null
+  }
+  const body = line.replace(/[ \t]+$/, '').slice(indent + NATIVE_CHAT_CODEX_VISUAL_PREFIX.length)
+  if (!body.endsWith(NATIVE_CHAT_CODEX_VISUAL_SUFFIX)) {
+    return null
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body.slice(0, -NATIVE_CHAT_CODEX_VISUAL_SUFFIX.length))
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return null
+  }
+  const { path, title, mode } = parsed as Record<string, unknown>
+  if (typeof path !== 'string' || !isNativeChatVisualPath(path)) {
+    return null
+  }
+  if (
+    title !== undefined &&
+    (typeof title !== 'string' || title.length > NATIVE_CHAT_VISUAL_TITLE_MAX_LENGTH)
+  ) {
+    return null
+  }
+  const trimmedTitle = typeof title === 'string' ? title.trim() : ''
+  return {
+    file: path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1),
+    title: trimmedTitle.length > 0 ? trimmedTitle : null,
+    path,
+    wide: mode === 'wide'
+  }
+}
+
+/** The directive a whole line spells in either grammar, or null when the line is anything else. */
+export function parseNativeChatVisualDirectiveLine(
+  rawLine: string
+): NativeChatVisualDirective | null {
+  return parseCodexVisualDirective(rawLine) ?? parseOrcaVisualDirective(rawLine)
 }
 
 /** The webhook card a whole line names, or null when the line is anything else. */
@@ -150,7 +228,7 @@ function isDirectiveLine(line: string): boolean {
 /** Hold possible directive tails only while streaming to avoid raw-syntax flashes; even complete-looking tails can grow. Finished replies show them. */
 export function isPendingNativeChatVisualDirectiveTail(lastLine: string): boolean {
   const line = stripLineEnding(lastLine)
-  if (line.length === 0 || line.length > NATIVE_CHAT_VISUAL_DIRECTIVE_MAX_LINE_LENGTH) {
+  if (line.length === 0 || line.length > NATIVE_CHAT_CODEX_VISUAL_MAX_LINE_LENGTH) {
     return false
   }
   const indent = leadingSpaceCount(line)

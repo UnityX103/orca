@@ -43,7 +43,10 @@ export const MobileNativeChatVisual = memo(function MobileNativeChatVisual({
 }) {
   useMobileColorScheme()
   const t = useMobileTranslation()
-  const { state, retry } = useMobileNativeChatVisual(source, directive.file)
+  const { state, retry } = useMobileNativeChatVisual(source, {
+    file: directive.path ? null : directive.file,
+    path: directive.path
+  })
   const [frameFailed, setFrameFailed] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const title = directive.title ?? t('chat.nativeChatVisual.defaultTitle', 'Visualization')
