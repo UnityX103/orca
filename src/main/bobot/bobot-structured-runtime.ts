@@ -20,6 +20,10 @@ import {
 import { activeProviderContext } from '../../shared/agent-session/conversation-context/agent-session-provider-context'
 import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import { resolveAgainAfterRefreshOnMissingProgram } from '../native-chat/agent-launch/structured-agent-command-resolution'
+import {
+  NATIVE_CHAT_SCRATCH_DIR_ENV,
+  withNativeChatVisualsEnv
+} from '../native-chat/conversation-files/native-chat-visuals-delivery'
 import type { DirectoryAccountAgentDefinition } from '../native-chat/agent-session-wire/providers/structured-agent-definition'
 import type { StructuredAgentLaunchPartResolver } from '../runtime/agent-session/launch/structured-agent-launch-composition'
 import type {
@@ -95,6 +99,8 @@ export function bobotStructuredLaunchPart(deps: {
         basis.refreshAfterMissingProgram,
         { env: (result) => result.env, cwd: () => cwd }
       )
+    // BoBot runs Claude's CLI under the hood, so it reads the same visuals skill and scratch folder.
+    const visuals = await basis.visuals()
     const active = activeProviderContext(basis.record)
     const head = active.head?.handle ?? null
     if (
@@ -122,7 +128,11 @@ export function bobotStructuredLaunchPart(deps: {
         })) !== null)
     const discovery = claudeDiscoveryOptions({
       configuredArgs: await deps.resolveLaunchArgs(),
-      attachmentDirectory: deps.attachmentDirectory
+      attachmentDirectory: deps.attachmentDirectory,
+      visuals: visuals && {
+        pluginDir: visuals.skill.pluginDir,
+        scratchDirectory: visuals.folder
+      }
     })
     const permission = claudeStructuredPermissionOptions(basis.permissionMode ?? 'ask')
     return {
@@ -151,8 +161,11 @@ export function bobotStructuredLaunchPart(deps: {
         cliFlag: async (flag) => (flag.option === '--effort' ? 'supported' : 'unknown'),
         continuesChain: head?.nativeId === providerSessionId
       },
-      env,
-      inheritedEnvToDelete: env.BOBOT_CONFIG_DIR === undefined ? ['BOBOT_CONFIG_DIR'] : [],
+      env: withNativeChatVisualsEnv(env, visuals),
+      inheritedEnvToDelete: [
+        ...(visuals ? [] : [NATIVE_CHAT_SCRATCH_DIR_ENV]),
+        ...(env.BOBOT_CONFIG_DIR === undefined ? ['BOBOT_CONFIG_DIR'] : [])
+      ],
       cliRuntimeCommand: command
     }
   }

@@ -63,14 +63,17 @@ const inFlight = new Map<string, Promise<MobileNativeChatVisualRead>>()
 const clientKeys = new WeakMap<RpcClient, number>()
 let nextClientKey = 0
 
-function cacheKey(source: MobileNativeChatVisualSource, file: string): string {
+function cacheKey(
+  source: MobileNativeChatVisualSource,
+  target: { file: string | null; path: string | null }
+): string {
   let clientKey = clientKeys.get(source.client)
   if (clientKey === undefined) {
     nextClientKey += 1
     clientKey = nextClientKey
     clientKeys.set(source.client, clientKey)
   }
-  return JSON.stringify([clientKey, source.sessionId, file])
+  return JSON.stringify([clientKey, source.sessionId, target.file, target.path])
 }
 
 function remember(key: string, entry: CachedVisual): void {
@@ -94,24 +97,28 @@ function remember(key: string, entry: CachedVisual): void {
 
 export function cachedMobileNativeChatVisual(
   source: MobileNativeChatVisualSource,
-  file: string
+  target: { file: string | null; path: string | null }
 ): CachedVisual | null {
-  return cache.get(cacheKey(source, file)) ?? null
+  return cache.get(cacheKey(source, target)) ?? null
 }
 
 async function readOnce(
   source: MobileNativeChatVisualSource,
-  file: string,
+  target: { file: string | null; path: string | null },
   key: string
 ): Promise<MobileNativeChatVisualRead> {
   const known = cache.get(key)
+  const request = {
+    sessionId: source.sessionId,
+    ...(target.file !== null ? { file: target.file } : {}),
+    ...(target.path !== null ? { path: target.path } : {})
+  }
   let response
   try {
     response = await nativeChatVisualRead.request(
       source.client,
       {
-        sessionId: source.sessionId,
-        file,
+        ...request,
         ...(known ? { knownRevision: known.revision } : {})
       },
       { timeoutMs: READ_TIMEOUT_MS, budgetSpansConnect: true }
@@ -148,14 +155,14 @@ async function readOnce(
 
 export function readMobileNativeChatVisual(
   source: MobileNativeChatVisualSource,
-  file: string
+  target: { file: string | null; path: string | null }
 ): Promise<MobileNativeChatVisualRead> {
-  const key = cacheKey(source, file)
+  const key = cacheKey(source, target)
   const pending = inFlight.get(key)
   if (pending) {
     return pending
   }
-  const read = readOnce(source, file, key).finally(() => {
+  const read = readOnce(source, target, key).finally(() => {
     inFlight.delete(key)
   })
   inFlight.set(key, read)

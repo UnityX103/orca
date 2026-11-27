@@ -15,25 +15,26 @@ const AUTO_RETRY_DELAYS_MS = [1_500, 5_000] as const
 
 function initialState(
   source: MobileNativeChatVisualSource,
-  file: string
+  target: { file: string | null; path: string | null }
 ): MobileNativeChatVisualState {
-  const cached = cachedMobileNativeChatVisual(source, file)
+  const cached = cachedMobileNativeChatVisual(source, target)
   return cached ? { kind: 'ready', ...cached } : { kind: 'loading' }
 }
 
 // Render cached content while revalidating with the owning host; bound automatic retries but let explicit retry or a new client start again.
 export function useMobileNativeChatVisual(
   source: MobileNativeChatVisualSource,
-  file: string
+  target: { file: string | null; path: string | null }
 ): { state: MobileNativeChatVisualState; retry: () => void } {
-  const [state, setState] = useState(() => initialState(source, file))
+  const { file, path } = target
+  const [state, setState] = useState(() => initialState(source, { file, path }))
   // `round` is a reader's retry; `retriesUsed` counts automatic re-asks within it.
   const [request, setRequest] = useState({ round: 0, retriesUsed: 0 })
   const [retryInMs, setRetryInMs] = useState<number | null>(null)
 
   useEffect(() => {
     let disposed = false
-    void readMobileNativeChatVisual(source, file).then((read) => {
+    void readMobileNativeChatVisual(source, { file, path }).then((read) => {
       if (disposed) {
         return
       }
@@ -60,7 +61,7 @@ export function useMobileNativeChatVisual(
     return () => {
       disposed = true
     }
-  }, [source, file, request])
+  }, [source, file, path, request])
 
   useEffect(() => {
     if (retryInMs === null) {

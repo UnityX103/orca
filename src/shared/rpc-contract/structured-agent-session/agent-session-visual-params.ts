@@ -1,8 +1,12 @@
 import { z } from 'zod'
-import { isNativeChatVisualFileName } from '../../native-chat/visuals/native-chat-visual-directive'
+import {
+  isNativeChatVisualFileName,
+  isNativeChatVisualPath
+} from '../../native-chat/visuals/native-chat-visual-directive'
 import { SessionId } from './structured-agent-session-identifiers'
 
-// Read visuals on their owning host; accept bare filenames, never another host’s paths.
+// Read visuals on their owning host. `file` is a bare scratch-folder name; `path` is an absolute host path a Codex
+// reference named, which the host still confines to the session's workspace or scratch folder.
 
 /** Content revision: hex digest of the file's bytes. */
 const Revision = z.string().regex(/^[0-9a-f]{16,64}$/)
@@ -10,11 +14,15 @@ const Revision = z.string().regex(/^[0-9a-f]{16,64}$/)
 export const ReadVisualParams = z
   .object({
     sessionId: SessionId,
-    file: z.string().refine(isNativeChatVisualFileName, 'Invalid visual file name'),
+    file: z.string().refine(isNativeChatVisualFileName, 'Invalid visual file name').optional(),
+    path: z.string().refine(isNativeChatVisualPath, 'Invalid visual path').optional(),
     // The revision the client already holds; a match answers `unchanged` without the bytes.
     knownRevision: Revision.optional()
   })
   .strict()
+  .refine((params) => params.file !== undefined || params.path !== undefined, {
+    message: 'A visual read needs a file or a path'
+  })
 
 export type AgentSessionReadVisualParams = z.infer<typeof ReadVisualParams>
 

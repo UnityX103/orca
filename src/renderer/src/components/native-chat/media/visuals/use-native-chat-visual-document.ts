@@ -4,6 +4,7 @@ import { ORCA_EDITOR_FILE_SAVED_EVENT } from '@/components/editor/autosave/edito
 import { editorSavedEventView } from '@/components/editor/save/commands/editor-saved-event-view'
 import { getRuntimeTargetForFileOwner } from '@/lib/files/access/file-owner-runtime-target'
 import { useAppStore } from '@/store'
+import type { AgentSessionVisualReadError } from '../../../../../../shared/rpc-contract/structured-agent-session/agent-session-visual-params'
 import type { RuntimeClientTarget } from '../../../../../../shared/remote-runtime/host-catalog/runtime-client-target'
 import {
   isRetryableNativeChatVisualFailure,
@@ -16,7 +17,7 @@ import {
 export type NativeChatVisualDocumentState =
   | { status: 'loading' }
   | { status: 'ready'; document: NativeChatVisualDocument }
-  | { status: 'unavailable' }
+  | { status: 'unavailable'; reason: AgentSessionVisualReadError | 'unavailable' }
 
 /** Waits before each retry of a read that may yet succeed; bounded, then the failure shows. */
 export const NATIVE_CHAT_VISUAL_RETRY_DELAYS_MS = [1_500, 4_000, 10_000] as const
@@ -62,7 +63,7 @@ async function loadWithRetries(
       setState((shown) =>
         shown.status === 'ready' && outcome.reason === 'unavailable'
           ? shown
-          : { status: 'unavailable' }
+          : { status: 'unavailable', reason: outcome.reason }
       )
       return
     }
@@ -111,7 +112,7 @@ export function useNativeChatVisualDocument(
   identity: NativeChatVisualIdentity,
   enabled: boolean
 ): NativeChatVisualDocumentState {
-  const { sessionId, file } = identity
+  const { sessionId, file, path } = identity
   const environmentId =
     identity.target.kind === 'environment' ? identity.target.environmentId : null
   const [state, setState] = useState<NativeChatVisualDocumentState>(() => {
@@ -131,12 +132,13 @@ export function useNativeChatVisualDocument(
       const identityNow: NativeChatVisualIdentity = {
         target: environmentId === null ? { kind: 'local' } : { kind: 'environment', environmentId },
         sessionId,
-        file
+        file,
+        path
       }
       const abort = new AbortController()
       void loadWithRetries(identityNow, abort.signal, setState, saves > 0)
       return () => abort.abort()
-    }, [enabled, environmentId, file, sessionId, saves])
+    }, [enabled, environmentId, file, path, sessionId, saves])
   )
 
   return state

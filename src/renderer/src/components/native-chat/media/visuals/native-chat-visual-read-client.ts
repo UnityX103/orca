@@ -11,7 +11,10 @@ import {
 export type NativeChatVisualIdentity = {
   target: RuntimeClientTarget
   sessionId: string
-  file: string
+  /** The scratch-folder file name (Orca's own directive), or null for an absolute Codex path. */
+  file: string | null
+  /** The absolute host path a Codex reference named, or null for a scratch-folder file. */
+  path: string | null
 }
 
 /** `path`: the visual's absolute path on the chat's host, which opens it like any file there. */
@@ -32,7 +35,7 @@ const inFlight = new Map<string, Promise<NativeChatVisualReadOutcome>>()
 export function nativeChatVisualKey(identity: NativeChatVisualIdentity): string {
   const runtime =
     identity.target.kind === 'local' ? 'local' : `environment:${identity.target.environmentId}`
-  return JSON.stringify([runtime, identity.sessionId, identity.file])
+  return JSON.stringify([runtime, identity.sessionId, identity.file, identity.path])
 }
 
 export function peekCachedNativeChatVisual(
@@ -94,6 +97,19 @@ function interpret(
   return { ok: false, reason: isKnownReadError(result.error) ? result.error : 'unavailable' }
 }
 
+/** The RPC fields for a read: a scratch name, or a Codex absolute path. */
+function readParams(identity: NativeChatVisualIdentity): {
+  sessionId: string
+  file?: string
+  path?: string
+} {
+  return {
+    sessionId: identity.sessionId,
+    ...(identity.file !== null ? { file: identity.file } : {}),
+    ...(identity.path !== null ? { path: identity.path } : {})
+  }
+}
+
 async function readOnce(
   key: string,
   identity: NativeChatVisualIdentity
@@ -104,8 +120,7 @@ async function readOnce(
       identity.target,
       'agentSession.readVisual',
       {
-        sessionId: identity.sessionId,
-        file: identity.file,
+        ...readParams(identity),
         ...(known ? { knownRevision: known } : {})
       },
       { timeoutMs: READ_TIMEOUT_MS }
@@ -119,7 +134,7 @@ async function readOnce(
         await callRuntimeRpc<AgentSessionReadVisualResult>(
           identity.target,
           'agentSession.readVisual',
-          { sessionId: identity.sessionId, file: identity.file },
+          readParams(identity),
           { timeoutMs: READ_TIMEOUT_MS }
         )
       )
