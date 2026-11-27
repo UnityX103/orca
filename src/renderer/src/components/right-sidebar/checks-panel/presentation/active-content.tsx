@@ -31,13 +31,15 @@ export function ChecksPanelActiveContent({
   refreshError,
   coldChecks,
   coldComments,
-  commentsError
+  commentsError,
+  linkedIssues
 }: {
   model: ChecksPanelActiveContentModel
   refreshError: string | null
   coldChecks: boolean
   coldComments: boolean
   commentsError: string | null
+  linkedIssues?: React.ReactNode
 }): React.JSX.Element | null {
   const t = useTranslate()
   const {
@@ -220,6 +222,8 @@ export function ChecksPanelActiveContent({
           />
         )}
       </div>
+
+      {linkedIssues}
 
       {shouldShowReviewTriageStrip && sourceControlAiActionsVisible && (
         <PRTriageStrip

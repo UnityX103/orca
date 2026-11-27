@@ -22,6 +22,8 @@ import { createParentPrChecksProjectionSelector } from './parent-pr-checks-proje
 import { selectFolderWorkspaces } from '@/store/workspaces/catalog/workspace-record-fields'
 import { selectSidebarChildrenByParentIdentity } from '@/store/slices/worktrees/metadata/cross-store-lineage-parents'
 import { FolderWorkspaceEmptyState } from '../../folder-workspaces/folder-workspace-empty-state'
+import { folderWorkspaceToWorktree } from '../../../../../../shared/folder-workspaces/folder-workspace-worktree'
+import { WorkspaceCnbIssues } from '../WorkspaceCnbIssues'
 
 type FolderWorkspacePrChecksPanelProps = {
   isVisible?: boolean
@@ -239,6 +241,8 @@ export default function FolderWorkspacePrChecksPanel({
           </Tooltip>
         </div>
       </div>
+
+      {isVisible && <WorkspaceCnbIssues workspace={folderWorkspaceToWorktree(folderWorkspace)} />}
 
       {childWorktrees.length === 0 ? (
         <FolderWorkspaceEmptyState

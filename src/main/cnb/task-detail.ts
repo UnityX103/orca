@@ -71,6 +71,18 @@ const commentRow = z.object({
   created_at: z.string().nullish()
 })
 
+export async function readCnbIssueRecord(
+  path: string,
+  token: string
+): Promise<CnbDetailResult<z.output<typeof issueDetail>>> {
+  const response = await cnbRequest(path, token)
+  if (response.ok) {
+    return { ok: true, detail: issueDetail.parse(await response.json()) }
+  }
+  await discardCnbBody(response)
+  return { ok: false, reason: response.status === 404 ? 'not-found' : 'request-failed' }
+}
+
 function toComments(rows: z.output<typeof commentRow>[]): CnbComment[] {
   return rows.slice(0, MAX_COMMENTS).map((row) => ({
     id: row.id,
@@ -89,16 +101,11 @@ export async function readCnbIssueDetail(
     return { ok: false, reason: 'not-connected' }
   }
   const base = `${cnbRepositoryPath(repository)}/issues/${number}`
-  const infoResponse = await cnbRequest(base, token)
-  if (infoResponse.status === 404) {
-    await discardCnbBody(infoResponse)
-    return { ok: false, reason: 'not-found' }
+  const record = await readCnbIssueRecord(base, token)
+  if (!record.ok) {
+    return record
   }
-  if (!infoResponse.ok) {
-    await discardCnbBody(infoResponse)
-    return { ok: false, reason: 'request-failed' }
-  }
-  const info = issueDetail.parse(await infoResponse.json())
+  const info = record.detail
   const properties = readIssueProperties(`${base}/property`, token)
   let comments: CnbComment[] = []
   try {

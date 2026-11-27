@@ -17,6 +17,7 @@ import { parseGitHubIssueOrPRLink } from '../../../../../../shared/github/reposi
 import { parseGitLabIssueOrMRLink } from '../../../../../../shared/new-workspace/gitlab-links'
 import { parseLinearIssueInput } from '../../../../../../shared/linear/links'
 import { parseJiraIssueUrl } from '../../../../../../shared/jira/jira-issue-url'
+import { parseCnbWorkItemUrl } from '../../../../../../shared/cnb/cnb-work-item-url'
 import { isWorkItemLinkQueryTooLarge } from '../../../../../../shared/new-workspace/work-item-link-query-bounds'
 
 export const ATTACHMENT_INPUT_KINDS = [
@@ -101,7 +102,7 @@ export function parseWorkspaceAttachmentInput(
     }
     const cnb = parseCnbWorkItemUrl(value)
     if (cnb) {
-      return cnb
+      return { provider: 'cnb', type: cnb.type, number: cnb.number, url: value }
     }
     if (jira) {
       return {
@@ -185,27 +186,6 @@ export function getActiveWorkspaceReviewKey(worktree: Worktree | undefined): str
               : false
   )
   return active ? getWorkspaceAttachmentKey(active) : null
-}
-
-function parseCnbWorkItemUrl(value: string): WorkspaceAttachment | null {
-  let url: URL
-  try {
-    url = new URL(value)
-  } catch {
-    return null
-  }
-  if (url.username || url.password || url.hostname !== 'cnb.cool') {
-    return null
-  }
-  const match = /^\/(.+)\/-\/(issues|pulls)\/(\d+)\/?$/.exec(url.pathname)
-  if (!match) {
-    return null
-  }
-  const number = Number(match[3])
-  if (!Number.isSafeInteger(number) || number <= 0) {
-    return null
-  }
-  return { provider: 'cnb', type: match[2] === 'pulls' ? 'pr' : 'issue', number, url: value }
 }
 
 function parseOtherReviewUrl(value: string): WorkspaceAttachment | null {

@@ -1,21 +1,13 @@
 import { getWorkspaceAttachments } from '../workspace-attachments/workspace-attachments'
 import { parseWorkspaceKey } from '../workspace/identity/workspace-scope'
 import type { Worktree } from '../worktree/types'
+import { parseCnbWorkItemUrl } from './cnb-work-item-url'
 
 function slugFromUrl(url?: string): string | null {
   if (!url) {
     return null
   }
-  try {
-    const parsed = new URL(url)
-    if (parsed.hostname !== 'cnb.cool') {
-      return null
-    }
-    const match = /^\/(.+?)\/-\/(?:issues|pulls)\/[1-9]\d*\/?$/.exec(parsed.pathname)
-    return match ? decodeURIComponent(match[1]).toLowerCase() : null
-  } catch {
-    return null
-  }
+  return parseCnbWorkItemUrl(url)?.repository.toLowerCase() ?? null
 }
 
 export function workspaceHasCnbWorkItem(

@@ -850,6 +850,7 @@ import {
   SkillsDiscoverParams,
   SkillsGetInstallProgressParams
 } from './skills/skills-params'
+import { CnbIssueReference } from './source-control/cnb-issue-params'
 import {
   GitBlame,
   GitBranchCompare,
@@ -1541,6 +1542,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'clipboard.commitImageUpload': CommitImageUpload,
   'clipboard.saveImageAsTempFile': SaveImageAsTempFile,
   'clipboard.startImageUpload': StartImageUpload,
+  'cnb.closeIssue': CnbIssueReference,
+  'cnb.getIssueStatus': CnbIssueReference,
   'computer.capabilities': ComputerCapabilitiesParams,
   'computer.click': Click,
   'computer.drag': DragOfComputerSchemasParams,

@@ -76,7 +76,12 @@ export async function mutateCnbHostedReview(
             reason: 'CNB reports that this pull request is blocked from merging.'
           }
         }
-        return await mergeCnbPull(`${pullPath(repository)}/${target.number}`, token, action.method)
+        return await mergeCnbPull(
+          `${pullPath(repository)}/${target.number}`,
+          token,
+          action.method,
+          pr.title
+        )
       }
       case 'state':
         if (state === 'merged') {

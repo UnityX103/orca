@@ -145,6 +145,8 @@ export const EXECUTION_HOST_METHODS = [
   'git.unstage',
   'git.upstreamStatus',
   // Repo-scoped provider calls run where the desktop runs them: on the repo's host, with its login.
+  'cnb.getIssueStatus',
+  'cnb.closeIssue',
   'github.addIssueComment',
   'github.addPRReviewComment',
   'github.addPRReviewCommentReply',

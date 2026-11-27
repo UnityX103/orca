@@ -21,6 +21,7 @@ import { useChecksPanelCreateReview } from './review-actions/use-checks-panel-cr
 import { ChecksPanelEmptyContent } from './presentation/empty-content'
 import { ChecksPanelActiveContent } from './presentation/active-content'
 import { ChecksPanelLoadingAnnouncement } from './presentation/checks-panel-loading-announcement'
+import { WorkspaceCnbIssues } from '../hosted-review/WorkspaceCnbIssues'
 import { getChecksPanelRefreshErrorBannerLine } from '../hosted-review/provider-actions/github-refresh-error-copy'
 import { useTranslate } from '@/i18n/use-translate'
 
@@ -85,6 +86,9 @@ export default function ChecksPanel(): React.JSX.Element {
       ? t('checksPanel.commentsUnavailable', 'Could not load comments.')
       : null)
   const coldComments = canShowLoading && !model.commentsLoaded && !commentsError
+  const linkedIssues = model.isPanelVisible && model.activeWorktree && (
+    <WorkspaceCnbIssues workspace={model.activeWorktree} repo={model.repo} />
+  )
   return (
     <>
       <ChecksPanelLoadingAnnouncement
@@ -98,9 +102,13 @@ export default function ChecksPanel(): React.JSX.Element {
           coldChecks={coldChecks}
           coldComments={coldComments}
           commentsError={commentsError}
+          linkedIssues={linkedIssues}
         />
       ) : (
-        <ChecksPanelEmptyContent model={model} />
+        <>
+          {linkedIssues}
+          <ChecksPanelEmptyContent model={model} />
+        </>
       )}
     </>
   )

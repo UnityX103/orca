@@ -5,6 +5,7 @@ import type {
   CnbTaskFailureReason,
   CnbWriteResult
 } from '../../shared/cnb/cnb-tasks'
+import { startSpan } from '../observability/tracer'
 import { cnbRequest, discardCnbBody, type CnbRequestOptions } from './request'
 import { cnbRepositoryPath } from './repository-ref'
 import { credential } from './task-schema'
@@ -20,26 +21,35 @@ export async function mergeCnbPull(
   title?: string,
   message?: string
 ): Promise<CnbWriteResult> {
+  const commitMessage = [title?.trim(), message?.trim()].filter(Boolean).join('\n\n')
+  const span = startSpan('cnb.mergePull', { attributes: { 'cnb.merge_style': style } })
   try {
     const response = await cnbRequest(`${path}/merge`, token, undefined, {
       method: 'PUT',
       body: {
         merge_style: style,
-        ...(title ? { commit_title: title } : {}),
-        ...(message ? { commit_message: message } : {})
+        // CNB's merge form sends the entire commit text in commit_message.
+        ...(style !== 'rebase' && commitMessage ? { commit_message: commitMessage } : {})
       },
       timeoutMs: 25_000
     })
+    span.setAttribute('http.status_code', response.status)
     const result = z
       .object({
         merged: z.boolean().optional(),
         message: z.string().optional(),
-        errmsg: z.string().optional()
+        errmsg: z.string().optional(),
+        errcode: z.number().optional()
       })
       .safeParse(await response.json().catch(() => null))
     if (response.ok && result.success && result.data.merged === true) {
+      span.end()
       return { ok: true }
     }
+    if (result.success && result.data.errcode !== undefined) {
+      span.setAttribute('cnb.error_code', result.data.errcode)
+    }
+    span.fail(response.ok ? 'CNB did not confirm merge' : 'CNB rejected merge')
     return {
       ok: false,
       reason:
@@ -49,6 +59,7 @@ export async function mergeCnbPull(
           : `CNB rejected the merge (HTTP ${response.status}).`)
     }
   } catch {
+    span.fail('CNB merge request failed')
     return {
       ok: false,
       reason:

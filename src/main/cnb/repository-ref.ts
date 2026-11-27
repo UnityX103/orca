@@ -1,3 +1,4 @@
+import { decodeCnbRepositoryPath } from '../../shared/cnb/cnb-work-item-url'
 import { createRemoteRefProbeCache } from '../git/remotes/remote-ref-probe-cache'
 import type { RemoteRefLocalGitOptions } from '../git/remotes/remote-ref-probe-cache'
 
@@ -21,22 +22,7 @@ export function parseCnbRemote(remote: string): string | null {
       return null
     }
   }
-  try {
-    const parts = pathname
-      .replace(/^\/+|\/+$/g, '')
-      .replace(/\.git$/i, '')
-      .split('/')
-      .map(decodeURIComponent)
-    if (
-      parts.length < 2 ||
-      parts.some((part) => part === '.' || part === '..' || !/^[\p{L}\p{N}_.-]+$/u.test(part))
-    ) {
-      return null
-    }
-    return parts.join('/')
-  } catch {
-    return null
-  }
+  return decodeCnbRepositoryPath(pathname.replace(/^\/+|\/+$/g, '').replace(/\.git$/i, ''))
 }
 
 const repoRefCache = createRemoteRefProbeCache(parseCnbRemote)
