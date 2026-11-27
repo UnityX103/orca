@@ -9,7 +9,6 @@ import type {
 } from '../../../../../../shared/cnb/cnb-tasks'
 
 type CnbApi = NonNullable<PreloadApi['cnb']>
-const UNAVAILABLE: CnbWriteResult = { ok: false, reason: 'unavailable' }
 const REQUEST_FAILED: CnbWriteResult = { ok: false, reason: 'request-failed' }
 
 export function useCnbRowWrites(args: { api: CnbApi | undefined; onChanged: () => void }) {
@@ -26,7 +25,7 @@ export function useCnbRowWrites(args: { api: CnbApi | undefined; onChanged: () =
         return
       }
       if (!api) {
-        toast.error(failureMessage, { description: UNAVAILABLE.reason })
+        toast.error(failureMessage)
         return
       }
       writing.current = true
