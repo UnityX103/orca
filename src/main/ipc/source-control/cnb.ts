@@ -27,6 +27,11 @@ import { guardWslUncPathAccess } from '../../wsl/filesystem/wsl-unc-access-gate'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { registerCnbReviewHandlers } from './cnb-review'
 import { registerCnbTaskDispatchHandlers } from './cnb-task-dispatch'
+import { registerCnbInlineReadHandlers } from './cnb-inline-reads'
+import {
+  issueWriteRequest as issueWriteSchema,
+  pullWriteRequest as pullWriteSchema
+} from './cnb-write-schemas'
 
 const filtersSchema = z.object({
   state: z.enum(['open', 'closed', 'all']),
@@ -91,64 +96,8 @@ const attachRequest = z.object({
     .max(40 * 1024 * 1024)
 })
 
-const issueWriteRequest = z.object({
-  repoId: z.string().min(1),
-  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
-  payload: z.discriminatedUnion('action', [
-    z.object({
-      action: z.literal('create'),
-      title: z.string().min(1).max(255),
-      body: z.string().max(65_536),
-      labels: z.array(z.string().max(200)).max(10),
-      assignees: z.array(z.string().max(100)).max(8)
-    }),
-    z.object({
-      action: z.literal('update'),
-      title: z.string().min(1).max(255).optional(),
-      body: z.string().max(65_536).optional(),
-      state: z.enum(['open', 'closed']).optional()
-    }),
-    z.object({ action: z.literal('comment'), body: z.string().min(1).max(65_536) }),
-    z.object({ action: z.literal('labels'), labels: z.array(z.string().max(200)).max(10) }),
-    z.object({ action: z.literal('assignees'), assignees: z.array(z.string().max(100)).max(8) }),
-    z.object({
-      action: z.literal('property'),
-      key: z
-        .string()
-        .min(1)
-        .max(255)
-        .regex(/^[A-Za-z0-9_]+$/),
-      value: z.string().max(50)
-    })
-  ])
-})
-
-const pullWriteRequest = z.object({
-  repoId: z.string().min(1),
-  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-  payload: z.discriminatedUnion('action', [
-    z.object({
-      action: z.literal('update'),
-      title: z.string().min(1).max(255).optional(),
-      body: z.string().max(65_536).optional(),
-      state: z.enum(['open', 'closed']).optional()
-    }),
-    z.object({ action: z.literal('comment'), body: z.string().min(1).max(65_536) }),
-    z.object({ action: z.literal('reviewers'), reviewers: z.array(z.string().max(100)).max(16) }),
-    z.object({ action: z.literal('labels'), labels: z.array(z.string().max(200)).max(10) }),
-    z.object({
-      action: z.literal('review'),
-      event: z.enum(['approve', 'comment', 'request_changes']),
-      body: z.string().max(65_536)
-    }),
-    z.object({
-      action: z.literal('merge'),
-      style: z.enum(['merge', 'squash', 'rebase']),
-      title: z.string().max(500),
-      message: z.string().max(65_536)
-    })
-  ])
-})
+const issueWriteRequest = issueWriteSchema
+const pullWriteRequest = pullWriteSchema
 
 async function resolveTaskRepository(store: Store, repo: Repo): Promise<string | null> {
   const localGitExecOptions = getLocalProjectWorktreeGitOptions(store, repo)
@@ -175,6 +124,7 @@ async function resolveRepoSlug(store: Store, repoId: string): Promise<string | n
 export function registerCnbHandlers(store: Store, runtime: OrcaRuntimeService): void {
   registerCnbTaskDispatchHandlers(runtime, store, (repoId) => resolveRepoSlug(store, repoId))
   registerCnbReviewHandlers(store, runtime)
+  registerCnbInlineReadHandlers(store, (repoId) => resolveRepoSlug(store, repoId))
   ipcMain.handle('cnb:connect', (_event, token: unknown) => connectCnb(token))
   ipcMain.handle('cnb:disconnect', () => disconnectCnb())
   ipcMain.handle('cnb:status', () => getCnbCredentialStatus())

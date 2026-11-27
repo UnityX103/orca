@@ -1,6 +1,8 @@
 export type CnbTaskKind = 'issues' | 'pull-requests'
 export type CnbTaskState = 'open' | 'closed' | 'merged'
 export type CnbListStateFilter = 'open' | 'closed' | 'all'
+/** CNB `state_reason` values; `duplicate` does not exist in the API (see PR notes). */
+export type CnbIssueStateReason = 'completed' | 'not_planned'
 
 export type CnbTaskRepository = { id: string; slug: string }
 
@@ -199,7 +201,14 @@ export type CnbWriteResult = { ok: true } | { ok: false; reason: string }
 
 export type CnbIssueWrite =
   | { action: 'create'; title: string; body: string; labels: string[]; assignees: string[] }
-  | { action: 'update'; title?: string; body?: string; state?: 'open' | 'closed' }
+  | {
+      action: 'update'
+      title?: string
+      body?: string
+      state?: 'open' | 'closed'
+      /** Only meaningful with `state: 'closed'`; CNB pairs state with state_reason. */
+      stateReason?: CnbIssueStateReason
+    }
   | { action: 'comment'; body: string }
   | { action: 'labels'; labels: string[] }
   | { action: 'assignees'; assignees: string[] }
@@ -212,6 +221,23 @@ export type CnbPullWrite =
   | { action: 'labels'; labels: string[] }
   | { action: 'review'; event: 'approve' | 'comment' | 'request_changes'; body: string }
   | { action: 'merge'; style: 'merge' | 'squash' | 'rebase'; title: string; message: string }
+
+/** A repository member usable as an assignee/reviewer candidate. */
+export type CnbMember = { login: string; nickname: string | null }
+
+export type CnbMemberListResult =
+  | { ok: true; members: CnbMember[]; truncated: boolean }
+  /** `forbidden` means the token lacks repo-manage:r; callers fall back to manual usernames. */
+  | { ok: false; reason: 'not-connected' | 'forbidden' | 'request-failed' }
+
+/** Lazy per-row check state for a PR row, since the list rows carry no check data. */
+export type CnbPullChecksResult =
+  | {
+      ok: true
+      checks: CnbCheckState
+      summary: { total: number; passed: number; failed: number; pending: number } | null
+    }
+  | { ok: false; reason: CnbTaskFailureReason | 'not-found' }
 
 /** A single attachment upload result; `markdown` is inserted into the body being edited. */
 export type CnbAttachmentResult =

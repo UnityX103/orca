@@ -13,10 +13,12 @@ import type {
   CnbIssueDetail,
   CnbIssueWrite,
   CnbListFilters,
+  CnbMemberListResult,
   CnbMissionListResult,
   CnbMissionResourcePage,
   CnbMissionViewConfig,
   CnbPullDetail,
+  CnbPullChecksResult,
   CnbPullWrite,
   CnbTaskKind,
   CnbTaskListPage,
@@ -54,12 +56,16 @@ export const cnbApi = {
     repoId: string
     number: number
   }): Promise<CnbDetailResult<CnbPullDetail>> => ipcRenderer.invoke('cnb:pull-detail', request),
+  pullChecks: (request: { repoId: string; number: number }): Promise<CnbPullChecksResult> =>
+    ipcRenderer.invoke('cnb:pull-checks', request),
   getTaskDispatch: (target: CnbTaskDispatchTarget): Promise<CnbTaskDispatch | null> =>
     ipcRenderer.invoke('cnb:task-dispatch-get', target),
   startTaskDispatch: (request: CnbTaskDispatchRequest): Promise<CnbTaskDispatch> =>
     ipcRenderer.invoke('cnb:task-dispatch-start', request),
   viewer: (): Promise<{ username: string; nickname: string | null } | null> =>
     ipcRenderer.invoke('cnb:viewer'),
+  members: (request: { repoId: string }): Promise<CnbMemberListResult> =>
+    ipcRenderer.invoke('cnb:members', request),
   labels: (request: { repoIds: string[] }): Promise<string[]> =>
     ipcRenderer.invoke('cnb:labels', request),
   missions: (request: { orgs: string[] }): Promise<CnbMissionListResult> =>

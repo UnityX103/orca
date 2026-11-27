@@ -31060,5 +31060,46 @@
       "differingState": "Orca bu klasör için WSL yolu ile {{drivePath}} konumunda farklı bilgiler kaydetmiş. Hiçbir değişiklik yapılmadı.",
       "projectSplit": "Bu projede dönüşüme dâhil olmayan bir repository de var. Hiçbir değişiklik yapılmadı."
     }
+  },
+  "cnb": {
+    "tasks": {
+      "headerChecks": "Kontroller",
+      "headerMerge": "Birleştir",
+      "changeState": "Durumu değiştir: {{state}}",
+      "closeAsCompleted": "Tamamlandı olarak kapat",
+      "closeAsNotPlanned": "Planlanmadı olarak kapat",
+      "closePull": "Pull request’i kapat",
+      "stateUpdateFailed": "Issue durumu güncellenemedi.",
+      "stateUpdateFailedPull": "Pull request durumu güncellenemedi.",
+      "editAssignees": "Atananları düzenle: {{value}}",
+      "editReviewers": "İnceleyicileri düzenle: {{value}}",
+      "assigneesUpdateFailed": "Atananlar güncellenemedi.",
+      "reviewersUpdateFailed": "İnceleyiciler güncellenemedi.",
+      "loadingMembers": "Üyeler yükleniyor…",
+      "membersForbidden": "Bu CNB belirteci proje üyelerini listeleyemiyor (repo-manage:r gerekir). Aşağıya kullanıcı adları girin.",
+      "membersFailed": "Üyeler yüklenemedi. Aşağıya kullanıcı adları girin.",
+      "usernamePlaceholder": "Kullanıcı adı",
+      "addAssignee": "Atanan ekle",
+      "addReviewer": "İnceleyici ekle",
+      "editLabels": "Etiketleri düzenle",
+      "labelsUpdateFailed": "Etiketler güncellenemedi.",
+      "labelNamePlaceholder": "Etiket adı",
+      "addLabel": "Etiket ekle",
+      "checksNeutral": "Kontrol yok",
+      "checksLoading": "Kontroller yükleniyor…",
+      "checksError": "Kontroller kullanılamıyor",
+      "checksCounts": "{{passed}} geçti · {{failed}} başarısız · {{pending}} beklemede",
+      "openChecks": "Bu pull request’in kontrollerini aç",
+      "mergeClosed": "Bu pull request açık değil.",
+      "mergeMenu": "Pull request’i birleştir",
+      "mergeConfirmTitle": "Pull request #{{number}} birleştirilsin mi?",
+      "mergeConfirmBody": "Bu, pull request’i CNB üzerinde “{{style}}” ile birleştirir.",
+      "mergeFailed": "Pull request birleştirilemedi.",
+      "moreActions": "#{{number}} için diğer işlemler",
+      "resumeWorkspace": "Çalışma alanını sürdür",
+      "startNewWorkspace": "Yeni çalışma alanı başlat",
+      "linkCopied": "Bağlantı kopyalandı",
+      "copyFailed": "Bağlantı kopyalanamadı"
+    }
   }
 }

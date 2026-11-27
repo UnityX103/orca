@@ -31,12 +31,15 @@ function stateLabel(detail: CnbPullDetail, t: ReturnType<typeof useTranslate>): 
 export function CnbPullDetailPanel({
   api,
   row,
+  initialTab,
   onBack,
   onChanged,
   onStartWorkspace
 }: {
   api: CnbApi
   row: CnbTaskRow
+  /** Open on the Checks tab when the list's Checks cell was clicked. */
+  initialTab?: 'checks'
   onBack: () => void
   onChanged: () => void
   onStartWorkspace: (row: CnbTaskRow) => void
@@ -157,7 +160,7 @@ export function CnbPullDetailPanel({
             ))}
           </div>
 
-          <Tabs defaultValue="conversation" className="min-h-0 flex-1">
+          <Tabs defaultValue={initialTab ?? 'conversation'} className="min-h-0 flex-1">
             <TabsList variant="line" size="sm">
               <TabsTrigger value="conversation">
                 {t('cnb.tasks.conversation', 'Conversation')}

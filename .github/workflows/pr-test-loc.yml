@@ -33,7 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           for script in pr-test-loc-table.mjs pr-test-loc-summary.mjs; do
-            gh api "repos/${GITHUB_REPOSITORY}/contents/.github/scripts/${script}?ref=${TRUSTED_REF}" \
+            gh api --method GET "repos/${GITHUB_REPOSITORY}/contents/.github/scripts/${script}" \
+              --raw-field "ref=${TRUSTED_REF}" \
               --jq .content | base64 --decode > "$RUNNER_TEMP/${script}"
           done
           node "$RUNNER_TEMP/pr-test-loc-summary.mjs" --update-pr "$PR_NUMBER"

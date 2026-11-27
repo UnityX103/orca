@@ -4,12 +4,16 @@ import { AlertCircle } from 'lucide-react'
 import { PaginationBar } from '../PaginationBar'
 import { CnbRetryRow, CnbSkeletonRows, CnbTaskTable } from './CnbTaskTable'
 import { cnbTaskGrid } from './cnb-task-row-model'
+import type { PreloadApi } from '../../../../../preload/api-types'
 import type { CnbTaskKind, CnbTaskRow } from '../../../../../shared/cnb/cnb-tasks'
+
+type CnbApi = NonNullable<PreloadApi['cnb']>
 
 export function CnbTaskListPanel({
   kind,
   rows,
   showRepo,
+  api,
   loading,
   error,
   needsConnect,
@@ -19,15 +23,20 @@ export function CnbTaskListPanel({
   page,
   pageCount,
   hasNextPage,
+  isWorkspaceAttached,
   onPageChange,
   onOpen,
+  onOpenPullChecks,
   onStartWorkspace,
+  onUseNewWorkspace,
   onRetry,
-  onOpenIntegrations
+  onOpenIntegrations,
+  onChanged
 }: {
   kind: CnbTaskKind
   rows: CnbTaskRow[]
   showRepo: boolean
+  api: CnbApi | undefined
   loading: boolean
   error: string | null
   needsConnect: boolean
@@ -37,11 +46,15 @@ export function CnbTaskListPanel({
   page: number
   pageCount: number | null
   hasNextPage: boolean
+  isWorkspaceAttached: (row: CnbTaskRow) => boolean
   onPageChange: (page: number) => void
   onOpen: (row: CnbTaskRow) => void
+  onOpenPullChecks: (row: CnbTaskRow) => void
   onStartWorkspace: (row: CnbTaskRow) => void
+  onUseNewWorkspace: (row: CnbTaskRow) => void
   onRetry: () => void
   onOpenIntegrations: () => void
+  onChanged: () => void
 }): React.JSX.Element {
   const t = useTranslate()
   const grid = cnbTaskGrid(kind)
@@ -57,13 +70,21 @@ export function CnbTaskListPanel({
         >
           <span>{t('cnb.tasks.headerId', 'ID')}</span>
           <span>{t('cnb.tasks.headerTitle', 'Title / Context')}</span>
-          <span>
-            {kind === 'issues'
-              ? t('cnb.tasks.headerAssignees', 'Assignees')
-              : t('cnb.tasks.headerReviewers', 'Reviewers')}
-          </span>
-          <span>{t('cnb.tasks.headerStatus', 'Status')}</span>
+          {kind === 'issues' ? (
+            <>
+              <span>{t('cnb.tasks.headerAssignees', 'Assignees')}</span>
+              <span>{t('cnb.tasks.headerStatus', 'Status')}</span>
+            </>
+          ) : (
+            <>
+              <span>{t('cnb.tasks.headerReviewers', 'Reviewers')}</span>
+              <span>{t('cnb.tasks.headerChecks', 'Checks')}</span>
+              <span>{t('cnb.tasks.headerMerge', 'Merge')}</span>
+              <span>{t('cnb.tasks.headerStatus', 'Status')}</span>
+            </>
+          )}
           <span>{t('cnb.tasks.headerUpdated', 'Updated')}</span>
+          <span aria-hidden />
         </div>
 
         {scopeNotice ? (
@@ -117,8 +138,13 @@ export function CnbTaskListPanel({
             kind={kind}
             rows={rows}
             showRepo={showRepo}
+            api={api}
+            isWorkspaceAttached={isWorkspaceAttached}
             onOpen={onOpen}
+            onOpenPullChecks={onOpenPullChecks}
             onStartWorkspace={onStartWorkspace}
+            onUseNewWorkspace={onUseNewWorkspace}
+            onChanged={onChanged}
           />
         ) : null}
       </div>

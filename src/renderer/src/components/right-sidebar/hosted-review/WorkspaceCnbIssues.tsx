@@ -128,7 +128,7 @@ function WorkspaceCnbIssueRow({
     setClosing(true)
     setCloseError(null)
     let progressTimer: number | undefined
-    try {
+    const performClose = async (): Promise<void> => {
       const confirmed = await confirm({
         title: t('cnb.review.closeIssueTitle', 'Close Issue #{{number}}?', { number }),
         description: `${repository} · ${detail.title}`,
@@ -161,16 +161,16 @@ function WorkspaceCnbIssueRow({
             : `${closeFailure} ${result.reason}`
         )
       }
-    } catch {
+    }
+    await performClose().catch(() => {
       if (!request.signal.aborted) {
         setCloseError(closeFailure)
       }
-    } finally {
-      window.clearTimeout(progressTimer)
-      if (!request.signal.aborted) {
-        setClosing(false)
-        setShowProgress(false)
-      }
+    })
+    window.clearTimeout(progressTimer)
+    if (!request.signal.aborted) {
+      setClosing(false)
+      setShowProgress(false)
     }
   }
 

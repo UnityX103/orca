@@ -3,12 +3,12 @@ import type { AgentStatusIpcPayload } from '../../../../shared/agent-status/cont
 import type { ParsedAgentStatusPayload } from '../../../../shared/agent-status/contracts/agent-status-types'
 import { AGENT_STATUS_STALE_AFTER_MS } from '../../../../shared/agent-status/contracts/agent-status-freshness'
 
-const DIVIDER = /^─{8,}$/
-const COMPOSER = /^▶(?:\s|$)/
+const DIVIDER = /^\u2500{8,}$/
+const COMPOSER = /^\u25b6(?:\s|$)/
 const WORKSPACE = /^\[.+ \](?: \(|$)/
 const INTERRUPT_HINT = /\besc to interrupt\b/
-const COMPOSER_FOOTER = /\(shift\+tab\b|\? for shortcuts\b| · \/effort\b/
-const SPINNER = /^[◇◆]\s+.+(?:\.\.\.|…)/
+const COMPOSER_FOOTER = /\(shift\+tab\b|\? for shortcuts\b| \u00b7 \/effort\b/
+const SPINNER = /^[\u25c7\u25c6]\s+.+(?:\.\.\.|\u2026)/
 
 function readComposerActivity(emulator: HeadlessEmulator): 'working' | 'done' | null {
   if (emulator.isSynchronizedOutput) {
