@@ -94,15 +94,21 @@ export const commitStatusItem = z.object({
   target_url: z.string().nullish()
 })
 
+const commitStatusGroup = z.object({
+  sha: z.string().optional(),
+  state: z.string().optional(),
+  statuses: z.array(commitStatusItem).nullish()
+})
+
+// Two shapes exist: the official /pulls/{number}/commit-statuses 200 is one object
+// { state, statuses }, while the history form is an array of sha groups. Normalize both to an
+// array of groups so summarizeChecks handles either. `null`/absent means "no data", not "empty".
 export const commitStatusMap = z
-  .array(
-    z.object({
-      sha: z.string().optional(),
-      state: z.string().optional(),
-      statuses: z.array(commitStatusItem).nullish()
-    })
-  )
+  .union([z.array(commitStatusGroup), commitStatusGroup])
   .nullish()
+  .transform((value): z.output<typeof commitStatusGroup>[] | null =>
+    value == null ? null : Array.isArray(value) ? value : [value]
+  )
 
 export function displayName(
   user: { username?: string | null; nickname?: string | null } | null | undefined

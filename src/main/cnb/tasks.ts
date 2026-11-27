@@ -1,5 +1,7 @@
 export { readCnbTaskList, type CnbRepositoryTarget } from './task-list'
-export { readCnbIssueDetail, readCnbPullDetail } from './task-detail'
+export { readCnbIssueDetail } from './task-detail'
+export { readCnbPullDetail, pullHeadSchema } from './task-pull-detail'
+export { readCnbPullChecks } from './task-pull-checks'
 export {
   encodeMissionPath,
   readCnbMissions,
@@ -8,4 +10,4 @@ export {
 } from './mission-tasks'
 export { writeCnbIssue, writeCnbPull } from './task-writes'
 export { uploadCnbAttachment, type CnbAttachTarget } from './task-attachments'
-export { readCnbLabels, readCnbViewer, type CnbViewer } from './task-viewer'
+export { readCnbLabels, readCnbMembers, readCnbViewer, type CnbViewer } from './task-viewer'

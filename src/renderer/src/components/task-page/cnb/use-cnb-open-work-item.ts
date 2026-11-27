@@ -75,3 +75,53 @@ export function useCnbOpenIntegrations(): () => void {
     })
   }, [])
 }
+
+/** Always starts a new workspace (the row menu's "Start new workspace"), ignoring any attachment. */
+export function useCnbNewWorkItem(
+  model: TaskPageComposerActionsModel,
+  api: CnbApi | undefined
+): (row: CnbTaskRow) => void {
+  return useCallback(
+    (row: CnbTaskRow) => {
+      const type = cnbRowWorkItemType(row)
+      const repo = getWorkItemRepo(model.repos, row)
+      const openComposer = (baseBranch?: string): void => {
+        model.openModal('new-workspace-composer', {
+          linkedWorkItem: cnbLinkedWorkItem(row),
+          taskSourceContext: cnbRowSourceContext(repo),
+          prefilledName: cnbWorkspaceSeed(row),
+          initialRepoId: row.repoId,
+          ...(baseBranch ? { initialBaseBranch: baseBranch } : {}),
+          telemetrySource: 'sidebar'
+        })
+      }
+      if (type !== 'pr' || !api) {
+        openComposer()
+        return
+      }
+      void api.pullDetail({ repoId: row.repoId, number: row.number }).then(
+        (result) =>
+          openComposer(result.ok && result.detail.headRef ? result.detail.headRef : undefined),
+        () => openComposer()
+      )
+    },
+    [api, model]
+  )
+}
+
+/** Whether a CNB row already has an attached workspace, used to label the row menu. */
+export function useCnbWorkspaceAttachment(
+  model: TaskPageComposerActionsModel
+): (row: CnbTaskRow) => boolean {
+  return useCallback(
+    (row: CnbTaskRow) =>
+      findCnbWorkItemWorkspaceAttachment(
+        model.allWorktrees,
+        row.repoId,
+        cnbRowWorkItemType(row),
+        row.number,
+        row.url
+      ) !== null,
+    [model.allWorktrees]
+  )
+}

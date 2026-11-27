@@ -137,17 +137,19 @@ export async function writeCnbIssue(
       if (number === null) {
         return issueWriteResult('not-found')
       }
+      // CNB rejects state without state_reason; issue detail has no duplicate reason, only these two.
+      const stateReason =
+        payload.state === 'closed'
+          ? payload.stateReason === 'not_planned'
+            ? 'not_planned'
+            : 'completed'
+          : 'reopened'
       return write(`${base}/${number}`, token, {
         method: 'PATCH',
         body: {
           ...(payload.title !== undefined ? { title: payload.title } : {}),
           ...(payload.body !== undefined ? { body: payload.body } : {}),
-          ...(payload.state
-            ? {
-                state: payload.state,
-                state_reason: payload.state === 'closed' ? 'completed' : 'reopened'
-              }
-            : {})
+          ...(payload.state ? { state: payload.state, state_reason: stateReason } : {})
         }
       })
     }

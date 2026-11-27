@@ -1,7 +1,42 @@
 import { defineFixture } from '../../../component-fixtures/component-fixture'
+import { ConfirmationDialogProvider } from '../../dismiss/confirmation/confirmation-dialog'
 import { CnbTaskListPanel } from './CnbTaskListPanel'
-import { CnbMissionsPanel as CnbMissionsPanelLazy } from './CnbMissionsPanel'
 import type { CnbTaskRow } from '../../../../../shared/cnb/cnb-tasks'
+
+// The inline cells use the confirmation dialog (merge) and CNB bridge (members/checks/labels).
+function Panel(props: Parameters<typeof CnbTaskListPanel>[0]): React.JSX.Element {
+  return (
+    <ConfirmationDialogProvider>
+      <CnbTaskListPanel {...props} />
+    </ConfirmationDialogProvider>
+  )
+}
+
+const noop = (): void => {}
+const neverAttached = (): boolean => false
+
+const baseProps = {
+  showRepo: false,
+  api: undefined,
+  loading: false,
+  error: null,
+  needsConnect: false,
+  empty: { title: '', description: '' },
+  scopeNotice: null,
+  failures: [],
+  page: 1,
+  pageCount: null,
+  hasNextPage: false,
+  isWorkspaceAttached: neverAttached,
+  onPageChange: noop,
+  onOpen: noop,
+  onOpenPullChecks: noop,
+  onStartWorkspace: noop,
+  onUseNewWorkspace: noop,
+  onRetry: noop,
+  onOpenIntegrations: noop,
+  onChanged: noop
+} satisfies Partial<Parameters<typeof CnbTaskListPanel>[0]>
 
 const rows: CnbTaskRow[] = [
   {
@@ -60,24 +95,14 @@ const rows: CnbTaskRow[] = [
 export const populated = defineFixture({
   width: 1040,
   render: () => (
-    <CnbTaskListPanel
+    <Panel
+      {...baseProps}
       kind="issues"
       rows={rows}
       showRepo
-      loading={false}
-      error={null}
-      needsConnect={false}
       empty={{ title: 'No issues', description: '' }}
-      scopeNotice={null}
-      failures={[]}
-      page={1}
       pageCount={3}
       hasNextPage
-      onPageChange={() => {}}
-      onOpen={() => {}}
-      onStartWorkspace={() => {}}
-      onRetry={() => {}}
-      onOpenIntegrations={() => {}}
     />
   )
 })
@@ -85,24 +110,12 @@ export const populated = defineFixture({
 export const loading = defineFixture({
   width: 1040,
   render: () => (
-    <CnbTaskListPanel
+    <Panel
+      {...baseProps}
       kind="pull-requests"
       rows={[]}
-      showRepo={false}
       loading
-      error={null}
-      needsConnect={false}
       empty={{ title: 'No pull requests', description: '' }}
-      scopeNotice={null}
-      failures={[]}
-      page={1}
-      pageCount={null}
-      hasNextPage={false}
-      onPageChange={() => {}}
-      onOpen={() => {}}
-      onStartWorkspace={() => {}}
-      onRetry={() => {}}
-      onOpenIntegrations={() => {}}
     />
   )
 })
@@ -110,27 +123,14 @@ export const loading = defineFixture({
 export const emptyWithNoRepo = defineFixture({
   width: 1040,
   render: () => (
-    <CnbTaskListPanel
+    <Panel
+      {...baseProps}
       kind="issues"
       rows={[]}
-      showRepo={false}
-      loading={false}
-      error={null}
-      needsConnect={false}
       empty={{
         title: 'No issues match these filters.',
         description: 'Adjust the filters, project selection, or search to widen the results.'
       }}
-      scopeNotice={null}
-      failures={[]}
-      page={1}
-      pageCount={null}
-      hasNextPage={false}
-      onPageChange={() => {}}
-      onOpen={() => {}}
-      onStartWorkspace={() => {}}
-      onRetry={() => {}}
-      onOpenIntegrations={() => {}}
     />
   )
 })
@@ -138,24 +138,17 @@ export const emptyWithNoRepo = defineFixture({
 export const perRepoFailure = defineFixture({
   width: 1040,
   render: () => (
-    <CnbTaskListPanel
+    <Panel
+      {...baseProps}
       kind="issues"
       rows={rows.slice(0, 1)}
       showRepo
-      loading={false}
-      error={null}
-      needsConnect={false}
       empty={{ title: 'No issues', description: '' }}
       scopeNotice="Search scanned the 4 newest pull request pages."
       failures={[{ key: 'repo-b', message: 'Could not load nanzhaigame-xpy/engine-core.' }]}
       page={2}
       pageCount={5}
       hasNextPage
-      onPageChange={() => {}}
-      onOpen={() => {}}
-      onStartWorkspace={() => {}}
-      onRetry={() => {}}
-      onOpenIntegrations={() => {}}
     />
   )
 })
@@ -163,210 +156,155 @@ export const perRepoFailure = defineFixture({
 export const connectRequired = defineFixture({
   width: 1040,
   render: () => (
-    <CnbTaskListPanel
+    <Panel
+      {...baseProps}
       kind="issues"
       rows={[]}
-      showRepo={false}
-      loading={false}
       error="Connect CNB in Integrations to browse repository tasks."
       needsConnect
       empty={{ title: '', description: '' }}
-      scopeNotice={null}
-      failures={[]}
-      page={1}
-      pageCount={null}
-      hasNextPage={false}
-      onPageChange={() => {}}
-      onOpen={() => {}}
-      onStartWorkspace={() => {}}
-      onRetry={() => {}}
-      onOpenIntegrations={() => {}}
     />
   )
 })
 
-export const missionsEmpty = defineFixture({
-  width: 1040,
-  render: () => (
-    <CnbMissionsPanelLazy
-      state={{
-        status: 'ready',
-        missions: [],
-        selectedPath: null,
-        views: [],
-        fields: [],
-        selectedViewId: null,
-        resources: [],
-        nextCursor: null,
-        total: 0,
-        resourcesError: null,
-        canQueryResources: false
-      }}
-      missions={[]}
-      views={[]}
-      fields={[]}
-      selectedViewId={null}
-      resources={[]}
-      onSelectMission={() => {}}
-      onSelectView={() => {}}
-      onLoadMore={() => {}}
-      onRetry={() => {}}
-      onOpenResource={() => {}}
-    />
-  )
-})
+const pullRows: CnbTaskRow[] = [
+  {
+    repoId: 'repo-a',
+    repoSlug: 'nanzhaigame-xpy/mida2025',
+    number: 312,
+    title: 'Fix dash cancel buffering',
+    url: 'https://cnb.cool/nanzhaigame-xpy/mida2025/-/pulls/312',
+    state: 'open',
+    isDraft: false,
+    author: 'li',
+    assignees: ['li'],
+    labels: [{ name: 'bug', color: '#d73a4a' }],
+    reviewers: [
+      { login: 'xpy', reviewState: 'approved' },
+      { login: 'lin', reviewState: 'changes_requested' }
+    ],
+    checks: null,
+    mergeable: 'MERGEABLE',
+    updatedAt: '2026-11-26T09:00:00.000Z'
+  },
+  {
+    repoId: 'repo-a',
+    repoSlug: 'nanzhaigame-xpy/mida2025',
+    number: 305,
+    title: 'Conflicting change to battle loop',
+    url: 'https://cnb.cool/nanzhaigame-xpy/mida2025/-/pulls/305',
+    state: 'open',
+    isDraft: false,
+    author: 'wang',
+    assignees: [],
+    labels: [],
+    reviewers: [{ login: 'xpy', reviewState: null }],
+    checks: null,
+    mergeable: 'CONFLICTING',
+    updatedAt: '2026-11-24T03:00:00.000Z'
+  },
+  {
+    repoId: 'repo-a',
+    repoSlug: 'nanzhaigame-xpy/mida2025',
+    number: 300,
+    title: 'Closed but reopenable pull request',
+    url: 'https://cnb.cool/nanzhaigame-xpy/mida2025/-/pulls/300',
+    state: 'closed',
+    isDraft: false,
+    author: 'lin',
+    assignees: [],
+    labels: [],
+    reviewers: [],
+    checks: null,
+    mergeable: null,
+    updatedAt: '2026-11-20T03:00:00.000Z'
+  }
+]
 
-const roadmapMission = {
-  org: 'nanzhaigame-xpy',
-  path: 'nanzhaigame-xpy/roadmap',
-  name: '路线图',
-  description: '',
-  visibility: 'private'
+type CnbApi = NonNullable<Window['api']['cnb']>
+
+// A mock CNB bridge: proves the cells call the real write/preload shapes with the row's numbers.
+// Only the members/labels/checks reads and the two writers are exercised by these fixtures.
+const mockCnbApi = (): CnbApi => {
+  const api = {
+    members: async () => ({
+      ok: true as const,
+      members: [
+        { login: 'xpy', nickname: 'Xpy' },
+        { login: 'lin', nickname: null },
+        { login: 'wang', nickname: null }
+      ],
+      truncated: false
+    }),
+    labels: async () => ['bug', 'hotfix', 'localization'],
+    pullChecks: async () => ({
+      ok: true as const,
+      checks: 'failure' as const,
+      summary: { total: 3, passed: 1, failed: 1, pending: 1 }
+    }),
+    writePull: async () => ({ ok: true as const }),
+    writeIssue: async () => ({ ok: true as const })
+  }
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: fixture stub covers only the members/labels/checks/write surface the rows call; the rest of the bridge is unused here.
+  return api as unknown as CnbApi
 }
 
-export const missionsReady = defineFixture({
-  width: 1040,
+export const pullsInline = defineFixture({
+  width: 1120,
   render: () => (
-    <CnbMissionsPanelLazy
-      state={{
-        status: 'ready',
-        missions: [
-          roadmapMission,
-          {
-            org: 'nanzhaigame-xpy',
-            path: 'nanzhaigame-xpy/ship',
-            name: '发布',
-            description: '',
-            visibility: 'public'
-          }
-        ],
-        selectedPath: 'nanzhaigame-xpy/roadmap',
-        views: [
-          { id: 'v1', name: '全部', type: 'table' },
-          { id: 'v2', name: '进行中', type: 'board' }
-        ],
-        fields: [
-          { name: '优先级', interactionType: 'radio', operators: ['equal'], values: ['P0', 'P1'] },
-          { name: '负责人', interactionType: 'radio', operators: ['equal'], values: [] }
-        ],
-        selectedViewId: 'v1',
-        resources: [
-          {
-            kind: 'issue',
-            repoSlug: 'nanzhaigame-xpy/mida2025',
-            number: 129,
-            title: '【落后】C0–C8 本地化缺失内容',
-            state: 'open',
-            url: 'https://cnb.cool/nanzhaigame-xpy/mida2025/-/issues/129',
-            author: '海星',
-            assignees: ['xpy'],
-            priority: 'P1',
-            labels: [{ name: '本地化', color: '#0e8a16' }],
-            updatedAt: '2026-11-25T08:18:11Z'
-          },
-          {
-            kind: 'pull-request',
-            repoSlug: 'nanzhaigame-xpy/engine-core',
-            number: 57,
-            title: 'Buffer dash cancel input',
-            state: 'merged',
-            url: 'https://cnb.cool/nanzhaigame-xpy/engine-core/-/pulls/57',
-            author: 'li',
-            assignees: [],
-            priority: null,
-            labels: [],
-            updatedAt: '2026-11-26T01:00:00Z'
-          }
-        ],
-        nextCursor: 'cursor-2',
-        total: 60,
-        resourcesError: null,
-        canQueryResources: true
-      }}
-      missions={[roadmapMission]}
-      views={[
-        { id: 'v1', name: '全部', type: 'table' },
-        { id: 'v2', name: '进行中', type: 'board' }
-      ]}
-      fields={[
-        { name: '优先级', interactionType: 'radio', operators: ['equal'], values: ['P0', 'P1'] },
-        { name: '负责人', interactionType: 'radio', operators: ['equal'], values: [] }
-      ]}
-      selectedViewId="v1"
-      resources={[
-        {
-          kind: 'issue',
-          repoSlug: 'nanzhaigame-xpy/mida2025',
-          number: 129,
-          title: '【落后】C0–C8 本地化缺失内容',
-          state: 'open',
-          url: 'https://cnb.cool/nanzhaigame-xpy/mida2025/-/issues/129',
-          author: '海星',
-          assignees: ['xpy'],
-          priority: 'P1',
-          labels: [{ name: '本地化', color: '#0e8a16' }],
-          updatedAt: '2026-11-25T08:18:11Z'
-        },
-        {
-          kind: 'pull-request',
-          repoSlug: 'nanzhaigame-xpy/engine-core',
-          number: 57,
-          title: 'Buffer dash cancel input',
-          state: 'merged',
-          url: 'https://cnb.cool/nanzhaigame-xpy/engine-core/-/pulls/57',
-          author: 'li',
-          assignees: [],
-          priority: null,
-          labels: [],
-          updatedAt: '2026-11-26T01:00:00Z'
-        }
-      ]}
-      onSelectMission={() => {}}
-      onSelectView={() => {}}
-      onLoadMore={() => {}}
-      onRetry={() => {}}
-      onOpenResource={() => {}}
+    <Panel
+      {...baseProps}
+      kind="pull-requests"
+      rows={pullRows}
+      showRepo={false}
+      api={mockCnbApi()}
     />
-  )
+  ),
+  interact: async (frame) => {
+    // Radix dropdowns open on pointerdown; the merge menu shows the three merge styles.
+    const trigger = frame.querySelector<HTMLButtonElement>(
+      '[data-cnb-merge-trigger]:not([disabled])'
+    )
+    trigger?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  }
 })
 
-export const missionsResourcesForbidden = defineFixture({
+export const issuesInline = defineFixture({
   width: 1040,
   render: () => (
-    <CnbMissionsPanelLazy
-      state={{
-        status: 'ready',
-        missions: [roadmapMission],
-        selectedPath: 'nanzhaigame-xpy/roadmap',
-        views: [
-          { id: 'v1', name: '全部', type: 'table' },
-          { id: 'v2', name: '进行中', type: 'board' }
-        ],
-        fields: [
-          { name: '优先级', interactionType: 'radio', operators: ['equal'], values: ['P0', 'P1'] }
-        ],
-        selectedViewId: 'v1',
-        resources: [],
-        nextCursor: null,
-        total: 0,
-        resourcesError: 'forbidden',
-        canQueryResources: false
-      }}
-      missions={[roadmapMission]}
-      views={[
-        { id: 'v1', name: '全部', type: 'table' },
-        { id: 'v2', name: '进行中', type: 'board' }
-      ]}
-      fields={[
-        { name: '优先级', interactionType: 'radio', operators: ['equal'], values: ['P0', 'P1'] }
-      ]}
-      selectedViewId="v1"
-      resources={[]}
-      onSelectMission={() => {}}
-      onSelectView={() => {}}
-      onLoadMore={() => {}}
-      onRetry={() => {}}
-      onOpenResource={() => {}}
-    />
-  )
+    <Panel {...baseProps} kind="issues" rows={rows} showRepo={false} api={mockCnbApi()} />
+  ),
+  interact: async (frame) => {
+    // Open the status menu on the first issue row to capture the close-reason choices.
+    const trigger = frame.querySelector<HTMLButtonElement>('[data-cnb-status-trigger]')
+    trigger?.click()
+    await new Promise((resolve) => setTimeout(resolve, 150))
+  }
+})
+
+export const assigneePickerOpen = defineFixture({
+  width: 1040,
+  render: () => <Panel {...baseProps} kind="issues" rows={rows.slice(0, 1)} api={mockCnbApi()} />,
+  interact: async (frame) => {
+    // The assignee trigger button (popover) opens on click.
+    const trigger = frame.querySelector<HTMLButtonElement>('[data-cnb-people-trigger]')
+    trigger?.click()
+    await new Promise((resolve) => setTimeout(resolve, 250))
+  }
+})
+
+export const labelsPickerOpen = defineFixture({
+  width: 1040,
+  render: () => <Panel {...baseProps} kind="issues" rows={rows.slice(0, 1)} api={mockCnbApi()} />,
+  interact: async (frame) => {
+    const trigger = frame.querySelector<HTMLButtonElement>('[data-cnb-labels-trigger]')
+    trigger?.click()
+    await new Promise((resolve) => setTimeout(resolve, 250))
+  }
+})
+
+export const issuesNarrow = defineFixture({
+  width: 560,
+  render: () => <Panel {...baseProps} kind="issues" rows={rows} api={mockCnbApi()} />
 })

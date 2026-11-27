@@ -19,11 +19,14 @@ import {
 import { CnbTaskToolbar } from './CnbTaskToolbar'
 import { CnbTaskListPanel } from './CnbTaskListPanel'
 import { CnbMissionsPanel } from './CnbMissionsPanel'
-import { CnbIssueDetailPanel } from './detail/CnbIssueDetailPanel'
-import { CnbPullDetailPanel } from './detail/CnbPullDetailPanel'
+import { CnbTaskDetailRoute } from './detail/CnbTaskDetailRoute'
 import { CnbCreateIssueDialog } from './CnbCreateIssueDialog'
-import { cnbRowWorkItemType } from './cnb-work-item'
-import { useCnbOpenWorkItem, useCnbOpenIntegrations } from './use-cnb-open-work-item'
+import {
+  useCnbOpenWorkItem,
+  useCnbOpenIntegrations,
+  useCnbNewWorkItem,
+  useCnbWorkspaceAttachment
+} from './use-cnb-open-work-item'
 import type { TaskPageComposerActionsModel } from '../use-task-page-composer-actions'
 import type { CnbTaskRow } from '../../../../../shared/cnb/cnb-tasks'
 
@@ -46,10 +49,13 @@ export function CnbTasks({ model }: { model: TaskPageComposerActionsModel }): Re
   const [activeLabels, setActiveLabels] = useState<string[]>([])
   const [pageState, setPageState] = useState<{ key: string; page: number }>({ key: '', page: 1 })
   const [selectedRow, setSelectedRow] = useState<CnbTaskRow | null>(null)
+  const [selectedPullChecks, setSelectedPullChecks] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
 
   const { setTaskResumeState, updateSettings, repoSelection, setRepoSelection } = model
   const handleOpenOrUse = useCnbOpenWorkItem(model, api)
+  const handleNewWorkspace = useCnbNewWorkItem(model, api)
+  const isWorkspaceAttached = useCnbWorkspaceAttachment(model)
   const openIntegrations = useCnbOpenIntegrations()
   useEffect(() => {
     setTaskResumeState({ cnbMode: mode, cnbPreset: statePreset, cnbQuery: appliedSearch })
@@ -165,26 +171,25 @@ export function CnbTasks({ model }: { model: TaskPageComposerActionsModel }): Re
         }))
       : []
   const onChanged = useCallback(() => setRefreshNonce((value) => value + 1), [])
+  const openRow = useCallback((row: CnbTaskRow) => {
+    setSelectedPullChecks(false)
+    setSelectedRow(row)
+  }, [])
+  const openRowChecks = useCallback((row: CnbTaskRow) => {
+    setSelectedPullChecks(true)
+    setSelectedRow(row)
+  }, [])
 
   const detail =
     selectedRow && api ? (
-      cnbRowWorkItemType(selectedRow) === 'pr' ? (
-        <CnbPullDetailPanel
-          api={api}
-          row={selectedRow}
-          onBack={() => setSelectedRow(null)}
-          onChanged={onChanged}
-          onStartWorkspace={handleOpenOrUse}
-        />
-      ) : (
-        <CnbIssueDetailPanel
-          api={api}
-          row={selectedRow}
-          onBack={() => setSelectedRow(null)}
-          onChanged={onChanged}
-          onStartWorkspace={handleOpenOrUse}
-        />
-      )
+      <CnbTaskDetailRoute
+        api={api}
+        row={selectedRow}
+        initialChecks={selectedPullChecks}
+        onBack={() => setSelectedRow(null)}
+        onChanged={onChanged}
+        onStartWorkspace={handleOpenOrUse}
+      />
     ) : null
 
   return (
@@ -277,11 +282,16 @@ export function CnbTasks({ model }: { model: TaskPageComposerActionsModel }): Re
               page={1}
               pageCount={null}
               hasNextPage={false}
+              api={api}
+              isWorkspaceAttached={isWorkspaceAttached}
               onPageChange={setPage}
-              onOpen={setSelectedRow}
+              onOpen={openRow}
+              onOpenPullChecks={openRowChecks}
               onStartWorkspace={handleOpenOrUse}
+              onUseNewWorkspace={handleNewWorkspace}
               onRetry={onChanged}
               onOpenIntegrations={openIntegrations}
+              onChanged={onChanged}
             />
           ) : mode === 'missions' ? (
             <CnbMissionsPanel
@@ -364,11 +374,16 @@ export function CnbTasks({ model }: { model: TaskPageComposerActionsModel }): Re
               page={page}
               pageCount={list.state.status === 'ready' ? list.state.page.pageCount : null}
               hasNextPage={list.state.status === 'ready' && list.state.page.hasNextPage}
+              api={api}
+              isWorkspaceAttached={isWorkspaceAttached}
               onPageChange={setPage}
-              onOpen={setSelectedRow}
+              onOpen={openRow}
+              onOpenPullChecks={openRowChecks}
               onStartWorkspace={handleOpenOrUse}
+              onUseNewWorkspace={handleNewWorkspace}
               onRetry={onChanged}
               onOpenIntegrations={openIntegrations}
+              onChanged={onChanged}
             />
           )}
         </>

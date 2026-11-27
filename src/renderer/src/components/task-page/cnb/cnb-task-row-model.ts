@@ -3,9 +3,9 @@ import type { Translate } from '@/i18n/use-translate'
 
 /** Shared grid so the header and rows keep every column aligned. */
 export const CNB_TASK_GRID_ISSUES =
-  'min-w-[680px] grid-cols-[70px_minmax(220px,1fr)_120px_110px_92px]'
+  'min-w-[640px] grid-cols-[64px_minmax(200px,1fr)_130px_108px_92px_40px]'
 export const CNB_TASK_GRID_PULLS =
-  'min-w-[880px] grid-cols-[70px_minmax(220px,1fr)_140px_110px_92px]'
+  'min-w-[1010px] grid-cols-[64px_minmax(220px,1fr)_150px_104px_104px_88px_92px_40px]'
 
 export function cnbTaskGrid(kind: 'issues' | 'pull-requests'): string {
   return kind === 'issues' ? CNB_TASK_GRID_ISSUES : CNB_TASK_GRID_PULLS
@@ -37,6 +37,17 @@ export function cnbChecksTone(checks: CnbTaskRow['checks']): string {
     return 'text-rose-600 dark:text-rose-300'
   }
   return 'text-muted-foreground'
+}
+
+/** Merge pill tone, kept beside the other tones so the .tsx has no raw palette classes. */
+export function cnbMergeTone(row: Pick<CnbTaskRow, 'state' | 'mergeable'>): string {
+  if (row.state === 'merged') {
+    return 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-300'
+  }
+  if (row.state === 'open' && row.mergeable === 'MERGEABLE') {
+    return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+  }
+  return 'border-border/40 bg-muted/30 text-muted-foreground'
 }
 
 const REVIEWER_STATE_MARK: Record<string, string> = {
