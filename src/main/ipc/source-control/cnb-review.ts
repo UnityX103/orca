@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { z } from 'zod'
+import { lazyZodSchema } from '../../../shared/schema/lazy-zod-schema'
 import { getRepoExecutionHostId } from '../../../shared/execution-host/execution-host'
 import { CnbHostedReviewMutation } from '../../../shared/rpc-contract/source-control/hosted-review-params'
 import { isGitRepoKind } from '../../../shared/repository/repo-kind'
@@ -7,9 +8,11 @@ import { readCnbReviewDetails } from '../../cnb/review-details'
 import type { Store } from '../../persistence/loading-store/store'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 
-const cnbReviewActionRequest = CnbHostedReviewMutation.extend({
-  repoOwnerExecutionHostId: z.string().min(1)
-})
+const cnbReviewActionRequest = lazyZodSchema(() =>
+  CnbHostedReviewMutation.extend({
+    repoOwnerExecutionHostId: z.string().min(1)
+  })
+)
 
 export function registerCnbReviewHandlers(store: Store, runtime: OrcaRuntimeService): void {
   ipcMain.handle('cnb:review-details', (_event, url: unknown) => readCnbReviewDetails(url))

@@ -1,5 +1,6 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { z } from 'zod'
+import { lazyZodSchema } from '../../../shared/schema/lazy-zod-schema'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host/execution-host'
 import { ORCHESTRATION_WORKER_START_TASK_SPEC_MAX_BYTES } from '../../../shared/orchestration/workers/orchestration-worker-start-prompt-budget'
 import type { Store } from '../../persistence/loading-store/store'
@@ -7,26 +8,30 @@ import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { getStoredRepoExecutionHostId } from '../../workspaces/execution-host/repo-execution-host'
 import { createCnbTaskDispatcher, readCnbTaskDispatch } from '../../cnb/task-dispatch'
 
-const targetSchema = z.object({
-  repoId: z.string().min(1).max(512),
-  type: z.enum(['issue', 'pr']),
-  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
-})
+const targetSchema = lazyZodSchema(() =>
+  z.object({
+    repoId: z.string().min(1).max(512),
+    type: z.enum(['issue', 'pr']),
+    number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
+  })
+)
 
-const startSchema = targetSchema
-  .extend({
-    worktreeId: z.string().min(1).max(8192),
-    title: z.string().trim().min(1).max(512),
-    spec: z.string().trim().max(ORCHESTRATION_WORKER_START_TASK_SPEC_MAX_BYTES),
-    retryOf: z
-      .string()
-      .regex(/^ctx_[0-9a-f]+$/)
-      .optional()
-  })
-  .refine(({ retryOf, spec }) => Boolean(retryOf || spec), {
-    path: ['spec'],
-    message: 'Describe what BoBot should do.'
-  })
+const startSchema = lazyZodSchema(() =>
+  targetSchema
+    .extend({
+      worktreeId: z.string().min(1).max(8192),
+      title: z.string().trim().min(1).max(512),
+      spec: z.string().trim().max(ORCHESTRATION_WORKER_START_TASK_SPEC_MAX_BYTES),
+      retryOf: z
+        .string()
+        .regex(/^ctx_[0-9a-f]+$/)
+        .optional()
+    })
+    .refine(({ retryOf, spec }) => Boolean(retryOf || spec), {
+      path: ['spec'],
+      message: 'Describe what BoBot should do.'
+    })
+)
 
 function assertMainFrame(event: IpcMainInvokeEvent): void {
   if (!event.senderFrame || event.senderFrame !== event.sender.mainFrame) {

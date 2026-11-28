@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type { CnbWriteResult } from '../../shared/cnb/cnb-tasks'
 import { gitExecFileAsync } from '../git/command-runner/git-exec-file'
 import { gitOptionsForWorktree } from '../git/command-runner/git-runtime-options'
@@ -6,11 +7,13 @@ import type { HostedReviewLocalGitOptions } from '../source-control/hosted-revie
 import { cnbRequest, discardCnbBody } from './request'
 import { cnbRepositoryPath, cnbRepositoryUrl } from './repository-ref'
 
-const branchDetail = z.object({
-  protected: z.boolean().optional(),
-  locked: z.boolean().optional(),
-  commit: z.object({ sha: z.string() })
-})
+const branchDetail = lazyZodSchema(() =>
+  z.object({
+    protected: z.boolean().optional(),
+    locked: z.boolean().optional(),
+    commit: z.object({ sha: z.string() })
+  })
+)
 
 export async function readCnbSourceBranch(repository: string, branch: string, token: string) {
   const response = await cnbRequest(

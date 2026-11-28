@@ -1,31 +1,36 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type { CnbReviewDetails } from '../../shared/cnb/cnb-review-details'
 import { requireCnbCredentialToken } from './credentials'
 import { pullPath, readCnbPull } from './pull-requests'
 import { cnbRequest, discardCnbBody } from './request'
 import { parseCnbReviewUrl } from './repository-ref'
 
-const comments = z
-  .array(
-    z.object({
-      id: z.string(),
-      author: z
-        .object({ username: z.string().nullish(), nickname: z.string().nullish() })
-        .nullish(),
-      body: z.string().nullish()
-    })
-  )
-  .nullable()
-const files = z
-  .array(
-    z.object({
-      filename: z.string(),
-      additions: z.number().nullish(),
-      deletions: z.number().nullish(),
-      patch: z.string().nullish()
-    })
-  )
-  .nullable()
+const comments = lazyZodSchema(() =>
+  z
+    .array(
+      z.object({
+        id: z.string(),
+        author: z
+          .object({ username: z.string().nullish(), nickname: z.string().nullish() })
+          .nullish(),
+        body: z.string().nullish()
+      })
+    )
+    .nullable()
+)
+const files = lazyZodSchema(() =>
+  z
+    .array(
+      z.object({
+        filename: z.string(),
+        additions: z.number().nullish(),
+        deletions: z.number().nullish(),
+        patch: z.string().nullish()
+      })
+    )
+    .nullable()
+)
 
 export async function readCnbReviewDetails(value: unknown): Promise<CnbReviewDetails> {
   const target = typeof value === 'string' && value.length < 2048 ? parseCnbReviewUrl(value) : null

@@ -1,13 +1,16 @@
 import { ipcMain } from 'electron'
 import { z } from 'zod'
+import { lazyZodSchema } from '../../../shared/schema/lazy-zod-schema'
 import { readCnbMembers, readCnbPullChecks } from '../../cnb/tasks'
 import type { Store } from '../../persistence/loading-store/store'
 
-const repoIdRequest = z.object({ repoId: z.string().min(1) })
-const pullTargetRequest = z.object({
-  repoId: z.string().min(1),
-  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
-})
+const repoIdRequest = lazyZodSchema(() => z.object({ repoId: z.string().min(1) }))
+const pullTargetRequest = lazyZodSchema(() =>
+  z.object({
+    repoId: z.string().min(1),
+    number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
+  })
+)
 
 type ResolveSlug = (repoId: string) => Promise<string | null>
 

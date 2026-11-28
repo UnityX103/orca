@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type { CnbCheckState, CnbListStateFilter, CnbTaskLabel } from '../../shared/cnb/cnb-tasks'
 import { getCnbCredentialToken } from './credentials'
 import { cnbRepositoryPath } from './repository-ref'
@@ -15,100 +16,122 @@ export const MAX_DETAIL_FILES = 100
 export const MAX_DETAIL_COMMITS = 100
 export const MAX_COMMENTS = 50
 
-export const numberField = z
-  .string()
-  .regex(/^[1-9]\d*$/)
-  .transform(Number)
-  .refine(Number.isSafeInteger)
+export const numberField = lazyZodSchema(() =>
+  z
+    .string()
+    .regex(/^[1-9]\d*$/)
+    .transform(Number)
+    .refine(Number.isSafeInteger)
+)
 
-export const userInfo = z
-  .object({ username: z.string().nullish(), nickname: z.string().nullish() })
-  .nullish()
-  .transform((value) => value?.nickname || value?.username || null)
+export const userInfo = lazyZodSchema(() =>
+  z
+    .object({ username: z.string().nullish(), nickname: z.string().nullish() })
+    .nullish()
+    .transform((value) => value?.nickname || value?.username || null)
+)
 
-export const labelInfo = z
-  .object({ name: z.string(), color: z.string().nullish() })
-  .nullish()
-  .transform((label): CnbTaskLabel | null =>
-    label ? { name: label.name, color: label.color ?? null } : null
-  )
+export const labelInfo = lazyZodSchema(() =>
+  z
+    .object({ name: z.string(), color: z.string().nullish() })
+    .nullish()
+    .transform((label): CnbTaskLabel | null =>
+      label ? { name: label.name, color: label.color ?? null } : null
+    )
+)
 
-export const labelArray = z
-  .array(labelInfo)
-  .nullish()
-  .transform((labels) => (labels ?? []).filter((label): label is CnbTaskLabel => label !== null))
+export const labelArray = lazyZodSchema(() =>
+  z
+    .array(labelInfo)
+    .nullish()
+    .transform((labels) => (labels ?? []).filter((label): label is CnbTaskLabel => label !== null))
+)
 
-const reviewer = z
-  .object({
-    user: z.object({ username: z.string().nullish() }).nullish(),
-    review_state: z.string().nullish()
+const reviewer = lazyZodSchema(() =>
+  z
+    .object({
+      user: z.object({ username: z.string().nullish() }).nullish(),
+      review_state: z.string().nullish()
+    })
+    .nullish()
+    .transform((value) => ({
+      login: value?.user?.username || '',
+      reviewState: value?.review_state ?? null
+    }))
+)
+
+export const reviewerList = lazyZodSchema(() =>
+  z
+    .array(reviewer)
+    .nullish()
+    .transform((values) => (values ?? []).filter((value) => value.login))
+)
+
+export const reviewState = lazyZodSchema(() => z.enum(['open', 'closed', 'merged']))
+
+export const pullRow = lazyZodSchema(() =>
+  z.object({
+    number: numberField,
+    title: z.string(),
+    state: reviewState,
+    is_merged: z.boolean().optional(),
+    is_wip: z.boolean().optional(),
+    mergeable_state: z.string().nullish(),
+    author: userInfo,
+    assignees: z
+      .array(z.object({ username: z.string().nullish(), nickname: z.string().nullish() }))
+      .nullish(),
+    labels: labelArray,
+    reviewers: reviewerList,
+    updated_at: z.string().nullish(),
+    last_acted_at: z.string().nullish(),
+    created_at: z.string().nullish()
   })
-  .nullish()
-  .transform((value) => ({
-    login: value?.user?.username || '',
-    reviewState: value?.review_state ?? null
-  }))
+)
 
-export const reviewerList = z
-  .array(reviewer)
-  .nullish()
-  .transform((values) => (values ?? []).filter((value) => value.login))
+export const issueRow = lazyZodSchema(() =>
+  z.object({
+    number: numberField,
+    title: z.string(),
+    state: z.enum(['open', 'closed']),
+    author: userInfo,
+    assignees: z
+      .array(z.object({ username: z.string().nullish(), nickname: z.string().nullish() }))
+      .nullish(),
+    labels: labelArray,
+    updated_at: z.string().nullish(),
+    last_acted_at: z.string().nullish(),
+    created_at: z.string().nullish()
+  })
+)
 
-export const reviewState = z.enum(['open', 'closed', 'merged'])
+export const commitStatusItem = lazyZodSchema(() =>
+  z.object({
+    context: z.string().nullish(),
+    state: z.string(),
+    target_url: z.string().nullish()
+  })
+)
 
-export const pullRow = z.object({
-  number: numberField,
-  title: z.string(),
-  state: reviewState,
-  is_merged: z.boolean().optional(),
-  is_wip: z.boolean().optional(),
-  mergeable_state: z.string().nullish(),
-  author: userInfo,
-  assignees: z
-    .array(z.object({ username: z.string().nullish(), nickname: z.string().nullish() }))
-    .nullish(),
-  labels: labelArray,
-  reviewers: reviewerList,
-  updated_at: z.string().nullish(),
-  last_acted_at: z.string().nullish(),
-  created_at: z.string().nullish()
-})
-
-export const issueRow = z.object({
-  number: numberField,
-  title: z.string(),
-  state: z.enum(['open', 'closed']),
-  author: userInfo,
-  assignees: z
-    .array(z.object({ username: z.string().nullish(), nickname: z.string().nullish() }))
-    .nullish(),
-  labels: labelArray,
-  updated_at: z.string().nullish(),
-  last_acted_at: z.string().nullish(),
-  created_at: z.string().nullish()
-})
-
-export const commitStatusItem = z.object({
-  context: z.string().nullish(),
-  state: z.string(),
-  target_url: z.string().nullish()
-})
-
-const commitStatusGroup = z.object({
-  sha: z.string().optional(),
-  state: z.string().optional(),
-  statuses: z.array(commitStatusItem).nullish()
-})
+const commitStatusGroup = lazyZodSchema(() =>
+  z.object({
+    sha: z.string().optional(),
+    state: z.string().optional(),
+    statuses: z.array(commitStatusItem).nullish()
+  })
+)
 
 // Two shapes exist: the official /pulls/{number}/commit-statuses 200 is one object
 // { state, statuses }, while the history form is an array of sha groups. Normalize both to an
 // array of groups so summarizeChecks handles either. `null`/absent means "no data", not "empty".
-export const commitStatusMap = z
-  .union([z.array(commitStatusGroup), commitStatusGroup])
-  .nullish()
-  .transform((value): z.output<typeof commitStatusGroup>[] | null =>
-    value == null ? null : Array.isArray(value) ? value : [value]
-  )
+export const commitStatusMap = lazyZodSchema(() =>
+  z
+    .union([z.array(commitStatusGroup), commitStatusGroup])
+    .nullish()
+    .transform((value): z.output<typeof commitStatusGroup>[] | null =>
+      value == null ? null : Array.isArray(value) ? value : [value]
+    )
+)
 
 export function displayName(
   user: { username?: string | null; nickname?: string | null } | null | undefined

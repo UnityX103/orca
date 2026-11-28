@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type { CnbComment, CnbDetailResult, CnbIssueDetail } from '../../shared/cnb/cnb-tasks'
 import { cnbRequest, discardCnbBody } from './request'
 import { cnbRepositoryPath } from './repository-ref'
@@ -11,24 +12,28 @@ import {
   numberField
 } from './task-schema'
 
-const issueDetail = z.object({
-  number: numberField,
-  title: z.string(),
-  body: z.string().nullish(),
-  state: z.enum(['open', 'closed']),
-  author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish(),
-  assignees: z
-    .array(z.object({ username: z.string().nullish(), nickname: z.string().nullish() }))
-    .nullish(),
-  labels: labelArray,
-  updated_at: z.string().nullish()
-})
+const issueDetail = lazyZodSchema(() =>
+  z.object({
+    number: numberField,
+    title: z.string(),
+    body: z.string().nullish(),
+    state: z.enum(['open', 'closed']),
+    author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish(),
+    assignees: z
+      .array(z.object({ username: z.string().nullish(), nickname: z.string().nullish() }))
+      .nullish(),
+    labels: labelArray,
+    updated_at: z.string().nullish()
+  })
+)
 
-const issueProperty = z.object({
-  key: z.string(),
-  name: z.string().nullish(),
-  value: z.string().nullish()
-})
+const issueProperty = lazyZodSchema(() =>
+  z.object({
+    key: z.string(),
+    name: z.string().nullish(),
+    value: z.string().nullish()
+  })
+)
 
 async function readIssueProperties(path: string, token: string) {
   try {
@@ -48,12 +53,14 @@ async function readIssueProperties(path: string, token: string) {
   }
 }
 
-export const commentRow = z.object({
-  id: z.string(),
-  body: z.string().nullish(),
-  author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish(),
-  created_at: z.string().nullish()
-})
+export const commentRow = lazyZodSchema(() =>
+  z.object({
+    id: z.string(),
+    body: z.string().nullish(),
+    author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish(),
+    created_at: z.string().nullish()
+  })
+)
 
 export async function readCnbIssueRecord(
   path: string,

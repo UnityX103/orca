@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type {
   CreateHostedReviewInput,
   CreateHostedReviewResult
@@ -12,7 +13,7 @@ import { cnbRepositoryPath } from './repository-ref'
 import { cnbRequest } from './request'
 import { numberField } from './task-schema'
 
-const createdPull = z.object({ number: numberField })
+const createdPull = lazyZodSchema(() => z.object({ number: numberField }))
 
 const cnbAuthenticationRequired = {
   ok: false,

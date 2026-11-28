@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type { CnbAttachmentResult } from '../../shared/cnb/cnb-tasks'
 import { cnbRequest, discardCnbBody } from './request'
 import { cnbRepositoryPath } from './repository-ref'
@@ -8,19 +9,23 @@ export type CnbAttachTarget =
   | { kind: 'issue-comment'; repository: string; number: number }
   | { kind: 'repo'; repository: string }
 
-const assetUploadUrl = z.object({
-  asset_link: z.string().nullish(),
-  download_url: z.string().nullish(),
-  path: z.string().nullish(),
-  upload_url: z.string().nullish(),
-  name: z.string().nullish()
-})
+const assetUploadUrl = lazyZodSchema(() =>
+  z.object({
+    asset_link: z.string().nullish(),
+    download_url: z.string().nullish(),
+    path: z.string().nullish(),
+    upload_url: z.string().nullish(),
+    name: z.string().nullish()
+  })
+)
 
-const repoUploadResponse = z.object({
-  upload_url: z.string(),
-  assets: z.object({ path: z.string().nullish(), name: z.string().nullish() }).nullish(),
-  form: z.record(z.string(), z.string()).nullish()
-})
+const repoUploadResponse = lazyZodSchema(() =>
+  z.object({
+    upload_url: z.string(),
+    assets: z.object({ path: z.string().nullish(), name: z.string().nullish() }).nullish(),
+    form: z.record(z.string(), z.string()).nullish()
+  })
+)
 
 const IMAGE_TYPES = new Set([
   'image/png',

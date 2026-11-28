@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type {
   CnbComment,
   CnbDetailResult,
@@ -27,52 +28,60 @@ import {
 } from './task-schema'
 
 /** Parsed PR head/base/reviewers; shared by the detail reader and the row checks reader. */
-export const pullHeadSchema = z.object({
-  number: numberField,
-  title: z.string(),
-  body: z.string().nullish(),
-  state: reviewState,
-  is_merged: z.boolean().optional(),
-  is_wip: z.boolean().optional(),
-  mergeable_state: z.string().nullish(),
-  author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish(),
-  head: z
-    .object({ ref: z.string().nullish(), sha: z.string().nullish() })
-    .nullish()
-    .transform((value) => (value?.ref ? { ref: value.ref, sha: value.sha ?? null } : null)),
-  base: z
-    .object({ ref: z.string().nullish() })
-    .nullish()
-    .transform((value) => (value?.ref ? { ref: value.ref } : null)),
-  reviewers: reviewerList,
-  labels: labelArray,
-  updated_at: z.string().nullish()
-})
+export const pullHeadSchema = lazyZodSchema(() =>
+  z.object({
+    number: numberField,
+    title: z.string(),
+    body: z.string().nullish(),
+    state: reviewState,
+    is_merged: z.boolean().optional(),
+    is_wip: z.boolean().optional(),
+    mergeable_state: z.string().nullish(),
+    author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish(),
+    head: z
+      .object({ ref: z.string().nullish(), sha: z.string().nullish() })
+      .nullish()
+      .transform((value) => (value?.ref ? { ref: value.ref, sha: value.sha ?? null } : null)),
+    base: z
+      .object({ ref: z.string().nullish() })
+      .nullish()
+      .transform((value) => (value?.ref ? { ref: value.ref } : null)),
+    reviewers: reviewerList,
+    labels: labelArray,
+    updated_at: z.string().nullish()
+  })
+)
 
-const fileRow = z.object({
-  filename: z.string(),
-  additions: z.number().nullish(),
-  deletions: z.number().nullish(),
-  patch: z.string().nullish()
-})
+const fileRow = lazyZodSchema(() =>
+  z.object({
+    filename: z.string(),
+    additions: z.number().nullish(),
+    deletions: z.number().nullish(),
+    patch: z.string().nullish()
+  })
+)
 
-const commitRow = z.object({
-  sha: z.string(),
-  author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish(),
-  commit: z
-    .object({
-      message: z.string().nullish(),
-      author: z.object({ date: z.string().nullish() }).nullish()
-    })
-    .nullish()
-})
+const commitRow = lazyZodSchema(() =>
+  z.object({
+    sha: z.string(),
+    author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish(),
+    commit: z
+      .object({
+        message: z.string().nullish(),
+        author: z.object({ date: z.string().nullish() }).nullish()
+      })
+      .nullish()
+  })
+)
 
-const reviewRow = z.object({
-  id: z.string(),
-  state: z.string().nullish(),
-  body: z.string().nullish(),
-  author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish()
-})
+const reviewRow = lazyZodSchema(() =>
+  z.object({
+    id: z.string(),
+    state: z.string().nullish(),
+    body: z.string().nullish(),
+    author: z.object({ username: z.string().nullish(), nickname: z.string().nullish() }).nullish()
+  })
+)
 
 function branchName(ref: string | null | undefined): string {
   return (ref ?? '').replace(/^refs\/heads\//, '')

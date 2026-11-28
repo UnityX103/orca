@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { z } from 'zod'
+import { lazyZodSchema } from '../../../shared/schema/lazy-zod-schema'
 import type { CnbMission, CnbTaskRepository } from '../../../shared/cnb/cnb-tasks'
 import { mapSettledWithConcurrency } from '../../../shared/concurrency/map-with-concurrency'
 import { isGitRepoKind } from '../../../shared/repository/repo-kind'
@@ -33,68 +34,84 @@ import {
   pullWriteRequest as pullWriteSchema
 } from './cnb-write-schemas'
 
-const filtersSchema = z.object({
-  state: z.enum(['open', 'closed', 'all']),
-  keyword: z.string().max(200),
-  authors: z.array(z.string().max(100)).max(16),
-  assignees: z.array(z.string().max(100)).max(16),
-  reviewers: z.array(z.string().max(100)).max(16),
-  labels: z.array(z.string().max(200)).max(20)
-})
+const filtersSchema = lazyZodSchema(() =>
+  z.object({
+    state: z.enum(['open', 'closed', 'all']),
+    keyword: z.string().max(200),
+    authors: z.array(z.string().max(100)).max(16),
+    assignees: z.array(z.string().max(100)).max(16),
+    reviewers: z.array(z.string().max(100)).max(16),
+    labels: z.array(z.string().max(200)).max(20)
+  })
+)
 
-const listRequest = z.object({
-  repoIds: z.array(z.string().min(1)).min(1).max(50),
-  kind: z.enum(['issues', 'pull-requests']),
-  filters: filtersSchema,
-  page: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
-})
+const listRequest = lazyZodSchema(() =>
+  z.object({
+    repoIds: z.array(z.string().min(1)).min(1).max(50),
+    kind: z.enum(['issues', 'pull-requests']),
+    filters: filtersSchema,
+    page: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
+  })
+)
 
-const targetRequest = z.object({
-  repoId: z.string().min(1),
-  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
-})
+const targetRequest = lazyZodSchema(() =>
+  z.object({
+    repoId: z.string().min(1),
+    number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
+  })
+)
 
-const missionResourceRequest = z.object({
-  missionPath: z.string().min(1).max(400),
-  cursor: z.string().max(2048).nullable(),
-  view: z
-    .object({
-      selector: z
-        .array(
-          z.object({
-            field: z.string().max(200),
-            operator: z.string().max(50),
-            value: z.array(z.string().max(500)).max(50)
-          })
-        )
-        .max(50),
-      sort: z
-        .array(z.object({ field: z.string().max(200), order: z.enum(['asc', 'desc']) }))
-        .max(10),
-      fields: z.array(z.string().max(200)).max(100)
-    })
-    .nullable()
-})
+const missionResourceRequest = lazyZodSchema(() =>
+  z.object({
+    missionPath: z.string().min(1).max(400),
+    cursor: z.string().max(2048).nullable(),
+    view: z
+      .object({
+        selector: z
+          .array(
+            z.object({
+              field: z.string().max(200),
+              operator: z.string().max(50),
+              value: z.array(z.string().max(500)).max(50)
+            })
+          )
+          .max(50),
+        sort: z
+          .array(z.object({ field: z.string().max(200), order: z.enum(['asc', 'desc']) }))
+          .max(10),
+        fields: z.array(z.string().max(200)).max(100)
+      })
+      .nullable()
+  })
+)
 
-const missionViewConfigRequest = z.object({
-  missionPath: z.string().min(1).max(400),
-  viewId: z.string().min(1).max(200)
-})
+const missionViewConfigRequest = lazyZodSchema(() =>
+  z.object({
+    missionPath: z.string().min(1).max(400),
+    viewId: z.string().min(1).max(200)
+  })
+)
 
-const missionListRequest = z.object({ orgs: z.array(z.string().min(1).max(200)).min(1).max(20) })
+const missionListRequest = lazyZodSchema(() =>
+  z.object({ orgs: z.array(z.string().min(1).max(200)).min(1).max(20) })
+)
 
-const labelsRequest = z.object({ repoIds: z.array(z.string().min(1)).min(1).max(50) })
+const labelsRequest = lazyZodSchema(() =>
+  z.object({ repoIds: z.array(z.string().min(1)).min(1).max(50) })
+)
 
-const attachRequest = z.object({
-  repoId: z.string().min(1),
-  issueNumber: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
-  fileName: z.string().min(1).max(255),
-  contentType: z.string().min(1).max(100),
-  base64: z
-    .string()
-    .min(1)
-    .max(40 * 1024 * 1024)
-})
+const attachRequest = lazyZodSchema(() =>
+  z.object({
+    repoId: z.string().min(1),
+    issueNumber: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
+    fileName: z.string().min(1).max(255),
+    contentType: z.string().min(1).max(100),
+    base64: z
+      .string()
+      .min(1)
+      .max(40 * 1024 * 1024)
+  })
+)
 
 const issueWriteRequest = issueWriteSchema
 const pullWriteRequest = pullWriteSchema

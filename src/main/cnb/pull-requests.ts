@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type { HostedReviewInfo } from '../../shared/source-control/hosted-review/hosted-review-contracts'
 import type {
   CheckStatus,
@@ -12,36 +13,42 @@ import { readCnbSourceBranch } from './pull-source-branch'
 import { cnbHasNextPage, cnbRequest, discardCnbBody } from './request'
 import { cnbRepositoryPath } from './repository-ref'
 
-const pullRef = z.object({
-  ref: z.string(),
-  sha: z.string().nullish(),
-  repo: z.object({ path: z.string().nullish() }).nullish()
-})
-const pull = z.object({
-  number: z
-    .string()
-    .regex(/^[1-9]\d*$/)
-    .transform(Number)
-    .refine(Number.isSafeInteger),
-  title: z.string(),
-  body: z.string().nullish(),
-  state: z.enum(['open', 'closed', 'merged']),
-  head: pullRef,
-  base: pullRef,
-  is_wip: z.boolean().optional(),
-  is_merged: z.boolean().optional(),
-  mergeable_state: z.string().nullish(),
-  blocked_on: z.string().nullish(),
-  updated_at: z.string().nullish(),
-  last_acted_at: z.string().nullish(),
-  created_at: z.string().nullish()
-})
-const pullList = z.array(pull).nullable()
-const checks = z.object({
-  sha: z.string().optional(),
-  state: z.string().optional(),
-  statuses: z.array(z.object({ state: z.string() })).nullish()
-})
+const pullRef = lazyZodSchema(() =>
+  z.object({
+    ref: z.string(),
+    sha: z.string().nullish(),
+    repo: z.object({ path: z.string().nullish() }).nullish()
+  })
+)
+const pull = lazyZodSchema(() =>
+  z.object({
+    number: z
+      .string()
+      .regex(/^[1-9]\d*$/)
+      .transform(Number)
+      .refine(Number.isSafeInteger),
+    title: z.string(),
+    body: z.string().nullish(),
+    state: z.enum(['open', 'closed', 'merged']),
+    head: pullRef,
+    base: pullRef,
+    is_wip: z.boolean().optional(),
+    is_merged: z.boolean().optional(),
+    mergeable_state: z.string().nullish(),
+    blocked_on: z.string().nullish(),
+    updated_at: z.string().nullish(),
+    last_acted_at: z.string().nullish(),
+    created_at: z.string().nullish()
+  })
+)
+const pullList = lazyZodSchema(() => z.array(pull).nullable())
+const checks = lazyZodSchema(() =>
+  z.object({
+    sha: z.string().optional(),
+    state: z.string().optional(),
+    statuses: z.array(z.object({ state: z.string() })).nullish()
+  })
+)
 type Pull = z.output<typeof pull>
 type ConflictContext = { repoPath: string; localGitOptions: HostedReviewLocalGitOptions }
 

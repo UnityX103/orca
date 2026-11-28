@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../shared/schema/lazy-zod-schema'
 import type { CnbMember, CnbMemberListResult } from '../../shared/cnb/cnb-tasks'
 import type { CnbRepositoryTarget } from './task-list'
 import { cnbRequest, discardCnbBody } from './request'
@@ -62,10 +63,12 @@ export async function readCnbLabels(repositories: CnbRepositoryTarget[]): Promis
   return [...names].sort((a, b) => a.localeCompare(b))
 }
 
-const memberRow = z.object({
-  username: z.string().nullish(),
-  nickname: z.string().nullish()
-})
+const memberRow = lazyZodSchema(() =>
+  z.object({
+    username: z.string().nullish(),
+    nickname: z.string().nullish()
+  })
+)
 
 /**
  * Assignee/reviewer candidates from GET /{slug}/-/list-members (direct + inherited members).
