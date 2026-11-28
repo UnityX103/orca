@@ -42,7 +42,7 @@ if [[ -n "$fingerprint" || -n "$certificate" || -n "$certificate_password" ]]; t
   export CSC_KEYCHAIN="$keychain"
   export SORCA_MAC_LOCAL_SIGNING_IDENTITY="$fingerprint"
 else
-  echo '::notice::Mac signing is not configured. This Mac package is for manual installs only.'
+  echo '::notice::No certificate signing configured. The ad hoc Mac package requires manual installation.'
 fi
 
 marker=dist/orca-macos-arm64-update.json
@@ -51,8 +51,8 @@ pnpm exec electron-builder --config config/electron-builder.orca-distribution.co
   --mac dmg --arm64 --publish never
 test -s dist/orca-macos-arm64.dmg
 
+app=dist/mac-arm64/Orca.app
 if [[ -n "$fingerprint" ]]; then
-  app=dist/mac-arm64/Orca.app
   requirement="=anchor apple generic and certificate leaf = H\"$fingerprint\""
   codesign --verify --deep --strict -R "$requirement" "$app"
   for helper in 'Helpers/Orca Agents.app' 'Frameworks/Orca Helper.app' 'Resources/Orca Computer Use.app'; do
@@ -67,4 +67,6 @@ if [[ -n "$fingerprint" ]]; then
   version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")
   [[ "$version" == "$ORCA_LOCAL_BUILD_VERSION" ]]
   printf '{"version":"%s","signingIdentity":"%s"}\n' "$version" "$signing_identity" > "$marker"
+else
+  codesign --verify --deep --strict "$app"
 fi

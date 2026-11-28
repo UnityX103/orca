@@ -63,7 +63,7 @@ pnpm dev:fresh [--keep] [--seed-from[=<profile dir>]]   # temporary profile, rem
 
 ### 自用版 GitHub 自动更新（Apple Silicon 与 Windows x64）
 
-在 `UnityX103/orca` 的 Actions 中配置 `SORCA_MAC_SIGNING_SHA1` 仓库变量，以及 `SORCA_MAC_CERTS` 和 `SORCA_MAC_CERTS_PASSWORD` 密钥。分别使用长期固定的签名证书指纹、该证书的 Base64 `.p12` 和密码。与本机开发包直接接续时，使用同一签名身份。正式发布会校验主应用和权限相关 Helper 的签名，并随通过校验的 DMG 发布更新标记。缺少签名配置时，可以运行仅打包验证。
+要启用 macOS 应用内自动更新，在 `UnityX103/orca` 的 Actions 中配置 `SORCA_MAC_SIGNING_SHA1` 仓库变量，以及 `SORCA_MAC_CERTS` 和 `SORCA_MAC_CERTS_PASSWORD` 密钥。分别使用长期固定的签名证书指纹、该证书的 Base64 `.p12` 和密码。与本机开发包直接接续时，使用同一签名身份。正式发布会校验主应用和权限相关 Helper 的签名，并随通过校验的 DMG 发布更新标记。缺少完整的签名配置时，正式发布提供临时签名（ad hoc）的 DMG 供手动安装，Windows 仍支持应用内更新。
 
 macOS 的签名版和 Windows 的标准按用户安装版支持在后台下载新版本，并在下次正常退出时安装。Windows 使用原 NSIS 安装目录和用户配置。需要立即应用时可点击「重启以更新」。可以在「设置 → 关于」关闭自动更新或设置更新延迟。Orca 使用 GitHub 资产摘要校验下载，在暂存和安装时比较已安装版与更新包的 macOS 签名身份。若正常退出时同一安装仍有其他 Orca 实例在使用，本次跳过安装，Orca 会在后续检查时重新下载。已有临时签名的安装需要一次签名迁移，macOS 可能会要求重新授权。
 

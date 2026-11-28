@@ -10,14 +10,14 @@ if [[ "$PUBLISH_AFTER_BUILD" == true && "$PLATFORMS" != both ]]; then
   echo '::error::发布必须同时包含 Mac 和 Windows 安装包。'
   exit 1
 fi
-if [[ "$PUBLISH_AFTER_BUILD" == true ]] &&
-  [[ ! "${SORCA_MAC_SIGNING_SHA1:-}" =~ ^[A-F0-9]{40}$ || "${SORCA_MAC_SIGNING_SECRETS_PRESENT:-}" != true ]]; then
-  echo '::error::正式发布须配置可持续使用的 macOS 签名证书和对应的 Actions 密钥。未签名验证包可通过仅打包任务构建。'
-  exit 1
-fi
 if [[ -n "$EXPECTED_COMMIT" && "$EXPECTED_COMMIT" != "$private_sha" ]]; then
   echo '::error::自用版分支已前进，指定的构建起点已过期。'
   exit 1
+fi
+
+mac_signing=false
+if [[ "$PUBLISH_AFTER_BUILD" == true && "${SORCA_MAC_SIGNING_CONFIGURED:-}" == true ]]; then
+  mac_signing=true
 fi
 
 published=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest")
@@ -90,10 +90,10 @@ read -r mac_asset windows_asset < <(node -p '
 ')
 if [[ "$SYNC_UPSTREAM" == true && "$published_sha" == "$sha" ]] &&
   jq -e --arg mac "$mac_asset" --arg win "$windows_asset" \
-    --arg signing "${SORCA_MAC_SIGNING_SHA1:-}" '
+    --argjson signing "$mac_signing" '
     [.assets[] | select(.state == "uploaded" and .size > 0) | .name]
     | index($mac) != null and index($win) != null and index("SHA256SUMS.txt") != null
-      and ($signing == "" or index("orca-macos-arm64-update.json") != null)
+      and ($signing == false or index("orca-macos-arm64-update.json") != null)
   ' <<< "$published" >/dev/null; then
   echo 'build=false' >> "$GITHUB_OUTPUT"
   echo '自用版与上游稳定版均无待发布变更。'
@@ -122,4 +122,5 @@ esac
   echo "version=$version"
   echo "matrix=$matrix"
   echo "publish=$PUBLISH_AFTER_BUILD"
+  echo "mac_signing=$mac_signing"
 } >> "$GITHUB_OUTPUT"

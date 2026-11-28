@@ -74,6 +74,7 @@ jobs:
       version: ${{ steps.source.outputs.version }}
       matrix: ${{ steps.source.outputs.matrix }}
       publish: ${{ steps.source.outputs.publish }}
+      mac_signing: ${{ steps.source.outputs.mac_signing }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -88,8 +89,7 @@ jobs:
           PUBLISH_AFTER_BUILD: ${{ inputs.publish_after_build }}
           MAC_RUNNER: ${{ inputs.mac_runner || 'xcode-27' }}
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
-          SORCA_MAC_SIGNING_SHA1: ${{ vars.SORCA_MAC_SIGNING_SHA1 }}
-          SORCA_MAC_SIGNING_SECRETS_PRESENT: ${{ secrets.SORCA_MAC_CERTS != '' && secrets.SORCA_MAC_CERTS_PASSWORD != '' }}
+          SORCA_MAC_SIGNING_CONFIGURED: ${{ vars.SORCA_MAC_SIGNING_SHA1 != '' && secrets.SORCA_MAC_CERTS != '' && secrets.SORCA_MAC_CERTS_PASSWORD != '' }}
         shell: bash
         run: bash config/scripts/release/publication/prepare-orca-distribution.sh
 
@@ -139,9 +139,9 @@ jobs:
         if: matrix.platform == 'mac'
         shell: bash
         env:
-          SORCA_MAC_SIGNING_SHA1: ${{ inputs.publish_after_build && vars.SORCA_MAC_SIGNING_SHA1 || '' }}
-          SORCA_MAC_CERTS: ${{ inputs.publish_after_build && secrets.SORCA_MAC_CERTS || '' }}
-          SORCA_MAC_CERTS_PASSWORD: ${{ inputs.publish_after_build && secrets.SORCA_MAC_CERTS_PASSWORD || '' }}
+          SORCA_MAC_SIGNING_SHA1: ${{ needs.prepare.outputs.mac_signing == 'true' && vars.SORCA_MAC_SIGNING_SHA1 || '' }}
+          SORCA_MAC_CERTS: ${{ needs.prepare.outputs.mac_signing == 'true' && secrets.SORCA_MAC_CERTS || '' }}
+          SORCA_MAC_CERTS_PASSWORD: ${{ needs.prepare.outputs.mac_signing == 'true' && secrets.SORCA_MAC_CERTS_PASSWORD || '' }}
         run: bash config/scripts/desktop-distribution/macos/package-sorca-release.sh
       - name: 打包 Windows
         if: matrix.platform != 'mac'
@@ -265,6 +265,7 @@ jobs:
           SOURCE_SHA: ${{ needs.prepare.outputs.sha }}
           VERSION: ${{ needs.prepare.outputs.version }}
           MATRIX: ${{ needs.prepare.outputs.matrix }}
+          MAC_SIGNING: ${{ needs.prepare.outputs.mac_signing }}
         shell: bash
         run: |
           set -euo pipefail
@@ -280,19 +281,30 @@ jobs:
             test -s "$asset"
           done
           marker=orca-macos-arm64-update.json
-          latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest")
-          test -s "$marker"
-          identity=$(jq -er --arg version "$VERSION" '
-            select(.version == $version) | .signingIdentity | select(test("^[a-f0-9]{64}$"))
-          ' "$marker")
-          assets+=("$marker")
-          if jq -e --arg marker "$marker" 'any(.assets[]; .name == $marker and .state == "uploaded")' \
-            <<< "$latest" >/dev/null; then
-            previous_tag=$(jq -er '.tag_name' <<< "$latest")
-            previous_identity=$(gh release download "$previous_tag" --repo "$GITHUB_REPOSITORY" \
-              --pattern "$marker" --output - | jq -er '.signingIdentity | select(test("^[a-f0-9]{64}$"))')
-            if [[ "$identity" != "$previous_identity" ]]; then
-              echo '::error::macOS 签名身份与上次发布不一致，已停止发布。'
+          if [[ "$MAC_SIGNING" == true ]]; then
+            test -s "$marker"
+            identity=$(jq -er --arg version "$VERSION" '
+              select(.version == $version) | .signingIdentity | select(test("^[a-f0-9]{64}$"))
+            ' "$marker")
+            assets+=("$marker")
+            signed_tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '
+              first(.[] | select(
+                .draft == false and .prerelease == false
+                and any(.assets[]; .name == "orca-macos-arm64-update.json" and .state == "uploaded")
+              ) | .tag_name) // empty
+            ')
+            previous_tag="${signed_tags%%$'\n'*}"
+            if [[ -n "$previous_tag" ]]; then
+              previous_identity=$(gh release download "$previous_tag" --repo "$GITHUB_REPOSITORY" \
+                --pattern "$marker" --output - | jq -er '.signingIdentity | select(test("^[a-f0-9]{64}$"))')
+              if [[ "$identity" != "$previous_identity" ]]; then
+                echo '::error::macOS 签名身份与上次已签名的发布不一致，已停止发布。'
+                exit 1
+              fi
+            fi
+          else
+            if [[ "$MAC_SIGNING" != false || -e "$marker" ]]; then
+              echo '::error::macOS 打包模式与更新标记不一致，已停止发布。'
               exit 1
             fi
           fi
@@ -302,6 +314,9 @@ jobs:
           else
             {
               printf '构建提交 %s\n\n' "$SOURCE_SHA"
+              if [[ "$MAC_SIGNING" == false ]]; then
+                printf 'Mac ARM64 使用临时签名（ad hoc），请下载 DMG 手动安装。Windows x64 支持应用内更新。\n\n'
+              fi
               printf '[GitHub Actions 构建记录](%s/%s/actions/runs/%s)\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
             } > release-notes.md
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
