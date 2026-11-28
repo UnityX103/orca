@@ -103,6 +103,7 @@
     ${If} $installMode != "CurrentUser"
     ${OrIf} $R2 != "$INSTDIR"
     ${OrIf} $R3 != "$INSTDIR"
+      !insertmacro ORCA_WRITE_DEFERRED_UPDATE_RESULT "install-location-changed"
       SetErrorLevel 2
       Quit
     ${EndIf}
@@ -123,6 +124,7 @@
   !insertmacro ORCA_REWRITE_TASKBAR_PIN
   ; Why: Explorer caches the association list until told otherwise.
   System::Call "shell32::SHChangeNotify(i,i,i,i) (0x08000000, 0x1000, 0, 0)"
+  !insertmacro ORCA_WRITE_DEFERRED_UPDATE_RESULT "installed"
 !macroend
 
 ; Relocated hosts escape $INSTDIR’s process/file sweep, surviving updates but requiring real-uninstall cleanup.

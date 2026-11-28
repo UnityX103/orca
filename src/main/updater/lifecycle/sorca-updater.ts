@@ -20,6 +20,7 @@ import { getDelayedUpdateWakeDelayMs, toDelayedUpdate } from '../releases/update
 import { UpdaterCodedError, updaterErrorMessage } from './updater-coded-error'
 import type { UpdaterSetupOptions } from './updater-setup'
 import { SOrcaReleaseUpdater } from './sorca-release-updater'
+import { clearCompletedSOrcaWindowsUpdates } from '../local-package/sorca-windows-update-package'
 
 export class SOrcaUpdater extends SOrcaReleaseUpdater {
   private forkInitialized = false
@@ -43,6 +44,9 @@ export class SOrcaUpdater extends SOrcaReleaseUpdater {
     this.updateInstallMode = opts?.installMode ?? 'interactive'
     if (!this.forkInitialized) {
       this.forkInitialized = true
+      if (process.platform === 'win32') {
+        void clearCompletedSOrcaWindowsUpdates(app.getPath('userData')).catch(console.warn)
+      }
       let managed = managesUpdates(this.getTeamUpdatePolicy?.())
       opts?.onTeamUpdatePolicyChanged?.(() => {
         const next = managesUpdates(this.getTeamUpdatePolicy?.())

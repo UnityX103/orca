@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import {
   applySOrcaWindowsPackage,
+  clearCompletedSOrcaWindowsUpdates,
   discardSOrcaWindowsPackage,
   stageSOrcaWindowsPackage
 } from '../../../../src/main/updater/local-package/sorca-windows-update-package.ts'
@@ -19,6 +21,7 @@ for await (const chunk of createReadStream(path)) {
 const staged = await stageSOrcaWindowsPackage({
   source: { open: async () => createReadStream(path), onProgress: () => {} },
   executable,
+  userDataPath: dirname(executable),
   expected: { size, sha256: hash.digest('hex') },
   version,
   signal: AbortSignal.timeout(120_000)
@@ -35,6 +38,9 @@ try {
   installer.ref()
   const [exitCode] = await once(installer, 'exit', { signal: AbortSignal.timeout(180_000) })
   assert.equal(exitCode, 0)
+  assert.equal(await readFile(join(staged.root, 'sorca-update-result.txt'), 'utf8'), 'installed')
+  await clearCompletedSOrcaWindowsUpdates(dirname(executable))
+  await assert.rejects(stat(staged.root), { code: 'ENOENT' })
 } finally {
   await discardSOrcaWindowsPackage(staged.root).catch(console.warn)
 }

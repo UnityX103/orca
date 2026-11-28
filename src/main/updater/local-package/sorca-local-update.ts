@@ -182,7 +182,8 @@ export function stageSOrcaPublishedUpdate(
             expected,
             signal,
             version: build.version,
-            executable: app.getPath('exe')
+            executable: app.getPath('exe'),
+            userDataPath: app.getPath('userData')
           }),
     signal,
     installRelease

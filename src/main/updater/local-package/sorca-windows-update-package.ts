@@ -2,7 +2,7 @@ import { spawnProcess } from '@orca/process-host'
 import type { ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { lstat, mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { win32 as paths } from 'node:path'
 import { hasDedicatedOrcaInstallLayout } from '../lifecycle/windows-update-install-directory'
@@ -13,6 +13,46 @@ import {
   type SOrcaPackageDigest,
   type SOrcaPackageSource
 } from './sorca-verified-package'
+
+const RESULT_FILE = 'sorca-update-result.txt'
+const STAGING_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+function windowsUpdateCache(userDataPath: string): string {
+  const profile = createHash('sha256')
+    .update(paths.resolve(userDataPath).toLowerCase())
+    .digest('hex')
+  return paths.join(tmpdir(), `sorca-updates-${profile.slice(0, 24)}`)
+}
+
+export async function clearCompletedSOrcaWindowsUpdates(userDataPath: string): Promise<void> {
+  const cache = windowsUpdateCache(userDataPath)
+  if (!(await lstat(cache).catch(() => null))?.isDirectory()) {
+    return
+  }
+  for (const entry of await readdir(cache, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !/^attempt-[a-zA-Z0-9]{6}$/.test(entry.name)) {
+      continue
+    }
+    const root = paths.join(cache, entry.name)
+    const resultFile = paths.join(root, RESULT_FILE)
+    const resultInfo = await lstat(resultFile).catch(() => null)
+    const outcome =
+      resultInfo?.isFile() && resultInfo.size <= 64
+        ? (await readFile(resultFile, 'utf8').catch(() => '')).trim()
+        : ''
+    const expired = Date.now() - (await lstat(root)).mtimeMs >= STAGING_MAX_AGE_MS
+    if (outcome || expired) {
+      await discardSOrcaWindowsPackage(root)
+        .then(() =>
+          console.info(
+            '[sorca-update] Finished Windows installation attempt:',
+            outcome || 'expired'
+          )
+        )
+        .catch(console.warn)
+    }
+  }
+}
 
 export type StagedSOrcaWindowsPackage = {
   root: string
@@ -47,13 +87,19 @@ export async function sorcaWindowsInstallDirectory(executable: string): Promise<
 export async function stageSOrcaWindowsPackage(options: {
   source: Exclude<SOrcaPackageSource, string>
   executable: string
+  userDataPath: string
   version: string
   expected: SOrcaPackageDigest
   signal: AbortSignal
 }): Promise<StagedSOrcaWindowsPackage> {
-  const { source, executable, expected, version, signal } = options
+  const { source, executable, userDataPath, expected, version, signal } = options
   const target = await sorcaWindowsInstallDirectory(executable)
-  const root = await mkdtemp(paths.join(tmpdir(), 'orca-update-'))
+  const cache = windowsUpdateCache(userDataPath)
+  await mkdir(cache, { recursive: true })
+  if (!(await lstat(cache)).isDirectory()) {
+    throw new SOrcaPackageError('install-location')
+  }
+  const root = await mkdtemp(paths.join(cache, 'attempt-'))
   const installer = paths.join(root, 'orca-windows-setup.exe')
   try {
     await copyVerifiedPackage(source, installer, expected, signal)

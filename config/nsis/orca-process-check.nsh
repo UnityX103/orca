@@ -22,6 +22,24 @@
   !error "orca-process-check.nsh assumes a 32-bit NSIS (PROCESSENTRY32W is 556 bytes)"
 !endif
 
+!macro ORCA_WRITE_DEFERRED_UPDATE_RESULT OUTCOME
+  Push $R0
+  Push $R1
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "--orca-deferred-update" $R1
+  ${IfNot} ${Errors}
+    FileOpen $R1 "$EXEDIR\sorca-update-result.txt" w
+    ${IfNot} ${Errors}
+      FileWrite $R1 "${OUTCOME}"
+      FileClose $R1
+    ${EndIf}
+  ${EndIf}
+  ClearErrors
+  Pop $R1
+  Pop $R0
+!macroend
+
 !macro customCheckAppRunning
   Push $0
   Push $1
@@ -96,6 +114,7 @@
                 ${AndIf} $0 != ""
                   ; A normal Orca quit must not force another instance or its agents to close.
                   ${If} $5 == "1"
+                    !insertmacro ORCA_WRITE_DEFERRED_UPDATE_RESULT "another-instance-running"
                     SetErrorLevel 2
                     Quit
                   ${EndIf}
@@ -150,6 +169,11 @@
     ${ElseIf} $R0 = -1
     ${AndIf} $1 >= 2000
       ; The process list cannot be read at all.
+      ${If} $5 == "1"
+        !insertmacro ORCA_WRITE_DEFERRED_UPDATE_RESULT "process-list-unavailable"
+        SetErrorLevel 2
+        Quit
+      ${EndIf}
       ${If} ${Cmd} `MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$(appCannotBeClosed)" /SD IDCANCEL IDCANCEL`
         Quit
       ${EndIf}
