@@ -5,6 +5,7 @@ import type {
 import { deriveNativeChatRowContent } from '../../../../../../shared/native-chat/transcript/row-content/native-chat-row-content'
 import { withoutSentImagePromptMarkers } from '../../../../../../shared/native-chat/transcript/images/native-chat-sent-image-prompt-markers'
 import { nativeChatBlocksInOwnWords } from '../../../../../../shared/native-chat/transcript/pending-sends/native-chat-stopped-before-start'
+import { withoutNativeChatWebCitationMarkers } from '../../../../../../shared/native-chat/transcript/row-content/native-chat-web-citation-markers'
 import { nativeChatStoppedBeforeStartLabel } from './native-chat-stopped-before-start-row'
 import type { Translate } from '../../../../i18n/use-translate'
 
@@ -22,9 +23,11 @@ export function nativeChatMessageRowBlocks(
 /** The words an agent row draws and copies; Copy exists only where these do. */
 export function nativeChatAgentRowWords(message: NativeChatMessage, t?: Translate): string {
   // A thought heading a run reads inside it, so the row has no words of its own.
-  return message.role === 'reasoning'
-    ? ''
-    : deriveNativeChatRowContent(nativeChatMessageRowBlocks(message, t)).markdown
+  if (message.role === 'reasoning') {
+    return ''
+  }
+  const { markdown } = deriveNativeChatRowContent(nativeChatMessageRowBlocks(message, t))
+  return message.role === 'assistant' ? withoutNativeChatWebCitationMarkers(markdown) : markdown
 }
 
 /** Whether an agent row draws images: a response with no words can still hold its turn's actions. */

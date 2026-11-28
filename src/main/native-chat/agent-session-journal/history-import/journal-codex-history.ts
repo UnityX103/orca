@@ -1,6 +1,7 @@
 import type { CodexHistoryRecord } from '../../transcript-history/codex/codex-local-history'
 import { readRecord, readString } from '../../../codex/app-server/codex-item-field-readers'
 import { codexRolloutItem } from '../../../codex/history/rollouts/codex-rollout-item-projection'
+import { reviseCodexHistoryCitation } from './journal-codex-history-citation'
 import {
   projectCodexHistoryItem,
   projectCodexHistoryTurn
@@ -119,10 +120,10 @@ export function createCodexHistoryCollector(
         lastTurnId = null
         window.reserve(0)
       }
-      if (!descriptor.paginated) {
-        return
+      const record = descriptor.paginated ? descriptor.record : null
+      if (record?.type === 'response_item') {
+        return reviseCodexHistoryCitation(record.payload, segment, window, placement, limits)
       }
-      const record = descriptor.record
       if (record?.type !== 'event_msg') {
         return
       }

@@ -1,7 +1,5 @@
 import { CodexTurnOrdinals } from './codex-turn-ordinals'
 import type { AgentJournalItemIdentity } from '../../../../shared/agent-session/journal/agent-session-journal-identity'
-import type { AgentJournalRowAttribution } from '../../../../shared/agent-session/journal/agent-session-journal-types'
-import { requiresTerminalSettlement } from '../../../native-chat/agent-session-journal/item-lifecycle/journal-terminal-settlement'
 import { codexJournalItem } from '../items/codex-structured-item-translation'
 import {
   codexItemIdentity,
@@ -28,7 +26,11 @@ import {
   MAX_CODEX_DETAIL_ENTRIES,
   MAX_CODEX_IDENTITY_ENTRIES
 } from './codex-structured-journal-limits'
-import { appendCodexLifecycleItem, publishCodexLifecycle } from './codex-structured-journal-sink'
+import {
+  appendCodexJournalItem,
+  appendCodexLifecycleItem,
+  publishCodexLifecycle
+} from './codex-structured-journal-sink'
 import { readCodexJournalString } from './codex-structured-journal-translation-values'
 import { readCodexTurnId } from '../../app-server/codex-structured-thread-facts'
 import { readCodexDispatchEcho } from '../turns/codex-structured-dispatch-echo'
@@ -40,11 +42,14 @@ import {
 } from '../../../native-chat/agent-session-journal/item-lifecycle/journal-reasoning-row'
 import type { CodexRowAttribution } from '../background-work/codex-subagent-linkage'
 import { codexFileChangeApprovalDetail } from '../prompts/codex-file-change-approval-detail'
+import { CodexJournalCitations } from './codex-journal-citations'
+import { readRecord } from '../../app-server/codex-item-field-readers'
 
 export class CodexJournalItems {
   readonly ordinals = new CodexTurnOrdinals()
   readonly activeItems = new Map<string, CodexActiveJournalItem>()
   readonly streams
+  readonly citations: CodexJournalCitations
   /** Each item's row, by `codexStructuredItemKey`. */
   readonly identities = new Map<string, AgentJournalItemIdentity>()
   private readonly details = new Map<string, string>()
@@ -64,6 +69,7 @@ export class CodexJournalItems {
     private readonly suppress: (threadId: string, turnId: string) => void,
     private readonly helperName?: CodexHelperName
   ) {
+    this.citations = new CodexJournalCitations(deps.sink)
     this.streams = createCodexStructuredItemStreams({
       sink: deps.sink,
       coalesceMs: deps.coalesceMs,
@@ -87,15 +93,16 @@ export class CodexJournalItems {
     event: { threadId: string; method: string; params: unknown; observedAt?: number },
     source: 'live' | 'history' = 'live'
   ): CodexItemTranslation {
-    const params =
-      typeof event.params === 'object' && event.params !== null
-        ? (event.params as Record<string, unknown>)
-        : {}
-    const item = readCodexThreadItem(params.item)
-    if (!item) {
+    const rawItem = readCodexThreadItem(readRecord(event.params).item)
+    if (!rawItem) {
       return { handled: false }
     }
     const turnId = readCodexTurnId(event.params) ?? this.activeTurn(event.threadId)
+    const citation =
+      event.method === 'item/completed'
+        ? this.citations.complete(rawItem, event.threadId, turnId)
+        : null
+    const item = citation?.item ?? rawItem
     const identity = this.identityFor(event.threadId, turnId, item)
     // Count echoes for stable resume ordinals, but user bubbles come from submissions.
     if (source === 'live' && item.type === 'userMessage') {
@@ -150,14 +157,22 @@ export class CodexJournalItems {
     }
     // Coalescing can delay the first write until completion; preserve the item's start time.
     const startedAt = event.method === 'item/completed' ? active?.startedAt : receivedAt
-    const admission = this.appendTranslated(event.method, identity, translated, {
+    const attribution = {
       ...this.deps.attributionFor(event.threadId, turnId),
       ...(startedAt === undefined ? {} : { observedAt: startedAt })
-    })
+    }
+    const admission = appendCodexJournalItem(
+      this.deps.sink,
+      identity,
+      translated.body,
+      attribution,
+      event.method === 'item/completed'
+    )
     if (!admission.accepted) {
       return { handled: true, admission }
     }
     if (event.method === 'item/completed') {
+      citation?.commit(identity, attribution)
       this.streams.forget(event.threadId, item.id)
       this.activeItems.delete(itemKey)
     } else {
@@ -175,38 +190,6 @@ export class CodexJournalItems {
     this.identities.clear()
     this.details.clear()
     this.activeItems.clear()
-  }
-
-  private appendTranslated(
-    method: string,
-    identity: AgentJournalItemIdentity,
-    translated: ReturnType<typeof codexJournalItem>,
-    attribution: AgentJournalRowAttribution & { observedAt?: number }
-  ): CodexJournalTranslationAdmission {
-    if (!translated.body) {
-      return CODEX_JOURNAL_ADMITTED
-    }
-    if (method === 'item/completed') {
-      const admission = appendCodexLifecycleItem(
-        this.deps.sink,
-        identity,
-        translated.body,
-        attribution
-      )
-      return admission.accepted ? publishCodexLifecycle(this.deps.sink) : admission
-    }
-    const options = requiresTerminalSettlement(translated.body) ? { lifecycle: true } : {}
-    const appendOptions = { ...options, ...attribution }
-    const admission = this.deps.sink.tryAppendItem
-      ? this.deps.sink.tryAppendItem(identity, translated.body, appendOptions)
-      : (this.deps.sink.appendItem(identity, translated.body, appendOptions),
-        CODEX_JOURNAL_ADMITTED)
-    if (!admission.accepted) {
-      return admission
-    }
-    return this.deps.sink.tryPublish
-      ? this.deps.sink.tryPublish(options)
-      : (this.deps.sink.publish(options), CODEX_JOURNAL_ADMITTED)
   }
 
   /** A kept agent's running command: later output streams onto its row with its saved fields. */

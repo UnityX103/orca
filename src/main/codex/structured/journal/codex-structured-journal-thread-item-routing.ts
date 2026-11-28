@@ -21,11 +21,17 @@ export type CodexThreadItemRouting = CodexJournalTranslationAdmission | null
 
 export function createCodexThreadItemRouter(input: {
   deps: Pick<CodexJournalTranslatorDeps, 'dispatchRequestOrigin' | 'onUserMessageEcho'>
-  items: Pick<CodexJournalItems, 'handle'>
+  items: Pick<CodexJournalItems, 'handle' | 'citations'>
   turnBoundaries: Pick<CodexJournalTurnBoundaries, 'attributeRequest'>
   genericFrames: Pick<CodexJournalGenericFrames, 'appendUnhandled'>
 }): (event: ThreadItemEvent) => CodexThreadItemRouting {
   return (event) => {
+    if (event.method === 'rawResponseItem/completed') {
+      return input.items.citations.rawResponse(event.threadId, event.params)
+    }
+    if (event.method !== 'item/started' && event.method !== 'item/completed') {
+      return null
+    }
     const subagentItem = readCodexNotificationThreadItem(event.params, readCodexThreadItem)
     // The host records child activity; duplicating it here would create extra rows.
     if (subagentItem && readCodexSubagentActivity(subagentItem) !== null) {

@@ -44,6 +44,12 @@ export function createCodexHistoryPlacement() {
       return root
     },
     get: (row: JournalReplacementItem | undefined) => (row ? entries.get(row) : undefined),
+    keepPlacement(row: JournalReplacementItem, previous: JournalReplacementItem) {
+      const entry = entries.get(previous)
+      if (entry) {
+        entries.set(row, entry)
+      }
+    },
     turnGroup(row: JournalReplacementItem | undefined) {
       const group = row ? entries.get(row)?.turnGroup : undefined
       return group?.segment === segment ? group : undefined

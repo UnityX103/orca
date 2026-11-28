@@ -10,6 +10,7 @@ import { parseJsonObject } from '../../ai-vault/parsing/session-json-object'
 import { timestampMs } from '../../ai-vault/parsing/session-record-time'
 import { claudeContentBlocks, toolResultOutput } from './transcript-record-blocks'
 import { CODEX_EVENT_TURN_ABORTED } from './transcript-turn-markers'
+import { codexWebCitationContent } from '../../codex/structured/items/codex-web-citations'
 
 /** Paginated completed items own visible messages; response tools retain their legacy format. */
 export function isCodexVisibleHistoryRecord(
@@ -63,7 +64,7 @@ function codexUnwrappedResponseItem(
     return codexResponseItem(record, id, timestamp)
   }
   const role = record.role === 'assistant' ? 'assistant' : record.role === 'user' ? 'user' : null
-  const decodedBlocks = codexTurnItemBlocks(record.content)
+  const decodedBlocks = codexMessageContent(record.content, role, codexTurnItemBlocks)
   const blocks =
     role === 'user' ? decodedBlocks.filter((block) => !isSkillContext(block)) : decodedBlocks
   return role && blocks.length > 0 ? { id, role, blocks, timestamp, source: 'transcript' } : null
@@ -80,7 +81,7 @@ function codexResponseItem(
     if (!role) {
       return null
     }
-    const decodedBlocks = claudeContentBlocks(payload.content)
+    const decodedBlocks = codexMessageContent(payload.content, role, claudeContentBlocks)
     const blocks =
       role === 'user' ? decodedBlocks.filter((block) => !isSkillContext(block)) : decodedBlocks
     if (blocks.length === 0) {
@@ -133,6 +134,15 @@ function codexResponseItem(
 // Explicit skill expansions are model context, not the user's recorded prompt.
 function isSkillContext(block: NativeChatBlock): boolean {
   return block.type === 'text' && block.text.trimStart().slice(0, 7).toLowerCase() === '<skill>'
+}
+
+function codexMessageContent(
+  content: unknown,
+  role: 'assistant' | 'user' | null,
+  decode: (value: unknown) => NativeChatBlock[]
+): NativeChatBlock[] {
+  const cited = role === 'assistant' ? codexWebCitationContent(content) : null
+  return cited ? [{ type: 'text', text: cited.markdown }] : decode(content)
 }
 
 function codexEventMessage(

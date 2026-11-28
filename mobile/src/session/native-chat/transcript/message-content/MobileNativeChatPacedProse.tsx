@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { View } from 'react-native'
 import { nativeChatProseToMarkdown } from '../../../../../../src/shared/native-chat/transcript/row-content/native-chat-prose'
+import { withoutNativeChatWebCitationMarkers } from '../../../../../../src/shared/native-chat/transcript/row-content/native-chat-web-citation-markers'
 import {
   isTextBlock,
   type NativeChatBlock
@@ -38,7 +39,7 @@ export function MobileNativeChatPacedProse({
     end = start + text.length
     const content = shown.text.slice(start, end)
     return children(block, index, {
-      text: content,
+      text: paced ? withoutNativeChatWebCitationMarkers(content) : content,
       revealing: shown.revealing && (block === growingBlock || content.length < text.length)
     })
   })

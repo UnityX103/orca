@@ -260,12 +260,10 @@ function createCodexTranslation(
           capturedAt: deps.now?.() ?? Date.now()
         })
       }
-      if (event.method === 'item/started' || event.method === 'item/completed') {
-        const routed = routeThreadItem(event)
-        // Claimed items still need to publish turn activity.
-        if (routed) {
-          return publishActivity(event, routed)
-        }
+      const routed = routeThreadItem(event)
+      // Claimed items still need to publish turn activity.
+      if (routed) {
+        return publishActivity(event, routed)
       }
       if (isCodexProviderRetryFrame(event)) {
         // Persist each retry as evidence and publish activity for the idle sweep.

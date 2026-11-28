@@ -24,6 +24,7 @@ import { codexFileChangePatch } from './codex-file-change-patch'
 import { readRecord, readString, readTextContent } from '../../app-server/codex-item-field-readers'
 import type { CodexThreadItem } from './codex-thread-item-identity'
 import { journalReasoningBody } from '../../../native-chat/agent-session-journal/item-lifecycle/journal-reasoning-row'
+import { codexWebCitationContent } from './codex-web-citations'
 
 export function codexMessageBlocks(item: CodexThreadItem): NativeChatBlock[] {
   const text =
@@ -31,7 +32,8 @@ export function codexMessageBlocks(item: CodexThreadItem): NativeChatBlock[] {
       ? (readString(item, 'text') ?? readTextContent(item, 'content'))
       : readString(item, 'text')
   if (text !== null) {
-    return [{ type: 'text', text }]
+    const cited = item.type === 'agentMessage' ? codexWebCitationContent(item.content) : null
+    return [{ type: 'text', text: cited?.text === text ? cited.markdown : text }]
   }
   const content = item.content
   if (!Array.isArray(content)) {

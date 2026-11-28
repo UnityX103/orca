@@ -10,6 +10,7 @@ import { heldQueuedImageHistoryPolicy } from './agent-session-queued-image-reade
 import { CLIENT_HISTORY_READER } from './agent-session-item-wire-form'
 import type { JournalDomainHistoryWork } from '../../../agent-session-journal/journal-domain-history-page'
 import type { JournalSqlWorkResult } from '../../../agent-session-journal/journal-work-read'
+import { withSavedCodexCitations } from './agent-session-saved-codex-citations'
 
 export type AgentSessionHistoryScope = 'every-agent' | 'own-agent'
 
@@ -133,10 +134,11 @@ export async function readAgentSessionHydrationFrame(
 
 async function projectPage(
   journal: SqlAgentSessionJournal,
-  page: AgentSessionHistoryPage,
+  storedPage: AgentSessionHistoryPage,
   reader: HistoryReader,
   forward: boolean
 ): Promise<AgentSessionHistoryPage> {
+  const page = await withSavedCodexCitations(journal, storedPage, reader)
   if (!reader.snapshot) {
     return page
   }

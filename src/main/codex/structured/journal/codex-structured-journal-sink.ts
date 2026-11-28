@@ -19,8 +19,33 @@ import type { CodexGoalRowChoice } from './codex-goal-journal-identity'
 import type { CodexJournalTranslationAdmission } from './codex-structured-journal-contracts'
 import { CODEX_JOURNAL_ADMITTED } from './codex-structured-journal-contracts'
 import { CODEX_TURN_ROW_KEPT_BYTES } from './codex-structured-journal-translation-turns'
+import { requiresTerminalSettlement } from '../../../native-chat/agent-session-journal/item-lifecycle/journal-terminal-settlement'
 
 const ADMITTED: StructuredAgentSessionSinkAdmission = { accepted: true }
+
+export function appendCodexJournalItem(
+  sink: StructuredAgentSessionEventSink,
+  identity: AgentJournalItemIdentity,
+  body: AgentJournalItemBody,
+  attribution: AgentJournalRowAttribution & { observedAt?: number },
+  completed: boolean
+): CodexJournalTranslationAdmission {
+  if (completed) {
+    const admission = appendCodexLifecycleItem(sink, identity, body, attribution)
+    return admission.accepted ? publishCodexLifecycle(sink) : admission
+  }
+  const options = requiresTerminalSettlement(body) ? { lifecycle: true } : {}
+  const appendOptions = { ...options, ...attribution }
+  const admission = sink.tryAppendItem
+    ? sink.tryAppendItem(identity, body, appendOptions)
+    : (sink.appendItem(identity, body, appendOptions), CODEX_JOURNAL_ADMITTED)
+  if (!admission.accepted) {
+    return admission
+  }
+  return sink.tryPublish
+    ? sink.tryPublish(options)
+    : (sink.publish(options), CODEX_JOURNAL_ADMITTED)
+}
 
 export function appendCodexLifecycleMutations(
   sink: StructuredAgentSessionEventSink,
