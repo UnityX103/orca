@@ -50,6 +50,7 @@ import {
   applyServeDesktopWindowActivationPolicy
 } from '../../window/activation/foreground-activation-policy'
 import type { MainWindowOpenOptions } from '../../window/main-window/main-window-contracts'
+import { cancelSOrcaUpdateRestart } from '../../updater/updater-service'
 import { argvRequestsBackgroundOpen } from '../../../shared/app-lifecycle/launch/background-open-argv'
 
 const TRAY_CREATE_FALLBACK_MS = 12_000
@@ -106,6 +107,7 @@ export async function openMainWindow(options: MainWindowOpenOptions = {}): Promi
     onQuitAborted: () => {
       state.isQuitting = false
       clearExpectedRendererReload()
+      cancelSOrcaUpdateRestart()
     },
     onRendererProcessGone: (details, webContentsId, liveness) => {
       recordProcessGoneCrash(

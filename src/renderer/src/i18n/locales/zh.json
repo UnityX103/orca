@@ -1350,6 +1350,7 @@
     "automaticUpdates": {
       "title": "自动更新",
       "description": "在支持此功能的桌面安装中，Orca 会在定期检查时下载符合条件的更新，并自动重启以完成安装。",
+      "installOnQuitDescription": "Orca 在后台下载符合条件的更新，并在下次正常退出时自动安装。",
       "info": "关于自动更新",
       "saveFailed": "无法保存自动更新设置。"
     },
@@ -24958,6 +24959,9 @@
       "packageUnavailable": "本机还没有可用的开发包。请在 Orca 仓库中运行 ./scripts/update-orca-dev --package-only。",
       "prepareFailed": "无法暂存更新包。请重新选择。",
       "ready": "版本 {{version}} 将在正常退出 Orca 时安装。",
+      "releaseUpdateInProgress": "请先完成正式版更新，再选择本机更新包。",
+      "signingIdentity": "更新包无法保留 Orca 的 macOS 签名身份。",
+      "systemVersion": "此更新需要更高版本的 macOS。",
       "title": "本机更新包"
     }
   },
@@ -26172,7 +26176,14 @@
       "teamUpdatePolicy": "你的团队管理着 Orca 更新",
       "automaticInstallCheckpointFailed": "Orca 无法在重启前保存当前窗口。请重试安装更新。",
       "automaticInstallTerminalBusy": "重启会结束部分终端会话。Orca 会在之后检查更新时重试。",
-      "macStagingTimeout": "macOS 仍在准备更新。如果长时间停留在此状态，请退出并重新打开 Orca。"
+      "macStagingTimeout": "macOS 仍在准备更新。如果长时间停留在此状态，请退出并重新打开 Orca。",
+      "sorcaLocalUpdatePending": "请先取消待安装的本机更新，再下载正式版更新。",
+      "sorcaMacRestartFailed": "Orca 无法准备重启，请重试安装更新。",
+      "sorcaMacRunningInstances": "另一个 Orca 实例正在使用此安装。",
+      "sorcaMacSigningIdentity": "更新包无法保留 Orca 的 macOS 签名身份，已保留当前安装。",
+      "sorcaMacStagingFailed": "Orca 无法校验或暂存更新包。",
+      "sorcaMacSystemVersion": "此更新需要更高版本的 macOS。",
+      "sorcaReleaseDateUnavailable": "此版本缺少可用的发布时间。Orca 将再次检查以遵守更新延迟设置。"
     },
     "automatic": {
       "downloading": "正在下载 Orca {{version}}…",

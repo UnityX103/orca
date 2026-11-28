@@ -28,8 +28,8 @@ export default async function sign(options) {
   const require = createRequire(builderRequire.resolve('app-builder-lib'))
   const { retry } = require('builder-util')
   const started = performance.now()
-  // The local Apple Development certificate is selected by fingerprint before electron-builder runs.
-  const localIdentity = options.identity === '-' && process.env.SORCA_MAC_LOCAL_SIGNING_IDENTITY
+  // electron-builder can resolve "-" to a certificate name containing a hyphen.
+  const localIdentity = process.env.SORCA_MAC_LOCAL_SIGNING_IDENTITY
   const signingOptions = localIdentity
     ? { ...options, identity: localIdentity, preAutoEntitlements: false }
     : options

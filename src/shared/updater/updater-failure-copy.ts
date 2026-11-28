@@ -3,6 +3,15 @@ export const UPDATER_FAILURE_COPY = {
   automaticInstallTerminalBusy:
     'Some terminals would end on restart. Orca will try again on a later update check.',
   macStagingTimeout: 'macOS is still preparing the update. If this persists, quit and reopen Orca.',
+  sorcaMacSigningIdentity:
+    'Orca kept the installed app because the update could not preserve its macOS signing identity.',
+  sorcaMacSystemVersion: 'This update requires a newer macOS version.',
+  sorcaMacStagingFailed: 'Orca could not verify or stage the update.',
+  sorcaMacRunningInstances: 'Another Orca instance is using this installation.',
+  sorcaMacRestartFailed: 'Orca could not prepare the restart. Try installing the update again.',
+  sorcaLocalUpdatePending: 'Cancel the pending local update before downloading the release update.',
+  sorcaReleaseDateUnavailable:
+    'The release has no usable publication date. Orca will check again before applying your update delay.',
   automaticInstallCheckpointFailed:
     'Orca could not save the current window before restarting. Try installing the update again.',
   releaseNotReady: "A newer release isn't available for this device yet. Check again later.",

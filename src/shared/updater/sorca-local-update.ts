@@ -3,6 +3,9 @@ export type SOrcaLocalUpdateError =
   | 'already-installed'
   | 'package-unavailable'
   | 'install-location'
+  | 'release-update-in-progress'
+  | 'signing-identity'
+  | 'system-version'
   | 'prepare-failed'
 
 export type SOrcaLocalUpdateStatus = { pendingVersion: string | null }

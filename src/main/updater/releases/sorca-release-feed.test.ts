@@ -31,3 +31,38 @@ it('offers the Orca installer and keeps previously published installers reachabl
   expect(compareSOrcaBuilds('1.4.274+sorca.201.2', '1.4.274+sorca.201.1')).toBeGreaterThan(0)
   expect(compareSOrcaBuilds('1.4.274+sorca.201.2', '1.4.274+sorca.native.1')).toBeGreaterThan(0)
 })
+
+it('offers an in-app Mac update only for a release with the signing marker and a valid DMG digest', () => {
+  const hash = 'e2'.repeat(32)
+  const image = {
+    name: 'orca-macos-arm64.dmg',
+    state: 'uploaded',
+    size: 101,
+    digest: `sha256:${hash}`
+  }
+  const marker = { name: 'orca-macos-arm64-update.json', state: 'uploaded', size: 32 }
+  const release = { draft: false, prerelease: false }
+  const builds = sorcaReleaseBuilds(
+    [
+      { ...release, tag_name: 'v1.4.280+build.46098182992.1', assets: [image] },
+      { ...release, tag_name: 'v1.4.280+build.46098182992.2', assets: [image, marker] },
+      {
+        ...release,
+        tag_name: 'v1.4.280+build.46098182992.3',
+        assets: [{ ...image, digest: 'sha256:invalid' }, marker]
+      }
+    ],
+    'darwin',
+    'arm64'
+  )
+
+  expect(builds.map((entry) => entry.macUpdate)).toEqual([
+    undefined,
+    {
+      url: 'https://github.com/UnityX103/orca/releases/download/v1.4.280%2Bbuild.46098182992.2/orca-macos-arm64.dmg',
+      size: 101,
+      sha256: hash
+    },
+    undefined
+  ])
+})

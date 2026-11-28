@@ -102,7 +102,12 @@ export function UpdateCard(): React.JSX.Element | null {
       return
     }
     hasStartedDownload.current = false
-    if (!status.installing && !status.automaticDownload && !status.requiredByTeam) {
+    if (
+      !status.installing &&
+      !status.automaticDownload &&
+      !status.requiredByTeam &&
+      !status.installOnQuit
+    ) {
       requestInstall(installTarget)
     }
   }, [status, installTarget, requestInstall])

@@ -4042,6 +4042,13 @@
       "releaseListUnreadable": "Could not read the {{channel}} release list.",
       "releaseNotReady": "A newer release isn't available for this device yet. Check again later.",
       "releaseRepoNotFound": "No releases repository found at {{repo}}.",
+      "sorcaLocalUpdatePending": "Cancel the pending local update before downloading the release update.",
+      "sorcaMacRestartFailed": "Orca could not prepare the restart. Try installing the update again.",
+      "sorcaMacRunningInstances": "Another Orca instance is using this installation.",
+      "sorcaMacSigningIdentity": "Orca kept the installed app because the update could not preserve its macOS signing identity.",
+      "sorcaMacStagingFailed": "Orca could not verify or stage the update.",
+      "sorcaMacSystemVersion": "This update requires a newer macOS version.",
+      "sorcaReleaseDateUnavailable": "The release has no usable publication date. Orca will check again before applying your update delay.",
       "unknownReleaseChannel": "Unknown release channel \"{{channel}}\".",
       "unsignedDevChannel": "{{channel}} builds are unsigned, and this signed build only installs updates signed by Orca's publisher. Download the installer from the release page and run it once — updates work normally from there, including back to Stable.",
       "updateServerUnreachable": "Couldn't reach the update server. Try again in a few minutes."

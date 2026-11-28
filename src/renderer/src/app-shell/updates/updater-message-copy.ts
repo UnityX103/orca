@@ -33,6 +33,32 @@ const COPY: Record<UpdaterFailureCode, (param: Param, count: CountParam) => stri
     ),
   macStagingTimeout: () =>
     translate('updates.failure.macStagingTimeout', UPDATER_FAILURE_COPY.macStagingTimeout),
+  sorcaMacSigningIdentity: () =>
+    translate(
+      'updates.failure.sorcaMacSigningIdentity',
+      UPDATER_FAILURE_COPY.sorcaMacSigningIdentity
+    ),
+  sorcaMacSystemVersion: () =>
+    translate('updates.failure.sorcaMacSystemVersion', UPDATER_FAILURE_COPY.sorcaMacSystemVersion),
+  sorcaMacStagingFailed: () =>
+    translate('updates.failure.sorcaMacStagingFailed', UPDATER_FAILURE_COPY.sorcaMacStagingFailed),
+  sorcaMacRunningInstances: () =>
+    translate(
+      'updates.failure.sorcaMacRunningInstances',
+      UPDATER_FAILURE_COPY.sorcaMacRunningInstances
+    ),
+  sorcaMacRestartFailed: () =>
+    translate('updates.failure.sorcaMacRestartFailed', UPDATER_FAILURE_COPY.sorcaMacRestartFailed),
+  sorcaLocalUpdatePending: () =>
+    translate(
+      'updates.failure.sorcaLocalUpdatePending',
+      UPDATER_FAILURE_COPY.sorcaLocalUpdatePending
+    ),
+  sorcaReleaseDateUnavailable: () =>
+    translate(
+      'updates.failure.sorcaReleaseDateUnavailable',
+      UPDATER_FAILURE_COPY.sorcaReleaseDateUnavailable
+    ),
   automaticInstallCheckpointFailed: () =>
     translate(
       'updates.failure.automaticInstallCheckpointFailed',

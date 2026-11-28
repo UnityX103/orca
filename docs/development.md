@@ -61,6 +61,12 @@ pnpm dev:fresh [--keep] [--seed-from[=<profile dir>]]   # temporary profile, rem
 
 本机包使用钥匙串中的 Apple Development 证书。首次打包会把证书指纹保存到 `~/.orca/sorca-development/signing-identity`。有多张证书时，可在首次打包用 `SORCA_MAC_LOCAL_SIGNING_IDENTITY` 指定指纹。固定证书不可用时，打包会报错。从临时签名切换到证书签名后，macOS 可能会重新请求现有权限。
 
+### 自用版 GitHub 自动更新（Apple Silicon）
+
+在 `UnityX103/orca` 的 Actions 中配置 `SORCA_MAC_SIGNING_SHA1` 仓库变量，以及 `SORCA_MAC_CERTS` 和 `SORCA_MAC_CERTS_PASSWORD` 密钥。分别使用长期固定的签名证书指纹、该证书的 Base64 `.p12` 和密码。与本机开发包直接接续时，使用同一签名身份。工作流会校验主应用和权限相关 Helper 的签名，并随通过校验的 DMG 发布更新标记。
+
+安装支持此流程的签名版本后，Orca 会在后台下载新版本，并在下次正常退出时安装。需要立即应用时可点击「重启以更新」。可以在「设置 → 关于」关闭自动更新或设置更新延迟。Orca 使用 GitHub 资产摘要校验下载，在暂存和安装时比较已安装版与更新包的 macOS 签名身份。若正常退出时同一安装仍有其他 Orca 实例在使用，本次跳过安装，Orca 会在后续检查时重新下载。已有临时签名的安装需要一次签名迁移，macOS 可能会要求重新授权。
+
 升级后，Orca 会继续读取原 `orca` 或 `SOrca` 数据目录中的项目、设置、会话和凭据。macOS 的目录位于 `~/Library/Application Support/`，Windows 的目录位于 `%APPDATA%`。如果两个目录都已有数据，首次打开兼容版本时请选择此前使用的目录。Orca 会记住选择并保留两个目录。
 
 ## Troubleshooting

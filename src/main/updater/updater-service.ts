@@ -59,7 +59,7 @@ export function checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
 }
 
 export function applyAutomaticUpdatesSetting(enabled: boolean | undefined): void {
-  if (enabled === true) {
+  if (enabled !== undefined) {
     updater.applyAutomaticUpdatesSetting()
   }
 }
@@ -70,6 +70,10 @@ export function downloadUpdate(): void {
 
 export function quitAndInstall(): void {
   updater.quitAndInstall()
+}
+
+export function cancelSOrcaUpdateRestart(): void {
+  updater.cancelSOrcaUpdateRestart()
 }
 
 export function snoozeRequiredUpdate(): Promise<void> {

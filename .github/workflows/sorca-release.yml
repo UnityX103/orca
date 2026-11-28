@@ -12,3 +12,6 @@ jobs:
     with:
       sync_upstream: true
       publish_after_build: true
+    secrets:
+      SORCA_MAC_CERTS: ${{ secrets.SORCA_MAC_CERTS }}
+      SORCA_MAC_CERTS_PASSWORD: ${{ secrets.SORCA_MAC_CERTS_PASSWORD }}

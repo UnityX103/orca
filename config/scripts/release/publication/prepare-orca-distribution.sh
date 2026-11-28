@@ -84,9 +84,11 @@ read -r mac_asset windows_asset < <(node -p '
   macInstaller + " " + windowsInstaller
 ')
 if [[ "$SYNC_UPSTREAM" == true && "$published_sha" == "$sha" ]] &&
-  jq -e --arg mac "$mac_asset" --arg win "$windows_asset" '
+  jq -e --arg mac "$mac_asset" --arg win "$windows_asset" \
+    --arg signing "${SORCA_MAC_SIGNING_SHA1:-}" '
     [.assets[] | select(.state == "uploaded" and .size > 0) | .name]
     | index($mac) != null and index($win) != null and index("SHA256SUMS.txt") != null
+      and ($signing == "" or index("orca-macos-arm64-update.json") != null)
   ' <<< "$published" >/dev/null; then
   echo 'build=false' >> "$GITHUB_OUTPUT"
   echo '自用版与上游稳定版均无待发布变更。'

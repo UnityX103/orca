@@ -10,14 +10,17 @@ import { SettingsRow } from '../form-controls/SettingsFormControls'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
 import { getAutomaticUpdatesSettingCopy } from './automatic-updates-copy'
 
-export function AutomaticUpdatesSetting(): React.JSX.Element {
+export function AutomaticUpdatesSetting({
+  installOnQuitByDefault = false
+}: { installOnQuitByDefault?: boolean } = {}): React.JSX.Element {
   const t = useTranslate()
-  const enabled = useAppStore((state) => state.settings?.automaticUpdates === true)
+  const setting = useAppStore((state) => state.settings?.automaticUpdates)
+  const enabled = setting ?? installOnQuitByDefault
   const settingsLoaded = useAppStore((state) => state.settings !== null)
   const updateSettings = useAppStore((state) => state.updateSettingsOrThrow)
   const switchId = useId()
   const [saving, setSaving] = useState(false)
-  const { title, description } = getAutomaticUpdatesSettingCopy(t)
+  const { title, description } = getAutomaticUpdatesSettingCopy(t, installOnQuitByDefault)
 
   function toggleAutomaticUpdates(): void {
     setSaving(true)

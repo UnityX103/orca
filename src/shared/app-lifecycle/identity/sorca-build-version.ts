@@ -4,3 +4,7 @@ export const SORCA_DEVELOPMENT_VERSION = /^\d+\.\d+\.\d+\+(?:local|sorca\.native
 export function isSOrcaVersion(version: string): boolean {
   return SORCA_RELEASE_VERSION.test(version) || SORCA_DEVELOPMENT_VERSION.test(version)
 }
+
+export function defaultsToSOrcaMacAutoUpdate(version: string | null, platform: string): boolean {
+  return platform === 'darwin' && version !== null && SORCA_RELEASE_VERSION.test(version)
+}

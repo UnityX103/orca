@@ -16,7 +16,7 @@ import { destroySystemTray } from '../../tray/system-tray'
 import { shutdownTelemetry } from '../../telemetry/client'
 import { shutdownObservability } from '../../observability/index'
 import { applyTeamPolicyBeforeQuit, isQuittingForUpdate } from '../../updater/updater-service'
-import { applySOrcaLocalUpdateOnQuit } from '../../updater/local-package/sorca-local-update'
+import { applyStagedSOrcaUpdateOnQuit } from '../../updater/local-package/sorca-local-update'
 import { recordUpdaterLifecycle } from '../../updater/updater-lifecycle-diagnostics'
 import { pendingServeSupervisorQuitCommit } from '../../updater/lifecycle/serve-supervisor-install-park'
 import { stopTccPromptNotice } from '../../macos-permissions/macos-tcc-prompt-notice'
@@ -155,8 +155,8 @@ function installWillQuitHandler(): void {
       }
     })
       .then(() =>
-        applySOrcaLocalUpdateOnQuit().catch((error: unknown) => {
-          console.error('[sorca-local-update] Could not install the selected package', error)
+        applyStagedSOrcaUpdateOnQuit().catch((error: unknown) => {
+          console.error('[sorca-update] Could not install the staged package', error)
         })
       )
       .then(() => {

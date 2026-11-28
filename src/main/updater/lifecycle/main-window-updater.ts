@@ -13,6 +13,7 @@ import { applyProxyToElectronUpdaterSession } from './electron-updater-proxy-ses
 import { updaterErrorMessage } from './updater-coded-error'
 import { updaterCodedMessage } from '../../../shared/updater/updater-failure-copy'
 import { normalizeUpdateDelayDays } from '../../../shared/updater/update-delay'
+import { defaultsToSOrcaMacAutoUpdate } from '../../../shared/app-lifecycle/identity/sorca-build-version'
 import {
   getActiveTeamCapabilities,
   getActiveTeamProfileScope,
@@ -139,7 +140,9 @@ function buildUpdaterSetupOptions(
     },
     getUpdateDelayDays: () =>
       normalizeUpdateDelayDays(nativeSettings.getSettings().updateDelayDays),
-    getAutomaticUpdates: () => nativeSettings.getSettings().automaticUpdates === true,
+    getAutomaticUpdates: () =>
+      nativeSettings.getSettings().automaticUpdates ??
+      (app.isPackaged && defaultsToSOrcaMacAutoUpdate(app.getVersion(), process.platform)),
     onBeforeQuitFailure: options?.onBeforeUpdateQuitFailure,
     installMode: options?.updateInstallMode
   }

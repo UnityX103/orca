@@ -78,6 +78,18 @@ export function SOrcaLocalUpdatePackage(): React.JSX.Element | null {
       'sorca.localUpdate.installLocation',
       'Orca cannot write to its installation folder. Open Orca from a writable Applications folder.'
     ),
+    'release-update-in-progress': t(
+      'sorca.localUpdate.releaseUpdateInProgress',
+      'Finish the release update before choosing a local package.'
+    ),
+    'signing-identity': t(
+      'sorca.localUpdate.signingIdentity',
+      'The update could not preserve Orca’s macOS signing identity.'
+    ),
+    'system-version': t(
+      'sorca.localUpdate.systemVersion',
+      'This update requires a newer macOS version.'
+    ),
     'prepare-failed': t(
       'sorca.localUpdate.prepareFailed',
       'Could not prepare the update package. Try selecting it again.'
