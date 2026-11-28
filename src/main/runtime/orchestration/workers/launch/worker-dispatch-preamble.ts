@@ -110,7 +110,7 @@ export function buildDispatchPreamble(params: PreambleParams): string {
     ? 'If you need a decision from the person, explain the question and the work so far in this chat, then end your turn. Wait for their reply before proceeding. Do not use an interactive question tool.'
     : `The coordinator cannot see this ${surface}. Reach it with the \`${cli} orchestration\` commands
 below, and message it only to ask, report a blocker, or finish; it needs no progress updates
-unless the task asks.`
+unless the task asks (send = always wakes the recipient; task-update --note = passive, never wakes).`
   const coordinatorCommands = params.personInitiated
     ? ''
     : `  # Ask the coordinator, then end your turn; Orca wakes you with the answer.
@@ -141,6 +141,8 @@ ${checkLines({ chat, unreadMail: params.unreadMail, cli, workerHandle: params.wo
   # Add --files-modified or --report-path only with real values. You are
   # done when it confirms; if it fails, follow the recovery it prints.
   ${cli} orchestration send --from ${params.workerHandle} --type worker_done --subject "<short status>" --body "<3-sentence summary: what you did, what you found, what's left>" --task-id ${params.taskId} --dispatch-id ${params.dispatchId} --outcome succeeded
+
+  # Optional passive progress for long runs: ${cli} orchestration task-update --from ${params.workerHandle} --note "<status>"
 \`\`\`
 
 ${postDoneInstructions}`

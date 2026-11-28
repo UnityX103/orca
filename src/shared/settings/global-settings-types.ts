@@ -8,7 +8,6 @@ import type { GitHubProjectSettings } from '../github/projects/project-types'
 import type { VoiceSettings } from '../speech/speech-types'
 import type { AiVaultSearchSettings } from '../ai-vault/search/ai-vault-search-settings'
 import type { GitLabProjectSettings } from '../gitlab/gitlab-types'
-import type { TaskProvider } from '../work-items/task-providers'
 import type { AppIconId } from '../app-lifecycle/identity/app-icon'
 import type { SourceControlAiSettings } from '../source-control/ai/settings/source-control-ai-settings-types'
 import type { ClaudeAgentTeamsMode } from '../agent-launch/startup/claude-agent-teams-tmux-compat'
@@ -352,13 +351,6 @@ export type GlobalSettings = GlobalSettingsBase & {
   skipCodexRateLimitResetConfirm: boolean
   /** Default preset in the new-workspace GitHub task view. */
   defaultTaskViewPreset: TaskViewPresetId
-  /** Persisted last-used task source so Tasks reopens to the same provider instead of defaulting to GitHub. */
-  defaultTaskSource: TaskProvider
-  /** Persisted visible task providers; hides unused providers from Tasks chrome and sidebar shortcuts. */
-  visibleTaskProviders: TaskProvider[]
-  /** Why: one-shot guard to make Jira visible for existing profiles once, without re-adding after a later opt-out. */
-  visibleTaskProvidersDefaultedForJira: boolean
-  visibleTaskProvidersDefaultedForCnb?: boolean
   /** Repo selection: null includes all present/future repos; arrays freeze a subset, dropping ineligible ids on load and treating empty as null. */
   defaultRepoSelection: string[] | null
   /** Linear team selection: null includes all; arrays freeze selected team IDs, matching defaultRepoSelection. */
@@ -443,6 +435,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   mobilePairingCustomAddress?: string | null
   /** Saved custom addresses available in both mobile pairing pickers. */
   mobilePairingCustomAddresses?: string[]
+  /** Share this computer: interface picked for "Another device", kept while it is briefly disconnected. */
+  runtimePairingInterface?: { name: string; address: string } | null
   /** Name this runtime reports to paired clients; empty uses the host's detected name. */
   machineName: string
   /** Opt-in animated pet overlay; off unmounts it and renderer toggles apply immediately. */

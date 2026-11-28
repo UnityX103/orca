@@ -86,7 +86,7 @@ const CODEX_VALUES = [
 ]
 const MODEL_VALUES = ['--model', '--effort']
 const CLAUDE_PERMISSION_GRAMMAR: readonly TuiAgent[] = ['claude', 'claude-agent-teams', 'bobot']
-const CLAUDE_VARIADIC = [
+export const CLAUDE_VARIADIC = [
   '--tools',
   '--allowedTools',
   '--allowed-tools',

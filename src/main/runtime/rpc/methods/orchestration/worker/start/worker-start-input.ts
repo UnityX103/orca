@@ -13,7 +13,10 @@ import type { AgentLaunchModeReceipt as WorkerStartModeReceipt } from '../../../
 import type { WorkerStartMutation } from './worker-start-mutation'
 import type { WorkerFollowUp } from '../follow-up/worker-follow-up-placement'
 
-export type WorkerStartInput = z.infer<typeof WorkerStartParams>
+export type WorkerStartInput = z.infer<typeof WorkerStartParams> & {
+  /** Set internally when `model`/`effort` were defaulted from `--retry-of`, never supplied by callers. */
+  inheritedLaunchPreferences?: boolean
+}
 
 export type LocalWorkerStartArgs = {
   params: WorkerStartInput
