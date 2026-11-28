@@ -1,5 +1,16 @@
-import { expect, it } from 'vitest'
-import { compareSOrcaBuilds, sorcaReleaseBuilds } from './sorca-release-feed'
+import { net } from 'electron'
+import { afterEach, expect, it, vi } from 'vitest'
+import {
+  compareSOrcaBuilds,
+  listSOrcaReleaseBuilds,
+  sorcaReleaseBuilds
+} from './sorca-release-feed'
+
+vi.mock('electron', () => ({ net: { fetch: vi.fn() } }))
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 it('offers the Orca installer and keeps previously published installers reachable', () => {
   const asset = { name: 'SOrca-macos-arm64.dmg', state: 'uploaded', size: 100 }
@@ -94,4 +105,47 @@ it('only stages the original Windows installer when GitHub supplies a verified a
     'ab'.repeat(32),
     undefined
   ])
+})
+
+it('reuses the last successful release list during a GitHub rate-limit window', async () => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+  const hash = 'cd'.repeat(32)
+  const releases = [
+    {
+      tag_name: 'v1.4.280+build.100.1',
+      draft: false,
+      prerelease: false,
+      assets: [
+        {
+          name: 'orca-macos-arm64.dmg',
+          state: 'uploaded',
+          size: 101,
+          digest: `sha256:${hash}`
+        },
+        { name: 'orca-macos-arm64-update.json', state: 'uploaded', size: 32 }
+      ]
+    }
+  ]
+  const fetchMock = vi.mocked(net.fetch)
+  fetchMock.mockReset()
+  fetchMock
+    .mockResolvedValueOnce(new Response(JSON.stringify(releases), { status: 200 }))
+    .mockResolvedValueOnce(
+      new Response(null, {
+        status: 403,
+        headers: {
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-reset': String(Math.floor(Date.parse('2026-01-01T01:00:00Z') / 1000))
+        }
+      })
+    )
+
+  const first = await listSOrcaReleaseBuilds()
+  const duringLimit = await listSOrcaReleaseBuilds()
+  const withoutAnotherRequest = await listSOrcaReleaseBuilds()
+
+  expect(duringLimit).toEqual(first)
+  expect(withoutAnotherRequest).toEqual(first)
+  expect(fetchMock).toHaveBeenCalledTimes(2)
 })

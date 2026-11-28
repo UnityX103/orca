@@ -50,7 +50,7 @@ function fetchReleases(
   })
 }
 
-function isRateLimited(res: Response): boolean {
+export function isRateLimited(res: Response): boolean {
   return (
     res.status === 429 ||
     (res.status === 403 &&
@@ -91,7 +91,7 @@ function rateLimitError(resetAtMs: number | null, nowMs: number, signedIn: boole
   )
 }
 
-function releaseListError(
+export function releaseListError(
   res: Response,
   repo: string,
   channel: ReleaseChannel,

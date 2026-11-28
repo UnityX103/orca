@@ -2,6 +2,7 @@ import { net } from 'electron'
 import type { ReleaseBuild } from '../../../shared/updater/release-channel'
 import { SORCA_RELEASE_VERSION } from '../../../shared/app-lifecycle/identity/sorca-build-version'
 import { compareSOrcaBuilds } from './sorca-build-order'
+import { isRateLimited, rateLimitResetAtMs, releaseListError } from './updater-release-builds'
 
 export { compareSOrcaBuilds } from './sorca-build-order'
 
@@ -9,6 +10,11 @@ const REPOSITORY = 'UnityX103/orca'
 const RELEASES_URL = `https://github.com/${REPOSITORY}/releases`
 const RELEASES_API = `https://api.github.com/repos/${REPOSITORY}/releases?per_page=30`
 const MAC_UPDATE_MARKER = 'orca-macos-arm64-update.json'
+const UNKNOWN_RATE_LIMIT_BACKOFF_MS = 60_000
+
+let lastSuccessfulBuilds: SOrcaReleaseBuild[] | undefined
+let rateLimitedUntilMs = 0
+let lastRateLimitError: Error | undefined
 
 type GitHubAsset = { name?: unknown; state?: unknown; size?: unknown; digest?: unknown }
 
@@ -107,10 +113,26 @@ export function sorcaReleaseBuilds(
 }
 
 export async function listSOrcaReleaseBuilds(): Promise<SOrcaReleaseBuild[]> {
+  if (Date.now() < rateLimitedUntilMs && lastRateLimitError) {
+    if (lastSuccessfulBuilds) {
+      return lastSuccessfulBuilds
+    }
+    throw lastRateLimitError
+  }
   const response = await net.fetch(RELEASES_API, {
     headers: { Accept: 'application/vnd.github+json' },
     signal: AbortSignal.timeout(8_000)
   })
+  if (isRateLimited(response)) {
+    const now = Date.now()
+    rateLimitedUntilMs =
+      rateLimitResetAtMs(response.headers, now) ?? now + UNKNOWN_RATE_LIMIT_BACKOFF_MS
+    lastRateLimitError = releaseListError(response, REPOSITORY, 'stable', false)
+    if (lastSuccessfulBuilds) {
+      return lastSuccessfulBuilds
+    }
+    throw lastRateLimitError
+  }
   if (!response.ok) {
     throw new Error(`Orca GitHub Releases returned HTTP ${response.status}`)
   }
@@ -118,5 +140,9 @@ export async function listSOrcaReleaseBuilds(): Promise<SOrcaReleaseBuild[]> {
   if (!Array.isArray(releases)) {
     throw new Error('Orca GitHub Releases returned an invalid response')
   }
-  return sorcaReleaseBuilds(releases, process.platform, process.arch)
+  const builds = sorcaReleaseBuilds(releases, process.platform, process.arch)
+  lastSuccessfulBuilds = builds
+  rateLimitedUntilMs = 0
+  lastRateLimitError = undefined
+  return builds
 }
