@@ -93,6 +93,23 @@
   Pop $R0
 !macroend
 
+!macro customInit
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "--orca-deferred-update" $R1
+  ${IfNot} ${Errors}
+    ReadRegStr $R2 HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation
+    ReadEnvStr $R3 ORCA_SORCA_EXPECTED_INSTALL_DIRECTORY
+    ${If} $installMode != "CurrentUser"
+    ${OrIf} $R2 != "$INSTDIR"
+    ${OrIf} $R3 != "$INSTDIR"
+      SetErrorLevel 2
+      Quit
+    ${EndIf}
+  ${EndIf}
+  ClearErrors
+!macroend
+
 !macro customInstall
   !insertmacro ORCA_REGISTER_DOCUMENT_PROGID "${MARKDOWN_PROGID}" "Markdown Document"
   !insertmacro ORCA_REGISTER_DOCUMENT_PROGID "${TABULAR_PROGID}" "Tabular Document"

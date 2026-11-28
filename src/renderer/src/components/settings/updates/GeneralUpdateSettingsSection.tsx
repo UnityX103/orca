@@ -24,7 +24,7 @@ import { useNow } from '@/lib/window-activity/use-now'
 import { isDelayedUpdatePending } from '../../../../../shared/updater/update-delay'
 import { getReleaseNotesUrlForVersion } from '../../../../../shared/updater/release-channel'
 import { openAppHttpLinkFromAnchor } from '@/lib/browser/navigation/app-http-link-open'
-import { defaultsToSOrcaMacAutoUpdate } from '../../../../../shared/app-lifecycle/identity/sorca-build-version'
+import { defaultsToSOrcaAutoUpdate } from '../../../../../shared/app-lifecycle/identity/sorca-build-version'
 
 export function GeneralUpdateSettingsSection({
   children
@@ -347,7 +347,7 @@ export function GeneralUpdateSettingsSection({
       <SOrcaLocalUpdatePackage />
       {isWebClientLocation() ? null : (
         <AutomaticUpdatesSetting
-          installOnQuitByDefault={defaultsToSOrcaMacAutoUpdate(
+          installOnQuitByDefault={defaultsToSOrcaAutoUpdate(
             appVersion,
             window.api.platform.get().platform
           )}

@@ -1,20 +1,22 @@
 import { runProcess } from '@orca/process-host'
-import { createHash } from 'node:crypto'
-import { createReadStream, createWriteStream } from 'node:fs'
 import { lstat, mkdtemp, rename, rm, rmdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, extname, join, resolve } from 'node:path'
-import { type Readable, Transform } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
 import { compareAppVersions } from '../../../shared/app-lifecycle/identity/app-version'
 import {
   SORCA_DEVELOPMENT_VERSION,
   SORCA_RELEASE_VERSION
 } from '../../../shared/app-lifecycle/identity/sorca-build-version'
 import { compareSOrcaBuilds } from '../releases/sorca-build-order'
-import type { SOrcaLocalUpdateError } from '../../../shared/updater/sorca-local-update'
 import { readSOrcaMacSigningIdentity, sameSOrcaMacSigningIdentity } from './sorca-mac-signing'
 import { swapMacAppBundles } from '../mac-install/macos-bundle-swap'
+
+import {
+  copyVerifiedPackage,
+  SOrcaPackageError,
+  type SOrcaPackageDigest,
+  type SOrcaPackageSource
+} from './sorca-verified-package'
 
 const APP_NAME = 'Orca.app'
 const BUNDLE_IDENTIFIER = 'com.stablyai.orca'
@@ -24,17 +26,6 @@ export type StagedSOrcaPackage = {
   target: string
   version: string
   signingIdentity?: string[]
-}
-
-type PackageMetadata = { version: string; size: number; sha256: string }
-type PackageSource =
-  | string
-  | { open: () => Promise<Readable>; onProgress: (percent: number) => void }
-
-export class SOrcaPackageError extends Error {
-  constructor(readonly reason: SOrcaLocalUpdateError) {
-    super(reason)
-  }
 }
 
 export function getSOrcaAppBundle(executable: string): string | null {
@@ -58,51 +49,6 @@ async function macCommand(
     throw new Error(`${basename(executable)} failed: ${result.stderr.trim()}`)
   }
   return result.stdout
-}
-
-async function copyVerifiedPackage(
-  source: PackageSource,
-  destination: string,
-  expected: PackageMetadata,
-  signal: AbortSignal
-): Promise<void> {
-  if (typeof source === 'string') {
-    const stat = await lstat(source)
-    if (!stat.isFile() || extname(source).toLowerCase() !== '.dmg' || stat.size !== expected.size) {
-      throw new SOrcaPackageError('invalid-package')
-    }
-  }
-  const hash = createHash('sha256')
-  let copiedBytes = 0
-  let lastPercent = 0
-  const countAndHash = new Transform({
-    transform(chunk: Buffer, _encoding, callback) {
-      copiedBytes += chunk.length
-      if (copiedBytes > expected.size) {
-        callback(new SOrcaPackageError('invalid-package'))
-        return
-      }
-      hash.update(chunk)
-      if (typeof source !== 'string') {
-        const percent = Math.min(99, Math.floor((copiedBytes / expected.size) * 100))
-        if (percent !== lastPercent) {
-          lastPercent = percent
-          source.onProgress(percent)
-        }
-      }
-      callback(null, chunk)
-    }
-  })
-  await pipeline(
-    typeof source === 'string' ? createReadStream(source) : await source.open(),
-    countAndHash,
-    createWriteStream(destination, { flags: 'wx', mode: 0o600 }),
-    { signal }
-  )
-  const digest = hash.digest('hex')
-  if (digest !== expected.sha256 || copiedBytes !== expected.size) {
-    throw new SOrcaPackageError('invalid-package')
-  }
 }
 
 async function readBundleField(
@@ -169,10 +115,10 @@ export async function discardStagedSOrcaPackage(root: string): Promise<void> {
 }
 
 export async function stageSOrcaMacPackage(args: {
-  source: PackageSource
+  source: SOrcaPackageSource
   target: string
   installedVersion: string
-  expected: PackageMetadata
+  expected: SOrcaPackageDigest & { version: string }
   signal: AbortSignal
 }): Promise<StagedSOrcaPackage> {
   const { source, target, installedVersion, expected, signal } = args

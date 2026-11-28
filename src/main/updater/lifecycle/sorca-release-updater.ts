@@ -16,15 +16,16 @@ import {
 } from '../local-package/sorca-local-update'
 import { describeMacUpdateBlockers } from '../mac-install/mac-browser-sidecar-recovery'
 import { getMacUpdateRunningInstances } from '../mac-install/macos-update-running-instances'
+import { sorcaWindowsInstallDirectory } from '../local-package/sorca-windows-update-package'
 
-type MacReleaseUpdate = {
+type SOrcaReleaseUpdate = {
   offer: SOrcaReleaseBuild
   automatic: boolean
   canInstall: PublishedUpdateInstallPolicy
 }
 
-export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
-  protected macUpdate: MacReleaseUpdate | undefined
+export abstract class SOrcaReleaseUpdater extends UpdaterSetup {
+  protected stagedRelease: SOrcaReleaseUpdate | undefined
 
   protected abstract holdForkUpdateForTeam(userInitiated?: boolean): boolean
   protected abstract sendForkOffer(
@@ -33,16 +34,23 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
   ): void
   protected abstract scheduleForkCheck(delay: number): void
 
-  protected get supportsMacUpdates(): boolean {
+  protected get supportsStagedReleases(): boolean {
     return (
-      process.platform === 'darwin' &&
-      process.arch === 'arm64' &&
-      this.updateInstallMode === 'interactive'
+      this.updateInstallMode === 'interactive' &&
+      ((process.platform === 'darwin' && process.arch === 'arm64') ||
+        (process.platform === 'win32' && process.arch === 'x64'))
     )
   }
 
-  protected restartMacUpdate(): void {
-    const update = this.macUpdate
+  protected hasStagedReleaseAsset(offer: SOrcaReleaseBuild): boolean {
+    return (
+      this.supportsStagedReleases &&
+      Boolean(process.platform === 'win32' ? offer.windowsUpdate : offer.macUpdate)
+    )
+  }
+
+  protected restartStagedRelease(): void {
+    const update = this.stagedRelease
     if (
       this.holdForkUpdateForTeam(true) ||
       !update ||
@@ -52,19 +60,19 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
       return
     }
     this.quitAndInstallInProgress = true
-    void this.restartIntoMacUpdate(update)
+    void this.restartIntoStagedRelease(update)
   }
 
-  protected cancelMacUpdateRestart(): void {
+  protected cancelStagedReleaseRestart(): void {
     if (!this.quittingForUpdate) {
       return
     }
     this.quittingForUpdate = false
     this.quitAndInstallInProgress = false
-    const update = this.macUpdate
+    const update = this.stagedRelease
     if (update && setSOrcaPublishedUpdateRestart(update.canInstall, false)) {
       if (update.canInstall(false)) {
-        this.sendMacUpdateReady(update)
+        this.sendStagedReleaseReady(update)
       } else {
         this.applyAutomaticUpdatesSetting()
       }
@@ -72,15 +80,16 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
     this.sendToMainWindow('updater:quitAndInstallAborted')
   }
 
-  private async restartIntoMacUpdate(update: MacReleaseUpdate): Promise<void> {
+  private async restartIntoStagedRelease(update: SOrcaReleaseUpdate): Promise<void> {
     const { offer, canInstall } = update
-    this.sendMacUpdateReady(update, true)
+    this.sendStagedReleaseReady(update, true)
     try {
       const executable = app.getPath('exe')
-      const blockers = await getMacUpdateRunningInstances(executable)
+      const blockers =
+        process.platform === 'darwin' ? await getMacUpdateRunningInstances(executable) : []
       if (blockers.length > 0) {
         const instances = await describeMacUpdateBlockers(executable, blockers)
-        if (this.macUpdate === update) {
+        if (this.stagedRelease === update) {
           this.sendInstallFailureStatus({
             state: 'error',
             version: offer.version,
@@ -91,9 +100,12 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
         }
         return
       }
+      if (process.platform === 'win32') {
+        await sorcaWindowsInstallDirectory(executable)
+      }
       await this.runBeforeUpdateQuitCleanup()
       if (
-        this.macUpdate !== update ||
+        this.stagedRelease !== update ||
         this.holdForkUpdateForTeam(true) ||
         !setSOrcaPublishedUpdateRestart(canInstall, true)
       ) {
@@ -104,7 +116,7 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
     } catch (error) {
       this.quittingForUpdate = false
       setSOrcaPublishedUpdateRestart(canInstall, false)
-      if (this.macUpdate === update) {
+      if (this.stagedRelease === update) {
         console.warn('[sorca-update] Restart preflight failed', error)
         this.sendInstallFailureStatus({
           state: 'error',
@@ -117,22 +129,25 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
       if (this.quitAndInstallInProgress && !this.quittingForUpdate) {
         this.quitAndInstallInProgress = false
         this.sendToMainWindow('updater:quitAndInstallAborted')
-        if (this.macUpdate?.automatic && this.getAutomaticUpdates?.() !== true) {
+        if (this.stagedRelease?.automatic && this.getAutomaticUpdates?.() !== true) {
           this.applyAutomaticUpdatesSetting()
         }
       }
     }
   }
 
-  protected cancelMacUpdate(): void {
-    const update = this.macUpdate
+  protected cancelStagedRelease(): void {
+    const update = this.stagedRelease
     if (update) {
-      this.macUpdate = undefined
+      this.stagedRelease = undefined
       void discardSOrcaPublishedUpdate(update.canInstall).catch(console.warn)
     }
   }
 
-  private sendMacUpdateReady({ offer, automatic }: MacReleaseUpdate, installing = false): void {
+  private sendStagedReleaseReady(
+    { offer, automatic }: SOrcaReleaseUpdate,
+    installing = false
+  ): void {
     this.sendStatus({
       state: 'downloaded',
       version: offer.version,
@@ -143,7 +158,10 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
     })
   }
 
-  protected async downloadMacRelease(offer: SOrcaReleaseBuild, automatic: boolean): Promise<void> {
+  protected async downloadStagedRelease(
+    offer: SOrcaReleaseBuild,
+    automatic: boolean
+  ): Promise<void> {
     const canInstall = (restartRequested: boolean): boolean =>
       !managesUpdates(this.getTeamUpdatePolicy?.()) &&
       (restartRequested || !automatic || this.getAutomaticUpdates?.() === true)
@@ -158,7 +176,7 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
       const preparation = stageSOrcaPublishedUpdate(
         offer,
         (percent) => {
-          if (this.macUpdate === update) {
+          if (this.stagedRelease === update) {
             this.sendStatus({ ...downloadStatus, percent })
           }
         },
@@ -176,17 +194,17 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
         }
         return
       }
-      this.macUpdate = update
+      this.stagedRelease = update
       this.sendStatus(downloadStatus)
       const result = await preparation
-      if (this.macUpdate !== update) {
+      if (this.stagedRelease !== update) {
         return
       }
       if (result.kind === 'staged' && canInstall(false)) {
-        this.sendMacUpdateReady(update)
+        this.sendStagedReleaseReady(update)
         return
       }
-      this.cancelMacUpdate()
+      this.cancelStagedRelease()
       if (this.holdForkUpdateForTeam()) {
         return
       }
@@ -211,8 +229,8 @@ export abstract class SOrcaMacReleaseUpdater extends UpdaterSetup {
         this.sendForkOffer(offer)
       }
     } catch (error) {
-      if (this.macUpdate === update) {
-        this.cancelMacUpdate()
+      if (this.stagedRelease === update) {
+        this.cancelStagedRelease()
         this.sendStatus({
           state: 'error',
           version: offer.version,

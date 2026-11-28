@@ -66,3 +66,32 @@ it('offers an in-app Mac update only for a release with the signing marker and a
     undefined
   ])
 })
+
+it('only stages the original Windows installer when GitHub supplies a verified asset digest', () => {
+  const exe = {
+    name: 'orca-windows-setup.exe',
+    state: 'uploaded',
+    size: 123,
+    digest: `sha256:${'ab'.repeat(32)}`
+  }
+  const checksums = { name: 'SHA256SUMS.txt', state: 'uploaded', size: 200 }
+  const release = { draft: false, prerelease: false }
+  const builds = sorcaReleaseBuilds(
+    [
+      { ...release, tag_name: 'v1.4.280+build.100.3', assets: [exe] },
+      { ...release, tag_name: 'v1.4.280+build.100.2', assets: [exe, checksums] },
+      {
+        ...release,
+        tag_name: 'v1.4.280+build.100.1',
+        assets: [{ ...exe, name: 'SOrca-windows-x64.exe' }, checksums]
+      }
+    ],
+    'win32',
+    'x64'
+  )
+  expect(builds.map(({ windowsUpdate }) => windowsUpdate?.sha256)).toEqual([
+    undefined,
+    'ab'.repeat(32),
+    undefined
+  ])
+})

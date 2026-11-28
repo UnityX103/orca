@@ -1,5 +1,4 @@
-import { app, net, type BrowserWindow } from 'electron'
-import { Readable } from 'node:stream'
+import { app, type BrowserWindow } from 'electron'
 import type {
   SOrcaLocalUpdateSelection,
   SOrcaLocalUpdateStatus
@@ -14,15 +13,25 @@ import {
   discardStagedSOrcaPackage,
   getSOrcaAppBundle,
   installStagedSOrcaPackage,
-  SOrcaPackageError,
   stageSOrcaMacPackage,
   type StagedSOrcaPackage
 } from './sorca-mac-update-package'
 
+import { SOrcaPackageError } from './sorca-verified-package'
+import { sorcaReleasePackageSource } from './sorca-release-package-source'
+import {
+  applySOrcaWindowsPackage,
+  discardSOrcaWindowsPackage,
+  stageSOrcaWindowsPackage,
+  type StagedSOrcaWindowsPackage
+} from './sorca-windows-update-package'
+
+type StagedPackage = StagedSOrcaPackage | StagedSOrcaWindowsPackage
+
 export type PublishedUpdateInstallPolicy = (restartRequested: boolean) => boolean
 
 type PendingPackage = {
-  staged: StagedSOrcaPackage
+  staged: StagedPackage
   installRelease?: PublishedUpdateInstallPolicy
   restartAfterInstall?: boolean
 }
@@ -53,21 +62,27 @@ export function getSOrcaLocalUpdateStatus(): SOrcaLocalUpdateStatus | null {
     : null
 }
 
+function discardStagedPackage(staged: StagedPackage): Promise<void> {
+  return 'installer' in staged
+    ? discardSOrcaWindowsPackage(staged.root)
+    : discardStagedSOrcaPackage(staged.root)
+}
+
 async function preparePackage(
-  options: Parameters<typeof stageSOrcaMacPackage>[0],
+  prepare: () => Promise<StagedPackage>,
+  signal: AbortSignal,
   installRelease?: PublishedUpdateInstallPolicy
 ): Promise<SOrcaLocalUpdateSelection> {
-  const { signal } = options
   try {
-    const staged = await stageSOrcaMacPackage(options)
+    const staged = await prepare()
     if (signal.aborted) {
-      await discardStagedSOrcaPackage(staged.root).catch(console.warn)
+      await discardStagedPackage(staged).catch(console.warn)
       return { kind: 'canceled' }
     }
     const previous = pending
     pending = { staged, installRelease }
     if (previous) {
-      await discardStagedSOrcaPackage(previous.staged.root).catch(console.warn)
+      await discardStagedPackage(previous.staged).catch(console.warn)
     }
     return { kind: 'staged', version: staged.version }
   } catch (error) {
@@ -114,13 +129,18 @@ export async function chooseSOrcaLocalUpdatePackage(
       return { kind: 'canceled' }
     }
     const abort = new AbortController()
-    const done = preparePackage({
-      source,
-      target,
-      installedVersion: app.getVersion(),
-      expected,
-      signal: abort.signal
-    })
+    const signal = abort.signal
+    const done = preparePackage(
+      () =>
+        stageSOrcaMacPackage({
+          source,
+          target,
+          installedVersion: app.getVersion(),
+          expected,
+          signal
+        }),
+      signal
+    )
     preparation = { done, abort }
     return await done
   } finally {
@@ -137,46 +157,34 @@ export function stageSOrcaPublishedUpdate(
   if (closing || selecting || pending) {
     return null
   }
-  const target = getTarget()
-  const asset = build.macUpdate
-  if (!target || !asset) {
+  const macTarget = getTarget()
+  const asset = process.platform === 'win32' ? build.windowsUpdate : build.macUpdate
+  if (!asset || (!macTarget && process.platform !== 'win32')) {
     return Promise.resolve({ kind: 'error', reason: 'package-unavailable' })
   }
   selecting = true
   const abort = new AbortController()
   const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(15 * 60 * 1000)])
+  const source = sorcaReleasePackageSource(asset, signal, onProgress)
+  const expected = { version: build.version, size: asset.size, sha256: asset.sha256 }
   const done = preparePackage(
-    {
-      source: {
-        open: async () => {
-          const response = await net.fetch(asset.url, { signal, credentials: 'omit' })
-          const body = response.body
-          if (!response.ok || !body) {
-            await body?.cancel().catch(() => {})
-            throw new Error(`Orca update download returned HTTP ${response.status}`)
-          }
-          return Readable.from(
-            (async function* () {
-              const reader = body.getReader()
-              try {
-                for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
-                  yield chunk.value
-                }
-              } finally {
-                await reader.cancel().catch(() => {})
-                reader.releaseLock()
-              }
-            })(),
-            { objectMode: false }
-          )
-        },
-        onProgress
-      },
-      target,
-      installedVersion: app.getVersion(),
-      expected: { version: build.version, size: asset.size, sha256: asset.sha256 },
-      signal
-    },
+    () =>
+      macTarget
+        ? stageSOrcaMacPackage({
+            source,
+            expected,
+            signal,
+            target: macTarget,
+            installedVersion: app.getVersion()
+          })
+        : stageSOrcaWindowsPackage({
+            source,
+            expected,
+            signal,
+            version: build.version,
+            executable: app.getPath('exe')
+          }),
+    signal,
     installRelease
   )
   preparation = { done, abort, installRelease }
@@ -222,7 +230,7 @@ export async function discardSOrcaPublishedUpdate(
   if (pending?.installRelease === installRelease) {
     const { staged } = pending
     pending = undefined
-    await discardStagedSOrcaPackage(staged.root)
+    await discardStagedPackage(staged)
   }
 }
 
@@ -230,7 +238,7 @@ export async function clearSOrcaLocalUpdatePackage(): Promise<SOrcaLocalUpdateSt
   if (!closing && !selecting && pending && !pending.installRelease) {
     const { staged } = pending
     pending = undefined
-    await discardStagedSOrcaPackage(staged.root).catch(console.warn)
+    await discardStagedPackage(staged).catch(console.warn)
   }
   return getSOrcaLocalUpdateStatus()
 }
@@ -244,6 +252,16 @@ export async function applyStagedSOrcaUpdateOnQuit(): Promise<void> {
   if (pending) {
     const { staged, installRelease, restartAfterInstall = false } = pending
     pending = undefined
+    if ('installer' in staged) {
+      await applySOrcaWindowsPackage(
+        staged,
+        app.getPath('exe'),
+        app.getVersion(),
+        restartAfterInstall,
+        () => installRelease?.(restartAfterInstall) === true
+      )
+      return
+    }
     const installed = await installStagedSOrcaPackage(
       staged,
       app.getVersion(),

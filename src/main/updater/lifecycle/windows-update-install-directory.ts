@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs'
+import { readdirSync, type Dirent } from 'node:fs'
 import { win32 } from 'node:path'
 
 const UNINSTALLER_NAME = 'Uninstall Orca.exe'
@@ -18,23 +18,25 @@ const INSTALL_FILES = new Set([
 // Electron upgrades add/rename runtime libraries and packs; only these binary types are matched by extension.
 const INSTALL_RUNTIME_BINARY = /\.(?:dll|pak)$/i
 
-// The pinned folder becomes InstallLocation, which later updates and uninstalls wipe with RMDir /r;
-// pin only a folder holding nothing but an installed Orca layout so no unrelated files are ever deleted.
-function isDedicatedOrcaInstallDirectory(directory: string): boolean {
-  if (win32.parse(directory).root === directory) {
-    return false
-  }
-  try {
-    const entries = readdirSync(directory, { withFileTypes: true })
-    if (!entries.some((entry) => entry.isFile() && entry.name === UNINSTALLER_NAME)) {
-      return false
-    }
-    return entries.every((entry) =>
+// NSIS removes the previous InstallLocation. Reject layouts that include unrelated files.
+export function hasDedicatedOrcaInstallLayout(entries: readonly Dirent[]): boolean {
+  return (
+    entries.some((entry) => entry.isFile() && entry.name === UNINSTALLER_NAME) &&
+    entries.every((entry) =>
       entry.isDirectory()
         ? INSTALL_DIRECTORIES.has(entry.name.toLowerCase())
         : entry.isFile() &&
           (INSTALL_FILES.has(entry.name.toLowerCase()) || INSTALL_RUNTIME_BINARY.test(entry.name))
     )
+  )
+}
+
+function isDedicatedOrcaInstallDirectory(directory: string): boolean {
+  if (win32.parse(directory).root === directory) {
+    return false
+  }
+  try {
+    return hasDedicatedOrcaInstallLayout(readdirSync(directory, { withFileTypes: true }))
   } catch {
     return false
   }

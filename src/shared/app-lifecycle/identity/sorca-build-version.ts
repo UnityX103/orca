@@ -5,6 +5,10 @@ export function isSOrcaVersion(version: string): boolean {
   return SORCA_RELEASE_VERSION.test(version) || SORCA_DEVELOPMENT_VERSION.test(version)
 }
 
-export function defaultsToSOrcaMacAutoUpdate(version: string | null, platform: string): boolean {
-  return platform === 'darwin' && version !== null && SORCA_RELEASE_VERSION.test(version)
+export function defaultsToSOrcaAutoUpdate(version: string | null, platform: string): boolean {
+  return (
+    (platform === 'darwin' || platform === 'win32') &&
+    version !== null &&
+    SORCA_RELEASE_VERSION.test(version)
+  )
 }

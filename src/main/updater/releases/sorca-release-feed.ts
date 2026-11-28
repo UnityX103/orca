@@ -12,8 +12,11 @@ const MAC_UPDATE_MARKER = 'orca-macos-arm64-update.json'
 
 type GitHubAsset = { name?: unknown; state?: unknown; size?: unknown; digest?: unknown }
 
+export type SOrcaReleaseAsset = { url: string; size: number; sha256: string }
+
 export type SOrcaReleaseBuild = ReleaseBuild & {
-  macUpdate?: { url: string; size: number; sha256: string }
+  macUpdate?: SOrcaReleaseAsset
+  windowsUpdate?: SOrcaReleaseAsset
 }
 
 type GitHubRelease = {
@@ -69,17 +72,22 @@ export function sorcaReleaseBuilds(
         return []
       }
       const installerUrl = `${RELEASES_URL}/download/${encodeURIComponent(tag)}/${installer}`
-      const macDmg =
-        platform === 'darwin' &&
+      const supportsMacUpdate =
         installer === 'orca-macos-arm64.dmg' &&
         assets.some((asset) => uploadedAsset(asset, MAC_UPDATE_MARKER))
-          ? assets.find((asset): asset is GitHubAsset & { size: number } =>
-              uploadedAsset(asset, installer)
-            )
-          : undefined
+      const supportsWindowsUpdate =
+        installer === 'orca-windows-setup.exe' &&
+        assets.some((asset) => uploadedAsset(asset, 'SHA256SUMS.txt'))
+      const installerAsset = assets.find((asset): asset is GitHubAsset & { size: number } =>
+        uploadedAsset(asset, installer)
+      )
       const sha256 =
-        typeof macDmg?.digest === 'string'
-          ? /^sha256:([a-f0-9]{64})$/.exec(macDmg.digest)?.[1]
+        typeof installerAsset?.digest === 'string'
+          ? /^sha256:([a-f0-9]{64})$/.exec(installerAsset.digest)?.[1]
+          : undefined
+      const update =
+        installerAsset && sha256
+          ? { url: installerUrl, size: installerAsset.size, sha256 }
           : undefined
       return [
         {
@@ -90,9 +98,8 @@ export function sorcaReleaseBuilds(
           publishedAt: typeof release.published_at === 'string' ? release.published_at : null,
           releaseUrl: `${RELEASES_URL}/tag/${encodeURIComponent(tag)}`,
           installerUrl,
-          ...(macDmg && sha256
-            ? { macUpdate: { url: installerUrl, size: macDmg.size, sha256 } }
-            : {})
+          ...(update && supportsMacUpdate ? { macUpdate: update } : {}),
+          ...(update && supportsWindowsUpdate ? { windowsUpdate: update } : {})
         }
       ]
     })

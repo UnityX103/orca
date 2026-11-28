@@ -28,6 +28,7 @@
   Push $2
   Push $3
   Push $4
+  Push $5
   Push $R0
   Push $R1
   Push $R2
@@ -42,6 +43,14 @@
   ; $R8 is the tick count after which processes still running are terminated.
   System::Call "kernel32::GetTickCount() i .R8"
   IntOp $R8 $R8 + ${ORCA_UPDATE_EXIT_GRACE_MS}
+  StrCpy $5 ""
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "--orca-deferred-update" $R1
+  ${IfNot} ${Errors}
+    StrCpy $5 "1"
+  ${EndIf}
+  ClearErrors
   StrCpy $0 ""
   ; $2 is the tick count of the first pass that terminated something.
   StrCpy $2 ""
@@ -85,6 +94,11 @@
                 ; after the user agreed), so nothing is terminated before that.
                 ${If} $1 >= 0
                 ${AndIf} $0 != ""
+                  ; A normal Orca quit must not force another instance or its agents to close.
+                  ${If} $5 == "1"
+                    SetErrorLevel 2
+                    Quit
+                  ${EndIf}
                   ${If} $2 == ""
                     StrCpy $2 $3
                   ${EndIf}
@@ -154,6 +168,7 @@
   Pop $R2
   Pop $R1
   Pop $R0
+  Pop $5
   Pop $4
   Pop $3
   Pop $2

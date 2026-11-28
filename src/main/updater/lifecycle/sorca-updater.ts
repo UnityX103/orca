@@ -19,9 +19,9 @@ import { managesUpdates } from '../releases/updater-release-policy'
 import { getDelayedUpdateWakeDelayMs, toDelayedUpdate } from '../releases/updater-release-delay'
 import { UpdaterCodedError, updaterErrorMessage } from './updater-coded-error'
 import type { UpdaterSetupOptions } from './updater-setup'
-import { SOrcaMacReleaseUpdater } from './sorca-mac-release-updater'
+import { SOrcaReleaseUpdater } from './sorca-release-updater'
 
-export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
+export class SOrcaUpdater extends SOrcaReleaseUpdater {
   private forkInitialized = false
   private checkingFork = false
   private offeredInstaller: SOrcaReleaseBuild | undefined
@@ -89,7 +89,7 @@ export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
     if (!this.usesFork) {
       return super.downloadUpdate(automatic)
     }
-    if (this.holdForkUpdateForTeam(!automatic) || this.macUpdate) {
+    if (this.holdForkUpdateForTeam(!automatic) || this.stagedRelease) {
       return
     }
     const offer = this.offeredInstaller
@@ -102,11 +102,10 @@ export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
       return
     }
     if (
-      this.supportsMacUpdates &&
-      offer.macUpdate &&
+      this.hasStagedReleaseAsset(offer) &&
       compareSOrcaBuilds(offer.version, app.getVersion()) > 0
     ) {
-      void this.downloadMacRelease(offer, automatic)
+      void this.downloadStagedRelease(offer, automatic)
     } else if (!automatic && offer.installerUrl && this.updateInstallMode === 'interactive') {
       void shell.openExternal(offer.installerUrl).catch((error: unknown) => {
         this.sendStatus({ state: 'error', message: String(error), failurePhase: 'download' })
@@ -121,13 +120,13 @@ export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
       }
       return
     }
-    if (!this.supportsMacUpdates) {
+    if (!this.supportsStagedReleases) {
       return
     }
     if (this.getAutomaticUpdates?.() === true) {
       this.runBackgroundUpdateCheck()
-    } else if (this.macUpdate?.automatic && !this.quitAndInstallInProgress) {
-      this.cancelMacUpdate()
+    } else if (this.stagedRelease?.automatic && !this.quitAndInstallInProgress) {
+      this.cancelStagedRelease()
       this.sendForkOffer(this.offeredInstaller)
     }
   }
@@ -142,12 +141,12 @@ export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
     if (trigger !== 'manual' || this.quitAndInstallInProgress) {
       return
     }
-    this.restartMacUpdate()
+    this.restartStagedRelease()
   }
 
   cancelSOrcaUpdateRestart(): void {
     if (this.usesFork) {
-      this.cancelMacUpdateRestart()
+      this.cancelStagedReleaseRestart()
     }
   }
 
@@ -157,7 +156,7 @@ export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
     }
     this.offeredInstaller = undefined
     this.delayedUpdate = null
-    this.cancelMacUpdate()
+    this.cancelStagedRelease()
     this.sendStatus({
       state: 'error',
       retryable: false,
@@ -181,7 +180,7 @@ export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
   }
 
   protected scheduleForkCheck(delay: number): void {
-    if (this.supportsMacUpdates && !SORCA_DEVELOPMENT_VERSION.test(app.getVersion())) {
+    if (this.supportsStagedReleases && !SORCA_DEVELOPMENT_VERSION.test(app.getVersion())) {
       this.scheduleAutomaticUpdateCheck(delay)
       this.autoUpdateCheckTimer?.unref()
     }
@@ -192,7 +191,7 @@ export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
     if (
       (!userInitiated && SORCA_DEVELOPMENT_VERSION.test(app.getVersion())) ||
       this.checkingFork ||
-      this.macUpdate ||
+      this.stagedRelease ||
       this.quitAndInstallInProgress
     ) {
       return false
@@ -219,8 +218,8 @@ export class SOrcaUpdater extends SOrcaMacReleaseUpdater {
         this.sendForkOffer(available, userInitiated)
         if (
           !userInitiated &&
-          this.supportsMacUpdates &&
-          available?.macUpdate &&
+          available &&
+          this.hasStagedReleaseAsset(available) &&
           this.getAutomaticUpdates?.() === true
         ) {
           this.downloadUpdate(true)
